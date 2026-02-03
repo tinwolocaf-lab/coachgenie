@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withRepeat,
+  withSequence,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTextGeneration } from '@fastshot/ai';
@@ -28,7 +31,13 @@ import {
   addSession,
   updateSession,
   getContextVault,
+  updateDayPlan,
+  getDayPlans,
 } from '@/store/app';
+import {
+  buildCoachingPrompt,
+  generateSessionArtifacts,
+} from '@/lib/ai-coaching';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -40,16 +49,16 @@ export default function ChatScreen() {
   const [coach, setCoach] = useState<Coach | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showDrawer, setShowDrawer] = useState(false);
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [userContext, setUserContext] = useState<ContextVault | null>(null);
+  const [isGeneratingArtifacts, setIsGeneratingArtifacts] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
-  const fadeAnim = useSharedValue(0);
+  const pulseAnim = useSharedValue(1);
 
   // Use @fastshot/ai for text generation
   const { generateText, isLoading: aiLoading } = useTextGeneration({
@@ -66,10 +75,24 @@ export default function ChatScreen() {
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-      setIsLoading(false);
       setIsStreaming(false);
     },
   });
+
+  // Pulse animation for typing indicator
+  useEffect(() => {
+    if (isStreaming || aiLoading) {
+      pulseAnim.value = withRepeat(
+        withSequence(
+          withTiming(0.5, { duration: 600 }),
+          withTiming(1, { duration: 600 })
+        ),
+        -1
+      );
+    } else {
+      pulseAnim.value = 1;
+    }
+  }, [isStreaming, aiLoading, pulseAnim]);
 
   useEffect(() => {
     initializeChat();
@@ -91,7 +114,7 @@ export default function ChatScreen() {
 
     const newSession: Session = {
       id: newSessionId,
-      user_id: 'local-user',
+      user_id: vault?.user_id || 'local-user',
       coach_id: coachId,
       title: 'New Session',
       status: 'active',
@@ -104,7 +127,7 @@ export default function ChatScreen() {
     let greeting = `Hello! I'm your ${coachData?.name || 'coach'}. How can I help you today?`;
 
     if (context === 'plan') {
-      greeting = `I see you want to adjust your plan. Let's review your current priorities and make some updates. What would you like to change?`;
+      greeting = `I see you want to adjust your plan. Let's review your current priorities and make some updates. What would you like to change or focus on?`;
     } else if (vault && vault.goals.length > 0) {
       const focusGoal = vault.goals.find((g) => g.is_30_day_focus);
       if (focusGoal) {
@@ -123,37 +146,8 @@ export default function ChatScreen() {
     setMessages([initialMessage]);
   };
 
-  const buildSystemPrompt = (): string => {
-    if (!coach) return '';
-
-    let systemPrompt = coach.system_prompt;
-
-    // Add user context if available
-    if (userContext) {
-      systemPrompt += `\n\nUser Context:
-- Core Values: ${userContext.values.join(', ') || 'Not specified'}
-- Goals: ${userContext.goals.map(g => g.title + (g.is_30_day_focus ? ' (30-day focus)' : '')).join(', ') || 'Not specified'}
-- Available focus time: ${userContext.constraints.available_hours_per_day} hours/day
-- Energy level: ${userContext.constraints.energy_level}
-- Best time for focus: ${userContext.constraints.best_time_for_focus}
-- Preferred tone: ${userContext.preferences.tone < 33 ? 'gentle' : userContext.preferences.tone < 66 ? 'balanced' : 'direct'}
-- Preferred directness: ${userContext.preferences.directness < 33 ? 'nurturing' : userContext.preferences.directness < 66 ? 'balanced' : 'challenging'}
-- Response length preference: ${userContext.preferences.response_length}`;
-    }
-
-    return systemPrompt;
-  };
-
-  const buildConversationHistory = (): string => {
-    // Build a summary of recent conversation for context
-    const recentMessages = messages.slice(-6); // Last 6 messages
-    return recentMessages
-      .map((m) => `${m.role === 'user' ? 'User' : 'Coach'}: ${m.content}`)
-      .join('\n');
-  };
-
   const handleSend = async () => {
-    if (!inputText.trim() || isLoading || isStreaming || aiLoading) return;
+    if (!inputText.trim() || isStreaming || aiLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -163,13 +157,12 @@ export default function ChatScreen() {
       created_at: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     const currentInput = inputText.trim();
     setInputText('');
-    setIsLoading(true);
     setIsStreaming(true);
     setStreamingText('');
-    fadeAnim.value = 0;
 
     // Scroll to bottom
     setTimeout(() => {
@@ -177,33 +170,30 @@ export default function ChatScreen() {
     }, 100);
 
     try {
-      const systemPrompt = buildSystemPrompt();
-      const conversationHistory = buildConversationHistory();
+      if (!coach) return;
 
-      const fullPrompt = `${systemPrompt}
-
-Recent conversation:
-${conversationHistory}
-
-User: ${currentInput}
-
-Respond as the coach, keeping your response focused and actionable. Be warm but efficient.`;
+      const fullPrompt = buildCoachingPrompt(
+        coach,
+        userContext,
+        updatedMessages.slice(0, -1),
+        currentInput
+      );
 
       await generateText(fullPrompt);
     } catch (error) {
       console.error('Error sending message:', error);
-      setIsLoading(false);
       setIsStreaming(false);
     }
   };
 
   const handleAIResponse = async (response: string) => {
     // Simulate streaming effect with character-by-character reveal
-    for (let i = 0; i <= response.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 12));
+    const chunkSize = 3;
+    for (let i = 0; i <= response.length; i += chunkSize) {
+      await new Promise((resolve) => setTimeout(resolve, 15));
       setStreamingText(response.slice(0, i));
-      fadeAnim.value = withTiming(1, { duration: 100 });
     }
+    setStreamingText(response);
 
     // Add the complete message
     const assistantMessage: Message = {
@@ -217,7 +207,12 @@ Respond as the coach, keeping your response focused and actionable. Be warm but 
     setMessages((prev) => [...prev, assistantMessage]);
     setStreamingText('');
     setIsStreaming(false);
-    setIsLoading(false);
+
+    // Update session title based on first exchange
+    if (messages.length === 1 && sessionId) {
+      const title = response.slice(0, 50) + (response.length > 50 ? '...' : '');
+      await updateSession(sessionId, { title });
+    }
 
     // Check if this should trigger session result
     const lastUserMessage = messages.filter(m => m.role === 'user').pop();
@@ -227,9 +222,11 @@ Respond as the coach, keeping your response focused and actionable. Be warm but 
         input.includes('done') ||
         input.includes('finish') ||
         input.includes('end session') ||
-        input.includes('wrap up')
+        input.includes('wrap up') ||
+        input.includes('that helps') ||
+        input.includes("that's all")
       ) {
-        generateSessionResult(response);
+        await generateSessionResults();
       }
     }
 
@@ -239,59 +236,96 @@ Respond as the coach, keeping your response focused and actionable. Be warm but 
     }, 100);
   };
 
-  const generateSessionResult = (lastResponse: string) => {
-    // Extract key points from the conversation
-    const userMessages = messages.filter(m => m.role === 'user').map(m => m.content);
+  const generateSessionResults = async () => {
+    if (!coach || isGeneratingArtifacts) return;
 
-    const result: SessionResult = {
-      summary: `In this session, we explored your priorities and identified actionable next steps. Key topics discussed: ${userMessages.slice(0, 3).join(', ').slice(0, 100)}...`,
-      next_actions: [
-        {
-          id: '1',
-          title: 'Complete the top priority task identified',
-          completed: false,
-        },
-        {
-          id: '2',
-          title: 'Set up a focused work block for tomorrow',
-          completed: false,
-        },
-        {
-          id: '3',
-          title: 'Review progress at end of day',
-          completed: false,
-        },
-      ],
-      plan_updates: [
-        {
-          date: new Date().toISOString().split('T')[0],
-          priorities: [
-            { id: '1', title: 'Focus on priority task', completed: false, order: 1 },
-            { id: '2', title: 'Deep work session', completed: false, order: 2 },
-            { id: '3', title: 'End-of-day review', completed: false, order: 3 },
-          ],
-        },
-      ],
-    };
+    setIsGeneratingArtifacts(true);
 
-    setSessionResult(result);
+    try {
+      // Generate artifacts using AI
+      const artifacts = await generateSessionArtifacts(
+        messages,
+        coach,
+        userContext
+      );
 
-    // Update session with summary
-    if (sessionId) {
-      updateSession(sessionId, {
-        summary: result.summary,
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-      });
+      setSessionResult(artifacts);
+
+      // Update session with summary
+      if (sessionId) {
+        await updateSession(sessionId, {
+          summary: artifacts.summary,
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        });
+      }
+
+      // Save plan updates if any
+      if (artifacts.plan_updates && artifacts.plan_updates.length > 0) {
+        const existingPlans = await getDayPlans();
+
+        for (const update of artifacts.plan_updates) {
+          const existingPlan = existingPlans.find(p => p.date === update.date);
+
+          const dayPlan = {
+            id: existingPlan?.id || `plan-${update.date}-${Date.now()}`,
+            user_id: userContext?.user_id || 'local-user',
+            date: update.date,
+            top_priorities: update.priorities || existingPlan?.top_priorities || [],
+            time_blocks: update.time_blocks || existingPlan?.time_blocks || [],
+            created_at: existingPlan?.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          await updateDayPlan(dayPlan);
+        }
+      }
+
+      // Show drawer with results
+      setShowDrawer(true);
+    } catch (error) {
+      console.error('Error generating session results:', error);
+    } finally {
+      setIsGeneratingArtifacts(false);
     }
   };
 
+  const handleEndSession = useCallback(async () => {
+    Alert.alert(
+      'End Session',
+      'Would you like to generate a summary and action items from this session?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Generate Summary',
+          onPress: generateSessionResults,
+        },
+        {
+          text: 'Just End',
+          style: 'destructive',
+          onPress: () => router.back(),
+        },
+      ]
+    );
+  }, [messages, coach, userContext, sessionId, router]);
+
   const handleBack = () => {
-    router.back();
+    if (messages.length > 2) {
+      handleEndSession();
+    } else {
+      router.back();
+    }
   };
 
   const handleOpenDrawer = () => {
-    setShowDrawer(true);
+    if (sessionResult) {
+      setShowDrawer(true);
+    } else if (messages.length > 2) {
+      generateSessionResults();
+    }
   };
 
   const handleUpdatePlan = () => {
@@ -299,8 +333,8 @@ Respond as the coach, keeping your response focused and actionable. Be warm but 
     router.push('/(tabs)/plan');
   };
 
-  const streamingAnimStyle = useAnimatedStyle(() => ({
-    opacity: fadeAnim.value,
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: pulseAnim.value,
   }));
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
@@ -344,7 +378,10 @@ Respond as the coach, keeping your response focused and actionable. Be warm but 
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{coach.name}</Text>
         <TouchableOpacity onPress={handleOpenDrawer} style={styles.drawerButton}>
-          <Ionicons name="menu-outline" size={24} color={Colors.slateGray} />
+          <View style={styles.drawerIconContainer}>
+            <Ionicons name="document-text-outline" size={22} color={Colors.slateGray} />
+            {sessionResult && <View style={styles.drawerBadge} />}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -364,17 +401,28 @@ Respond as the coach, keeping your response focused and actionable. Be warm but 
           ListFooterComponent={() => (
             <>
               {isStreaming && streamingText && (
-                <Animated.View style={[styles.messageContainer, streamingAnimStyle]}>
+                <Animated.View style={styles.messageContainer}>
                   <View style={styles.aiBubble}>
                     <Text style={styles.messageText}>{streamingText}</Text>
+                    <Animated.View style={[styles.cursor, pulseStyle]} />
                   </View>
                   <Text style={styles.coachTyping}>{coach.name} is typing...</Text>
                 </Animated.View>
               )}
-              {(isLoading || aiLoading) && !isStreaming && !streamingText && (
+              {(aiLoading && !isStreaming && !streamingText) && (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color={Colors.electricIndigo} />
+                  <Animated.View style={[styles.typingDots, pulseStyle]}>
+                    <View style={styles.dot} />
+                    <View style={[styles.dot, styles.dotMiddle]} />
+                    <View style={styles.dot} />
+                  </Animated.View>
                   <Text style={styles.loadingText}>{coach.name} is thinking...</Text>
+                </View>
+              )}
+              {isGeneratingArtifacts && (
+                <View style={styles.artifactsLoading}>
+                  <ActivityIndicator size="small" color={Colors.electricIndigo} />
+                  <Text style={styles.artifactsText}>Generating session summary...</Text>
                 </View>
               )}
             </>
@@ -391,21 +439,22 @@ Respond as the coach, keeping your response focused and actionable. Be warm but 
             onChangeText={setInputText}
             multiline
             maxLength={1000}
-            editable={!isLoading && !isStreaming && !aiLoading}
+            editable={!aiLoading && !isStreaming}
+            onSubmitEditing={handleSend}
           />
           <TouchableOpacity
             style={[
               styles.sendButton,
-              (!inputText.trim() || isLoading || isStreaming || aiLoading) && styles.sendButtonDisabled,
+              (!inputText.trim() || aiLoading || isStreaming) && styles.sendButtonDisabled,
             ]}
             onPress={handleSend}
-            disabled={!inputText.trim() || isLoading || isStreaming || aiLoading}
+            disabled={!inputText.trim() || aiLoading || isStreaming}
           >
             <Ionicons
               name="send"
               size={20}
               color={
-                !inputText.trim() || isLoading || isStreaming || aiLoading
+                !inputText.trim() || aiLoading || isStreaming
                   ? Colors.slateLight
                   : Colors.electricIndigo
               }
@@ -467,6 +516,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     padding: Spacing.xs,
   },
+  drawerIconContainer: {
+    position: 'relative',
+  },
+  drawerBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
+  },
   chatContainer: {
     flex: 1,
   },
@@ -494,6 +555,9 @@ const styles = StyleSheet.create({
   aiBubble: {
     backgroundColor: Colors.aiMessage,
     borderBottomLeftRadius: Radius.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end',
   },
   messageText: {
     fontSize: Typography.sizes.body,
@@ -502,6 +566,13 @@ const styles = StyleSheet.create({
   },
   userMessageText: {
     color: Colors.white,
+  },
+  cursor: {
+    width: 2,
+    height: 16,
+    backgroundColor: Colors.electricIndigo,
+    marginLeft: 2,
+    marginBottom: 3,
   },
   coachTyping: {
     fontSize: Typography.sizes.caption,
@@ -514,10 +585,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.md,
   },
+  typingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.aiMessage,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.xl,
+    borderBottomLeftRadius: Radius.sm,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.slateLight,
+  },
+  dotMiddle: {
+    marginHorizontal: Spacing.xs,
+  },
   loadingText: {
     fontSize: Typography.sizes.caption,
     color: Colors.slateLight,
     marginLeft: Spacing.sm,
+  },
+  artifactsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.electricIndigo + '10',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    marginTop: Spacing.md,
+  },
+  artifactsText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.electricIndigo,
+    marginLeft: Spacing.sm,
+    fontWeight: Typography.weights.medium,
   },
   inputContainer: {
     flexDirection: 'row',

@@ -6,8 +6,28 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Colors } from '@/constants/theme';
 import { isOnboardingComplete } from '@/store/onboarding';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
-export default function RootLayout() {
+// Conditionally import AuthProvider
+let AuthProvider: React.ComponentType<{
+  supabaseClient: typeof supabase;
+  routes?: {
+    login: string;
+    afterLogin: string;
+  };
+  children: React.ReactNode;
+}> | null = null;
+
+try {
+  if (isSupabaseConfigured) {
+    const authModule = require('@fastshot/auth');
+    AuthProvider = authModule.AuthProvider;
+  }
+} catch {
+  // Auth not available
+}
+
+function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -33,50 +53,85 @@ export default function RootLayout() {
   }
 
   return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: Colors.offWhite },
+      }}
+    >
+      <Stack.Screen
+        name="index"
+        options={{
+          animation: 'none',
+        }}
+      />
+      <Stack.Screen
+        name="(auth)"
+        options={{
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="onboarding"
+        options={{
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="(tabs)"
+        options={{
+          animation: 'fade',
+        }}
+      />
+      <Stack.Screen
+        name="chat/[coachId]"
+        options={{
+          animation: 'slide_from_bottom',
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="coach/[id]"
+        options={{
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="auth/callback"
+        options={{
+          animation: 'none',
+        }}
+      />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  // Wrap with AuthProvider if available
+  const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: Colors.offWhite },
-          }}
-        >
-          <Stack.Screen
-            name="index"
-            options={{
-              animation: 'none',
-            }}
-          />
-          <Stack.Screen
-            name="onboarding"
-            options={{
-              animation: 'slide_from_right',
-            }}
-          />
-          <Stack.Screen
-            name="(tabs)"
-            options={{
-              animation: 'fade',
-            }}
-          />
-          <Stack.Screen
-            name="chat/[coachId]"
-            options={{
-              animation: 'slide_from_bottom',
-              presentation: 'modal',
-            }}
-          />
-          <Stack.Screen
-            name="coach/[id]"
-            options={{
-              animation: 'slide_from_right',
-            }}
-          />
-        </Stack>
+        <AppContent />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+
+  if (isSupabaseConfigured && AuthProvider) {
+    return (
+      <AuthProvider
+        supabaseClient={supabase}
+        routes={{
+          login: '/(auth)/login',
+          afterLogin: '/(tabs)',
+        }}
+      >
+        {content}
+      </AuthProvider>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
