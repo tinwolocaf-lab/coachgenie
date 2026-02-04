@@ -245,6 +245,13 @@ function AppContent() {
           gestureDirection: 'vertical',
         }}
       />
+      <Stack.Screen
+        name="archive"
+        options={{
+          animation: 'fade',
+          presentation: 'card',
+        }}
+      />
     </Stack>
   );
 }

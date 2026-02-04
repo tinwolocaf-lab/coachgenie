@@ -30,7 +30,8 @@ import { StreakTimeline } from '@/components/ui/StreakTimeline';
 import { FeaturedCard } from '@/components/ui/FeaturedCard';
 import { QuickActions } from '@/components/ui/QuickActions';
 import { StaggeredFadeIn } from '@/components/ui/AnimatedContainer';
-import { Coach, Session, DayPlan, Priority } from '@/types';
+import { FlashbackCard } from '@/components/archive/FlashbackCard';
+import { Coach, Session, DayPlan, Priority, KeyInsight } from '@/types';
 import { getCoachById, SAMPLE_COACHES } from '@/data/coaches';
 import {
   getActiveCoachId,
@@ -39,6 +40,7 @@ import {
   getInstalledCoaches,
 } from '@/store/app';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { getFlashbackInsights } from '@/lib/supabase-archive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -89,6 +91,7 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState<string>('');
   const [currentStreak, setCurrentStreak] = useState(3);
   const [featuredCoach, setFeaturedCoach] = useState<Coach | null>(null);
+  const [flashbackInsight, setFlashbackInsight] = useState<{ insight: KeyInsight; type: 'monthAgo' | 'yearAgo' } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -120,6 +123,8 @@ export default function HomeScreen() {
       // Set streak based on sessions
       const sessionCount = sessions.length;
       setCurrentStreak(Math.min(sessionCount + 1, 7));
+
+      // Note: Flashback loading happens in useEffect with auth
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -129,12 +134,28 @@ export default function HomeScreen() {
     loadData();
   }, [loadData]);
 
-  // Get user name from auth
+  // Get user name from auth and load flashback insights
   useEffect(() => {
     if (auth?.user) {
       const metadata = auth.user.user_metadata || {};
       const name = metadata.full_name || metadata.name || auth.user.email?.split('@')[0] || '';
       setUserName(name.split(' ')[0]); // First name only
+
+      // Load flashback insights
+      const loadFlashback = async () => {
+        try {
+          const flashbacks = await getFlashbackInsights(auth.user.id);
+          // Prefer year ago over month ago for more impact
+          if (flashbacks.yearAgo) {
+            setFlashbackInsight({ insight: flashbacks.yearAgo, type: 'yearAgo' });
+          } else if (flashbacks.monthAgo) {
+            setFlashbackInsight({ insight: flashbacks.monthAgo, type: 'monthAgo' });
+          }
+        } catch (error) {
+          console.log('No flashback insights available:', error);
+        }
+      };
+      loadFlashback();
     }
   }, [auth?.user]);
 
@@ -169,6 +190,13 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (featuredCoach) {
       router.push(`/coach/${featuredCoach.id}`);
+    }
+  };
+
+  const handleFlashbackPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (flashbackInsight) {
+      router.push(`/archive/insight/${flashbackInsight.insight.id}`);
     }
   };
 
@@ -207,21 +235,21 @@ export default function HomeScreen() {
       onPress: handleStartCheckIn,
     },
     {
+      id: 'archive',
+      label: 'The Archive',
+      icon: 'library-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push('/archive');
+      },
+    },
+    {
       id: 'vault',
       label: 'Context Vault',
       icon: 'diamond-outline' as keyof typeof Ionicons.glyphMap,
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push('/(tabs)/vault');
-      },
-    },
-    {
-      id: 'plan',
-      label: 'View Plan',
-      icon: 'calendar-outline' as keyof typeof Ionicons.glyphMap,
-      onPress: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push('/(tabs)/plan');
       },
     },
   ];
@@ -350,9 +378,22 @@ export default function HomeScreen() {
           </View>
         </StaggeredFadeIn>
 
+        {/* Flashback - From Your Archive */}
+        {flashbackInsight && (
+          <StaggeredFadeIn index={4} baseDelay={400}>
+            <View style={styles.flashbackSection}>
+              <FlashbackCard
+                insight={flashbackInsight.insight}
+                type={flashbackInsight.type}
+                onPress={handleFlashbackPress}
+              />
+            </View>
+          </StaggeredFadeIn>
+        )}
+
         {/* Featured Card - Editorial Magazine Style */}
         {featuredCoach && (
-          <StaggeredFadeIn index={4} baseDelay={400}>
+          <StaggeredFadeIn index={5} baseDelay={450}>
             <View style={styles.featuredSection}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Featured</Text>
@@ -373,7 +414,7 @@ export default function HomeScreen() {
         )}
 
         {/* Today's Focus */}
-        <StaggeredFadeIn index={5} baseDelay={500}>
+        <StaggeredFadeIn index={6} baseDelay={500}>
           <View style={styles.focusSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today&apos;s Focus</Text>
@@ -406,7 +447,7 @@ export default function HomeScreen() {
 
         {/* Recent Sessions */}
         {recentSessions.length > 0 && (
-          <StaggeredFadeIn index={6} baseDelay={700}>
+          <StaggeredFadeIn index={7} baseDelay={700}>
             <View style={styles.sessionsSection}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Recent Sessions</Text>
@@ -658,6 +699,12 @@ const styles = StyleSheet.create({
 
   // Quick Actions
   quickActionsContainer: {
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.lg,
+  },
+
+  // Flashback Section
+  flashbackSection: {
     paddingHorizontal: Spacing.xxl,
     marginBottom: Spacing.lg,
   },

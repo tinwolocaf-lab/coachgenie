@@ -224,3 +224,75 @@ export interface EnhancedSession extends Session {
   breakthrough_summary?: string;
   messages?: EnhancedMessage[];
 }
+
+// Archive Types
+export interface MonthlySynthesis {
+  id: string;
+  user_id: string;
+  month_year: string;
+  title: string;
+  executive_summary: string;
+  key_themes: ThemeItem[];
+  growth_areas: string[];
+  patterns_identified: PatternItem[];
+  coach_contributions: Record<string, CoachContribution>;
+  breakthrough_count: number;
+  insight_count: number;
+  session_count: number;
+  created_at: string;
+}
+
+export interface ThemeItem {
+  name: string;
+  frequency: number;
+  relatedInsights: string[];
+}
+
+export interface PatternItem {
+  pattern: string;
+  observation: string;
+  recommendation: string;
+}
+
+export interface CoachContribution {
+  coachId: string;
+  coachName: string;
+  sessionCount: number;
+  insightCount: number;
+}
+
+export interface InsightCollection {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  theme_keywords: string[];
+  color: string;
+  icon: string;
+  insight_count: number;
+  is_auto_generated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HistoryQuery {
+  id: string;
+  user_id: string;
+  query: string;
+  response: string;
+  sources: QuerySource[];
+  created_at: string;
+}
+
+export interface QuerySource {
+  type: 'session' | 'insight' | 'breakthrough';
+  id: string;
+  title: string;
+  date: string;
+}
+
+export interface FlashbackItem {
+  type: 'monthAgo' | 'yearAgo';
+  insight: KeyInsight;
+  reflection?: string;
+}

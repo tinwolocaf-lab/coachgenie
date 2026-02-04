@@ -1,0 +1,348 @@
+// WisdomGrid - Magazine-style grid displaying Key Insight cards
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import Animated, {
+  FadeIn,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+  withSpring,
+  interpolate,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { KeyInsight } from '@/types';
+import { getCoachById } from '@/data/coaches';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const GRID_GAP = Spacing.md;
+const CARD_WIDTH_SMALL = (SCREEN_WIDTH - Spacing.xxl * 2 - GRID_GAP) / 2;
+const CARD_WIDTH_LARGE = SCREEN_WIDTH - Spacing.xxl * 2;
+
+interface WisdomGridProps {
+  insights: KeyInsight[];
+  onInsightPress: (insight: KeyInsight) => void;
+  maxItems?: number;
+}
+
+export function WisdomGrid({ insights, onInsightPress, maxItems = 6 }: WisdomGridProps) {
+  const displayInsights = insights.slice(0, maxItems);
+
+  if (displayInsights.length === 0) {
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="sparkles-outline" size={40} color={Colors.stoneGray} />
+        <Text style={styles.emptyText}>Your wisdom collection awaits</Text>
+        <Text style={styles.emptySubtext}>
+          Insights from your coaching sessions will appear here
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {displayInsights.map((insight, index) => {
+        // Create varied sizes for magazine effect
+        const isLarge = index === 0 || (index === 3 && displayInsights.length > 4);
+        const isHighlighted = insight.is_highlighted;
+
+        return (
+          <InsightCard
+            key={insight.id}
+            insight={insight}
+            index={index}
+            isLarge={isLarge}
+            isHighlighted={isHighlighted}
+            onPress={() => onInsightPress(insight)}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+interface InsightCardProps {
+  insight: KeyInsight;
+  index: number;
+  isLarge: boolean;
+  isHighlighted: boolean;
+  onPress: () => void;
+}
+
+function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: InsightCardProps) {
+  const scale = useSharedValue(0.8);
+  const opacity = useSharedValue(0);
+  const shimmerPosition = useSharedValue(0);
+
+  const coach = getCoachById(insight.coach_id);
+  const categoryColors: Record<string, string[]> = {
+    mindset: ['#1B3022', '#2D4A38'],
+    strategy: ['#2C1E1B', '#4A3632'],
+    productivity: ['#1A2A3A', '#2B3D50'],
+    systems: ['#2A2A1A', '#454530'],
+    general: [Colors.midnightEmerald, '#243D2E'],
+  };
+
+  const gradientColors = isHighlighted
+    ? [Colors.burnishedGold, Colors.goldLight]
+    : categoryColors[insight.category] || categoryColors.general;
+
+  useEffect(() => {
+    // Unfolding animation
+    const delay = index * 100;
+    scale.value = withDelay(delay, withSpring(1, Timing.springGentle));
+    opacity.value = withDelay(delay, withTiming(1, { duration: 500 }));
+
+    // Gold dust shimmer for new items
+    if (isHighlighted) {
+      shimmerPosition.value = withDelay(
+        delay + 300,
+        withTiming(1, { duration: 1000 })
+      );
+    }
+  }, [index, isHighlighted, opacity, scale, shimmerPosition]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shimmerPosition.value, [0, 0.5, 1], [0, 0.6, 0]),
+    transform: [
+      {
+        translateX: interpolate(
+          shimmerPosition.value,
+          [0, 1],
+          [-100, isLarge ? CARD_WIDTH_LARGE : CARD_WIDTH_SMALL + 100]
+        ),
+      },
+    ],
+  }));
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
+  const formattedDate = new Date(insight.created_at).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.cardWrapper,
+        isLarge ? styles.cardLarge : styles.cardSmall,
+        animatedStyle,
+      ]}
+    >
+      <TouchableOpacity
+        activeOpacity={0.95}
+        onPress={handlePress}
+        style={styles.cardTouchable}
+      >
+        <LinearGradient
+          colors={gradientColors as [string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.card, isLarge ? styles.cardContentLarge : styles.cardContentSmall]}
+        >
+          {/* Gold dust shimmer overlay */}
+          <Animated.View style={[styles.shimmerOverlay, shimmerStyle]}>
+            <LinearGradient
+              colors={['transparent', Colors.goldShimmer, 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.shimmerGradient}
+            />
+          </Animated.View>
+
+          {/* Category badge */}
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryText}>
+              {insight.category.charAt(0).toUpperCase() + insight.category.slice(1)}
+            </Text>
+          </View>
+
+          {/* Content */}
+          <View style={styles.cardContent}>
+            <Text
+              style={[styles.cardTitle, isLarge && styles.cardTitleLarge]}
+              numberOfLines={isLarge ? 3 : 2}
+            >
+              {insight.title}
+            </Text>
+
+            {isLarge && (
+              <Text style={styles.cardExcerpt} numberOfLines={3}>
+                {insight.content}
+              </Text>
+            )}
+          </View>
+
+          {/* Footer */}
+          <View style={styles.cardFooter}>
+            <View style={styles.coachBadge}>
+              <Ionicons
+                name={coach?.icon_name as keyof typeof Ionicons.glyphMap || 'person'}
+                size={12}
+                color={Colors.white}
+              />
+              <Text style={styles.coachName}>{coach?.name || 'Coach'}</Text>
+            </View>
+            <Text style={styles.dateText}>{formattedDate}</Text>
+          </View>
+
+          {/* Highlighted star */}
+          {isHighlighted && (
+            <View style={styles.highlightStar}>
+              <Ionicons name="star" size={14} color={Colors.white} />
+            </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
+    paddingHorizontal: Spacing.xxl,
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: Spacing.xxxl,
+    paddingHorizontal: Spacing.xxl,
+  },
+  emptyText: {
+    fontSize: Typography.sizes.title,
+    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.serif,
+    color: Colors.charcoal,
+    marginTop: Spacing.lg,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+  },
+  cardWrapper: {
+    borderRadius: Radius.squircle,
+    overflow: 'hidden',
+    ...Shadows.lg,
+  },
+  cardSmall: {
+    width: CARD_WIDTH_SMALL,
+  },
+  cardLarge: {
+    width: CARD_WIDTH_LARGE,
+  },
+  cardTouchable: {
+    flex: 1,
+  },
+  card: {
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  cardContentSmall: {
+    padding: Spacing.lg,
+    minHeight: 160,
+    justifyContent: 'space-between',
+  },
+  cardContentLarge: {
+    padding: Spacing.xl,
+    minHeight: 200,
+    justifyContent: 'space-between',
+  },
+  shimmerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+  },
+  shimmerGradient: {
+    width: 100,
+    height: '100%',
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+  },
+  categoryText: {
+    fontSize: Typography.sizes.micro,
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: Typography.letterSpacing.wider,
+    textTransform: 'uppercase',
+    fontWeight: Typography.weights.semibold,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+  },
+  cardTitle: {
+    fontSize: Typography.sizes.bodyLarge,
+    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.serif,
+    color: Colors.white,
+    lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.snug,
+  },
+  cardTitleLarge: {
+    fontSize: Typography.sizes.title,
+    lineHeight: Typography.sizes.title * Typography.lineHeights.snug,
+  },
+  cardExcerpt: {
+    fontSize: Typography.sizes.body,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: Spacing.sm,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  coachBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+  },
+  coachName: {
+    fontSize: Typography.sizes.caption,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: Typography.weights.medium,
+  },
+  dateText: {
+    fontSize: Typography.sizes.caption,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  highlightStar: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: 4,
+    borderRadius: Radius.full,
+  },
+});
