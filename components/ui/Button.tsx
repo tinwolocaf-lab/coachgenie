@@ -7,6 +7,7 @@ import {
   ViewStyle,
   TextStyle,
   StyleProp,
+  View,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -16,7 +17,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 
-interface ButtonProps {
+export interface ButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'gold';
@@ -27,6 +28,8 @@ interface ButtonProps {
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   haptic?: boolean;
+  icon?: React.ReactNode;
+  iconPosition?: 'left' | 'right';
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -42,6 +45,8 @@ export function Button({
   style,
   textStyle,
   haptic = true,
+  icon,
+  iconPosition = 'left',
 }: ButtonProps) {
   const scale = useSharedValue(1);
 
@@ -82,6 +87,29 @@ export function Button({
     textStyle,
   ];
 
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <ActivityIndicator
+          color={variant === 'ghost' || variant === 'outline' ? Colors.midnightEmerald : Colors.white}
+          size="small"
+        />
+      );
+    }
+
+    if (icon) {
+      return (
+        <View style={styles.contentRow}>
+          {iconPosition === 'left' && <View style={styles.iconLeft}>{icon}</View>}
+          <Text style={textStyles}>{title}</Text>
+          {iconPosition === 'right' && <View style={styles.iconRight}>{icon}</View>}
+        </View>
+      );
+    }
+
+    return <Text style={textStyles}>{title}</Text>;
+  };
+
   return (
     <AnimatedTouchable
       style={buttonStyles}
@@ -91,14 +119,7 @@ export function Button({
       disabled={disabled || loading}
       activeOpacity={1}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'ghost' || variant === 'outline' ? Colors.midnightEmerald : Colors.white}
-          size="small"
-        />
-      ) : (
-        <Text style={textStyles}>{title}</Text>
-      )}
+      {renderContent()}
     </AnimatedTouchable>
   );
 }
@@ -158,6 +179,19 @@ const styles = StyleSheet.create({
 
   disabled: {
     opacity: 0.5,
+  },
+
+  // Content with icon
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconLeft: {
+    marginRight: Spacing.sm,
+  },
+  iconRight: {
+    marginLeft: Spacing.sm,
   },
 
   // Text Styles

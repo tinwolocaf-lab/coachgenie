@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -41,6 +41,7 @@ const getAuthHook = () => {
 // Wrapper component when auth is available
 function AuthenticatedLogin() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ error?: string }>();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth ? useAuth() : null;
@@ -48,11 +49,26 @@ function AuthenticatedLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
+
+  // Handle error from URL params (e.g., from callback failures)
+  useEffect(() => {
+    if (params.error) {
+      setUrlError(decodeURIComponent(params.error));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+  }, [params.error]);
+
+  // Clear URL error when auth error changes or user interacts
+  const clearUrlError = () => {
+    if (urlError) setUrlError(null);
+  };
 
   const isLoading = auth?.isLoading || false;
-  const error = auth?.error?.message || null;
+  const error = urlError || auth?.error?.message || null;
 
   const handleEmailLogin = async () => {
+    clearUrlError();
     if (!email.trim() || !password.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Required Fields', 'Please enter your email and password to continue.');
@@ -68,13 +84,25 @@ function AuthenticatedLogin() {
   };
 
   const handleGoogleSignIn = async () => {
+    clearUrlError();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await auth?.signInWithGoogle();
+    try {
+      await auth?.signInWithGoogle();
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
   };
 
   const handleAppleSignIn = async () => {
+    clearUrlError();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await auth?.signInWithApple();
+    try {
+      await auth?.signInWithApple();
+    } catch (err) {
+      console.error('Apple sign-in error:', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
   };
 
   return (
