@@ -179,3 +179,48 @@ export const AVAILABLE_VALUES = [
 ] as const;
 
 export type AvailableValue = typeof AVAILABLE_VALUES[number];
+
+// Key Insight Types (for Journal)
+export interface KeyInsight {
+  id: string;
+  user_id: string;
+  session_id?: string;
+  coach_id: string;
+  title: string;
+  content: string;
+  category: 'mindset' | 'strategy' | 'productivity' | 'systems' | 'general';
+  is_highlighted: boolean;
+  created_at: string;
+}
+
+// Breakthrough Types
+export interface Breakthrough {
+  id: string;
+  user_id: string;
+  session_id?: string;
+  coach_id: string;
+  title: string;
+  summary: string;
+  key_takeaways: string[];
+  action_items: BreakthroughAction[];
+  date: string;
+  created_at: string;
+}
+
+export interface BreakthroughAction {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+// Enhanced Message with insight marking
+export interface EnhancedMessage extends Message {
+  is_insight?: boolean;
+  insight_title?: string;
+}
+
+// Session with enhanced metadata
+export interface EnhancedSession extends Session {
+  breakthrough_summary?: string;
+  messages?: EnhancedMessage[];
+}

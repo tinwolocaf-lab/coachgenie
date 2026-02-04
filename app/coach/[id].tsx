@@ -11,7 +11,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
@@ -124,7 +124,8 @@ export default function CoachDetailScreen() {
 
   const handleStartChat = () => {
     if (coach) {
-      router.push(`/chat/${coach.id}`);
+      // Navigate to the premium Sanctuary session
+      router.push(`/sanctuary/${coach.id}`);
     }
   };
 
@@ -193,38 +194,58 @@ export default function CoachDetailScreen() {
         >
           {isInstalled ? (
             <>
+              {/* Primary action - Enter Session */}
+              <Button
+                title="Enter Sanctuary"
+                onPress={handleStartChat}
+                variant="gold"
+                fullWidth
+                icon={<Ionicons name="sparkles" size={18} color={Colors.white} />}
+              />
+
               {!isActive && (
                 <Button
-                  title="Set as Active Coach"
+                  title="Set as Primary Coach"
                   onPress={handleSetActive}
+                  variant="outline"
                   fullWidth
                   loading={loading}
+                  style={styles.secondaryAction}
                 />
               )}
+
               {isActive && (
+                <View style={styles.activeBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                  <Text style={styles.activeBadgeText}>Your Primary Coach</Text>
+                </View>
+              )}
+
+              {!isActive && (
                 <Button
-                  title="Chat with Coach"
-                  onPress={handleStartChat}
+                  title="Remove from Library"
+                  onPress={handleUninstall}
+                  variant="ghost"
                   fullWidth
+                  loading={loading}
+                  style={styles.secondaryAction}
                 />
               )}
-              <Button
-                title={isActive ? 'Active Coach' : 'Uninstall'}
-                onPress={isActive ? () => {} : handleUninstall}
-                variant={isActive ? 'secondary' : 'ghost'}
-                fullWidth
-                disabled={isActive}
-                loading={loading}
-                style={styles.secondaryAction}
-              />
             </>
           ) : (
-            <Button
-              title="Install Coach"
-              onPress={handleInstall}
-              fullWidth
-              loading={loading}
-            />
+            <>
+              <Button
+                title="Add to Your Library"
+                onPress={handleInstall}
+                variant="gold"
+                fullWidth
+                loading={loading}
+                icon={<Ionicons name="add-circle-outline" size={18} color={Colors.white} />}
+              />
+              <Text style={styles.installHint}>
+                Install to unlock private sessions with this coach
+              </Text>
+            </>
           )}
         </Animated.View>
 
@@ -333,6 +354,29 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     marginTop: Spacing.md,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.successLight,
+    borderRadius: Radius.pill,
+    gap: Spacing.sm,
+  },
+  activeBadgeText: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.medium,
+    color: Colors.success,
+  },
+  installHint: {
+    marginTop: Spacing.lg,
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   infoFooter: {
     marginTop: Spacing.xxl,

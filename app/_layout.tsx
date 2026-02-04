@@ -236,6 +236,15 @@ function AppContent() {
           presentation: 'card',
         }}
       />
+      <Stack.Screen
+        name="sanctuary"
+        options={{
+          animation: 'fade',
+          presentation: 'fullScreenModal',
+          gestureEnabled: true,
+          gestureDirection: 'vertical',
+        }}
+      />
     </Stack>
   );
 }
