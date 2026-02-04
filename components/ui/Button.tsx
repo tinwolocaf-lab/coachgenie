@@ -6,65 +6,100 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  StyleProp,
 } from 'react-native';
-import { Colors, Radius, Typography, Spacing } from '@/constants/theme';
+import Animated, {
+  useAnimatedStyle,
+  withSpring,
+  useSharedValue,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'gold';
   size?: 'sm' | 'md' | 'lg';
+  fullWidth?: boolean;
   disabled?: boolean;
   loading?: boolean;
-  fullWidth?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  haptic?: boolean;
 }
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export function Button({
   title,
   onPress,
   variant = 'primary',
   size = 'md',
+  fullWidth = false,
   disabled = false,
   loading = false,
-  fullWidth = false,
   style,
   textStyle,
+  haptic = true,
 }: ButtonProps) {
-  const buttonStyles = [
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.96, Timing.springBouncy);
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, Timing.springBouncy);
+  };
+
+  const handlePress = () => {
+    if (haptic) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onPress();
+  };
+
+  const buttonStyles: StyleProp<ViewStyle>[] = [
     styles.base,
-    styles[variant],
-    styles[`size_${size}`],
+    styles[variant as keyof typeof styles] as ViewStyle,
+    styles[`size_${size}` as keyof typeof styles] as ViewStyle,
     fullWidth && styles.fullWidth,
     (disabled || loading) && styles.disabled,
+    animatedStyle,
     style,
   ];
 
-  const textStyles = [
+  const textStyles: StyleProp<TextStyle>[] = [
     styles.text,
-    styles[`text_${variant}`],
-    styles[`textSize_${size}`],
+    styles[`text_${variant}` as keyof typeof styles] as TextStyle,
+    styles[`textSize_${size}` as keyof typeof styles] as TextStyle,
     (disabled || loading) && styles.textDisabled,
     textStyle,
   ];
 
   return (
-    <TouchableOpacity
+    <AnimatedTouchable
       style={buttonStyles}
-      onPress={onPress}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled || loading}
-      activeOpacity={0.8}
+      activeOpacity={1}
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? Colors.white : Colors.electricIndigo}
+          color={variant === 'ghost' || variant === 'outline' ? Colors.midnightEmerald : Colors.white}
           size="small"
         />
       ) : (
         <Text style={textStyles}>{title}</Text>
       )}
-    </TouchableOpacity>
+    </AnimatedTouchable>
   );
 }
 
@@ -73,15 +108,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.lg,
   },
 
   // Variants
   primary: {
-    backgroundColor: Colors.electricIndigo,
+    backgroundColor: Colors.midnightEmerald,
+    borderRadius: Radius.pill,
+    ...Shadows.md,
   },
   secondary: {
-    backgroundColor: Colors.inputBg,
+    backgroundColor: Colors.warmOatmealDark,
+    borderRadius: Radius.pill,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -89,23 +126,29 @@ const styles = StyleSheet.create({
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: Colors.electricIndigo,
+    borderColor: Colors.midnightEmerald,
+    borderRadius: Radius.pill,
+  },
+  gold: {
+    backgroundColor: Colors.burnishedGold,
+    borderRadius: Radius.pill,
+    ...Shadows.gold,
   },
 
   // Sizes
   size_sm: {
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.lg,
     minHeight: 36,
   },
   size_md: {
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.md + 2,
     paddingHorizontal: Spacing.xl,
     minHeight: 48,
   },
   size_lg: {
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.lg + 2,
+    paddingHorizontal: Spacing.xxxl,
     minHeight: 56,
   },
 
@@ -121,18 +164,22 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: Typography.weights.semibold,
     textAlign: 'center',
+    letterSpacing: Typography.letterSpacing.wide,
   },
   text_primary: {
     color: Colors.white,
   },
   text_secondary: {
-    color: Colors.slateCharcoal,
+    color: Colors.charcoal,
   },
   text_ghost: {
-    color: Colors.electricIndigo,
+    color: Colors.midnightEmerald,
   },
   text_outline: {
-    color: Colors.electricIndigo,
+    color: Colors.midnightEmerald,
+  },
+  text_gold: {
+    color: Colors.white,
   },
 
   // Text Sizes

@@ -6,10 +6,11 @@ export default function OnboardingLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'slide_from_right',
-        contentStyle: { backgroundColor: Colors.offWhite },
+        animation: 'fade',
+        contentStyle: { backgroundColor: Colors.warmOatmeal },
         gestureEnabled: true,
         gestureDirection: 'horizontal',
+        animationDuration: 500,
       }}
     >
       <Stack.Screen name="index" />

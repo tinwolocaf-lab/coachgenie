@@ -47,7 +47,7 @@ function AppContent() {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.electricIndigo} />
+        <ActivityIndicator size="large" color={Colors.burnishedGold} />
       </View>
     );
   }
@@ -56,7 +56,8 @@ function AppContent() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: Colors.offWhite },
+        contentStyle: { backgroundColor: Colors.warmOatmeal },
+        animation: 'fade',
       }}
     >
       <Stack.Screen
@@ -74,7 +75,7 @@ function AppContent() {
       <Stack.Screen
         name="onboarding"
         options={{
-          animation: 'slide_from_right',
+          animation: 'fade',
         }}
       />
       <Stack.Screen
@@ -139,6 +140,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.offWhite,
+    backgroundColor: Colors.warmOatmeal,
   },
 });

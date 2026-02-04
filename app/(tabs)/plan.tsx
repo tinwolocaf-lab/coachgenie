@@ -7,19 +7,33 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInUp, FadeIn, FadeInRight, Layout } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import Animated, {
+  FadeInUp,
+  FadeIn,
+  FadeInLeft,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  useSharedValue,
+  interpolate,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { DayPlan, Priority, TimeBlock } from '@/types';
 import { getDayPlans, updateDayPlan, getActiveCoachId, getContextVault } from '@/store/app';
 import { generate7DayPlan } from '@/lib/ai-coaching';
 import { getCoachById } from '@/data/coaches';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Generate dates for the 7-day view
 function generateWeekDates(): Date[] {
@@ -36,7 +50,6 @@ function generateWeekDates(): Date[] {
 export default function PlanScreen() {
   const router = useRouter();
   const [weekDates] = useState(generateWeekDates);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [dayPlans, setDayPlans] = useState<DayPlan[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [activeCoachId, setActiveCoachId] = useState<string | null>(null);
@@ -87,6 +100,8 @@ export default function PlanScreen() {
     if (!activeCoachId) return;
 
     setIsGeneratingPlan(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     try {
       const userContext = await getContextVault();
       const coach = getCoachById(activeCoachId);
@@ -94,7 +109,6 @@ export default function PlanScreen() {
       if (coach) {
         const newPlans = await generate7DayPlan(userContext, coach, dayPlans);
 
-        // Save all generated plans
         for (const plan of newPlans) {
           await updateDayPlan(plan);
         }
@@ -120,17 +134,21 @@ export default function PlanScreen() {
     );
   };
 
-  const selectedDateStr = formatDateStr(selectedDate);
-  const selectedPlan = dayPlans.find((p) => p.date === selectedDateStr);
+  // Calculate weekly stats
+  const weeklyStats = {
+    completed: dayPlans.reduce((acc, plan) =>
+      acc + plan.top_priorities.filter(p => p.completed).length, 0
+    ),
+    remaining: dayPlans.reduce((acc, plan) =>
+      acc + plan.top_priorities.filter(p => !p.completed).length, 0
+    ),
+    timeBlocks: dayPlans.reduce((acc, plan) => acc + plan.time_blocks.length, 0),
+  };
 
-  // Calculate completion percentage
-  const completedCount = selectedPlan?.top_priorities.filter(p => p.completed).length || 0;
-  const totalCount = selectedPlan?.top_priorities.length || 0;
-  const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-  // Default priorities for empty days
-  const displayPriorities: Priority[] = selectedPlan?.top_priorities || [];
-  const displayTimeBlocks: TimeBlock[] = selectedPlan?.time_blocks || [];
+  const totalPriorities = weeklyStats.completed + weeklyStats.remaining;
+  const completionRate = totalPriorities > 0
+    ? Math.round((weeklyStats.completed / totalPriorities) * 100)
+    : 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -141,520 +159,699 @@ export default function PlanScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.electricIndigo}
+            tintColor={Colors.burnishedGold}
           />
         }
       >
-        {/* Header */}
-        <Animated.View entering={FadeInUp.duration(400)} style={styles.header}>
-          <Text style={styles.headerTitle}>7-Day Plan</Text>
+        {/* Editorial Header */}
+        <Animated.View entering={FadeInUp.duration(600)} style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerLabel}>Your Journey</Text>
+            <Text style={styles.headerTitle}>7-Day Timeline</Text>
+            <Text style={styles.headerSubtitle}>
+              A curated plan aligned with your values and goals
+            </Text>
+          </View>
+
+          {/* Generate Button */}
           {activeCoachId && (
-            <TouchableOpacity onPress={handleGeneratePlan} disabled={isGeneratingPlan}>
-              {isGeneratingPlan ? (
-                <ActivityIndicator size="small" color={Colors.electricIndigo} />
-              ) : (
-                <Ionicons name="sparkles" size={24} color={Colors.electricIndigo} />
-              )}
+            <TouchableOpacity
+              style={styles.generateButton}
+              onPress={handleGeneratePlan}
+              disabled={isGeneratingPlan}
+            >
+              <LinearGradient
+                colors={[Colors.burnishedGold, Colors.goldLight]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.generateGradient}
+              >
+                {isGeneratingPlan ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <>
+                    <Ionicons name="sparkles" size={18} color={Colors.white} />
+                    <Text style={styles.generateText}>Generate</Text>
+                  </>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </Animated.View>
 
-        {/* Week Navigation */}
-        <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.weekScroll}
-            contentContainerStyle={styles.weekContent}
+        {/* Weekly Progress Card */}
+        <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.progressSection}>
+          <BlurView intensity={40} tint="light" style={styles.progressCard}>
+            <View style={styles.progressHeader}>
+              <View style={styles.progressCircle}>
+                <Text style={styles.progressPercentage}>{completionRate}%</Text>
+              </View>
+              <View style={styles.progressInfo}>
+                <Text style={styles.progressTitle}>Week Progress</Text>
+                <Text style={styles.progressSubtitle}>
+                  {weeklyStats.completed} of {totalPriorities} priorities complete
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <View style={[styles.statDot, { backgroundColor: Colors.success }]} />
+                <Text style={styles.statValue}>{weeklyStats.completed}</Text>
+                <Text style={styles.statLabel}>Done</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <View style={[styles.statDot, { backgroundColor: Colors.burnishedGold }]} />
+                <Text style={styles.statValue}>{weeklyStats.remaining}</Text>
+                <Text style={styles.statLabel}>Pending</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <View style={[styles.statDot, { backgroundColor: Colors.midnightEmerald }]} />
+                <Text style={styles.statValue}>{weeklyStats.timeBlocks}</Text>
+                <Text style={styles.statLabel}>Blocks</Text>
+              </View>
+            </View>
+          </BlurView>
+        </Animated.View>
+
+        {/* Vertical Timeline */}
+        <View style={styles.timelineSection}>
+          <Animated.Text
+            entering={FadeInUp.duration(600).delay(200)}
+            style={styles.sectionTitle}
           >
+            Your Week Ahead
+          </Animated.Text>
+
+          <View style={styles.timeline}>
             {weekDates.map((date, index) => {
-              const isSelected = formatDateStr(date) === formatDateStr(selectedDate);
+              const dateStr = formatDateStr(date);
+              const plan = dayPlans.find(p => p.date === dateStr);
               const isTodayDate = isToday(date);
-              const datePlan = dayPlans.find(p => p.date === formatDateStr(date));
-              const hasActivities = datePlan && datePlan.top_priorities.length > 0;
-              const dayCompleted = datePlan?.top_priorities.every(p => p.completed);
+              const hasContent = plan && (plan.top_priorities.length > 0 || plan.time_blocks.length > 0);
+              const dayCompleted = plan?.top_priorities.every(p => p.completed) && plan?.top_priorities.length > 0;
 
               return (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.dayButton,
-                    isSelected && styles.dayButtonSelected,
-                    isTodayDate && !isSelected && styles.dayButtonToday,
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedDate(date);
-                  }}
-                  activeOpacity={0.7}
+                <Animated.View
+                  key={dateStr}
+                  entering={FadeInLeft.duration(500).delay(300 + index * 80)}
                 >
-                  <Text
-                    style={[
-                      styles.dayName,
-                      isSelected && styles.dayNameSelected,
-                    ]}
-                  >
-                    {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dayNumber,
-                      isSelected && styles.dayNumberSelected,
-                    ]}
-                  >
-                    {date.getDate()}
-                  </Text>
-                  {/* Activity indicator */}
-                  <View style={styles.dayIndicatorContainer}>
-                    {hasActivities && (
-                      <View
-                        style={[
-                          styles.activityDot,
-                          isSelected && styles.activityDotSelected,
-                          dayCompleted && styles.activityDotCompleted,
-                        ]}
-                      />
-                    )}
-                    {isTodayDate && (
-                      <View
-                        style={[
-                          styles.todayDot,
-                          isSelected && styles.todayDotSelected,
-                        ]}
-                      />
-                    )}
-                  </View>
-                </TouchableOpacity>
+                  <TimelineDay
+                    date={date}
+                    plan={plan}
+                    isToday={isTodayDate}
+                    isCompleted={dayCompleted ?? false}
+                    hasContent={hasContent ?? false}
+                    isLast={index === weekDates.length - 1}
+                    onTogglePriority={(priorityId) => handleTogglePriority(dateStr, priorityId)}
+                  />
+                </Animated.View>
               );
             })}
-          </ScrollView>
-        </Animated.View>
-
-        {/* Selected Day Content */}
-        <Animated.View entering={FadeInUp.duration(400).delay(200)}>
-          <View style={styles.selectedDateHeader}>
-            <View>
-              <Text style={styles.selectedDateTitle}>
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </Text>
-              {isToday(selectedDate) && (
-                <Text style={styles.todayLabel}>Today</Text>
-              )}
-            </View>
-            {totalCount > 0 && (
-              <View style={styles.progressBadge}>
-                <Text style={styles.progressText}>{completionPercentage}%</Text>
-              </View>
-            )}
           </View>
+        </View>
 
-          {/* Top 3 Priorities */}
-          {displayPriorities.length > 0 ? (
-            <Card style={styles.prioritiesCard} variant="elevated">
-              <View style={styles.cardHeader}>
-                <Ionicons name="flag" size={18} color={Colors.electricIndigo} />
-                <Text style={styles.cardTitle}>Top 3 Priorities</Text>
-              </View>
-              <View style={styles.prioritiesList}>
-                {displayPriorities.map((priority, index) => (
-                  <Animated.View
-                    key={priority.id}
-                    entering={FadeInRight.duration(300).delay(index * 100)}
-                    layout={Layout.springify()}
-                  >
-                    <TouchableOpacity
-                      style={styles.priorityItem}
-                      onPress={() => handleTogglePriority(selectedDateStr, priority.id)}
-                      activeOpacity={0.7}
-                    >
-                      <View
-                        style={[
-                          styles.priorityCheckbox,
-                          priority.completed && styles.priorityCheckboxCompleted,
-                        ]}
-                      >
-                        {priority.completed && (
-                          <Ionicons name="checkmark" size={14} color={Colors.white} />
-                        )}
-                      </View>
-                      <Text
-                        style={[
-                          styles.priorityText,
-                          priority.completed && styles.priorityTextCompleted,
-                        ]}
-                      >
-                        {index + 1}. {priority.title}
-                      </Text>
-                    </TouchableOpacity>
-                  </Animated.View>
-                ))}
-              </View>
-
-              {/* Progress bar */}
-              {totalCount > 0 && (
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressBar}>
-                    <Animated.View
-                      style={[
-                        styles.progressFill,
-                        { width: `${completionPercentage}%` },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.progressLabel}>
-                    {completedCount} of {totalCount} completed
-                  </Text>
-                </View>
-              )}
-            </Card>
-          ) : (
-            <Card style={styles.emptyCard} variant="elevated">
-              <Ionicons
-                name="calendar-outline"
-                size={48}
-                color={Colors.slateLight}
+        {/* Empty State */}
+        {dayPlans.length === 0 && (
+          <Animated.View entering={FadeIn.duration(600).delay(400)} style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="calendar-outline" size={48} color={Colors.stoneGray} />
+            </View>
+            <Text style={styles.emptyTitle}>Your timeline awaits</Text>
+            <Text style={styles.emptyText}>
+              {activeCoachId
+                ? 'Generate a personalized plan based on your values and goals.'
+                : 'Install a coach to start crafting your ideal week.'}
+            </Text>
+            {activeCoachId && (
+              <Button
+                title="Create My Plan"
+                onPress={handleGeneratePlan}
+                loading={isGeneratingPlan}
+                variant="gold"
+                style={styles.emptyButton}
               />
-              <Text style={styles.emptyTitle}>No plan for this day</Text>
-              <Text style={styles.emptyText}>
-                {activeCoachId
-                  ? 'Generate a plan with AI or chat with your coach to create priorities.'
-                  : 'Install a coach to start planning your days.'}
-              </Text>
-              {activeCoachId && (
-                <Button
-                  title="Generate Plan"
-                  onPress={handleGeneratePlan}
-                  loading={isGeneratingPlan}
-                  size="sm"
-                  style={styles.generateButton}
-                />
-              )}
-            </Card>
-          )}
+            )}
+          </Animated.View>
+        )}
 
-          {/* Time Blocks */}
-          {displayTimeBlocks.length > 0 && (
-            <Card style={styles.timeBlocksCard} variant="elevated">
-              <View style={styles.cardHeader}>
-                <Ionicons name="time" size={18} color={Colors.electricIndigo} />
-                <Text style={styles.cardTitle}>Time Blocks</Text>
-              </View>
-              <View style={styles.timeBlocksList}>
-                {displayTimeBlocks.map((block, index) => (
-                  <Animated.View
-                    key={block.id}
-                    entering={FadeIn.duration(300).delay(index * 100)}
-                  >
-                    <View style={styles.timeBlock}>
-                      <View style={styles.timeBlockTime}>
-                        <Text style={styles.timeBlockTimeText}>
-                          {block.start_time}
-                        </Text>
-                        <Text style={styles.timeBlockDivider}>-</Text>
-                        <Text style={styles.timeBlockTimeText}>
-                          {block.end_time}
-                        </Text>
-                      </View>
-                      <View style={styles.timeBlockContent}>
-                        <Text style={styles.timeBlockTitle}>{block.title}</Text>
-                        {block.category && (
-                          <View style={styles.categoryBadge}>
-                            <Text style={styles.categoryText}>{block.category}</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  </Animated.View>
-                ))}
-              </View>
-            </Card>
-          )}
-
-          {/* Adjust Button */}
-          {activeCoachId && (
-            <Animated.View entering={FadeIn.duration(300).delay(400)}>
-              <TouchableOpacity
-                style={styles.adjustButton}
-                onPress={handleAdjustWithCoach}
-                activeOpacity={0.8}
+        {/* Adjust with Coach */}
+        {activeCoachId && dayPlans.length > 0 && (
+          <Animated.View entering={FadeInUp.duration(500).delay(600)} style={styles.adjustSection}>
+            <TouchableOpacity
+              style={styles.adjustButton}
+              onPress={handleAdjustWithCoach}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={[Colors.midnightEmerald, '#0D1A11']}
+                style={styles.adjustGradient}
               >
-                <View style={styles.adjustButtonContent}>
-                  <Ionicons name="chatbubble-ellipses" size={20} color={Colors.white} />
-                  <Text style={styles.adjustButtonText}>Adjust with coach</Text>
+                <View style={styles.adjustContent}>
+                  <View style={styles.adjustIconContainer}>
+                    <Ionicons name="chatbubble-ellipses" size={24} color={Colors.burnishedGold} />
+                  </View>
+                  <View style={styles.adjustTextContainer}>
+                    <Text style={styles.adjustTitle}>Refine with your coach</Text>
+                    <Text style={styles.adjustSubtitle}>
+                      Discuss adjustments and optimize your week
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.burnishedGold} />
                 </View>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-        </Animated.View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
-        {/* Weekly Overview */}
-        <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.weeklyOverview}>
-          <Text style={styles.sectionTitle}>Weekly Overview</Text>
-          <View style={styles.weeklyStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {dayPlans.reduce((acc, plan) =>
-                  acc + plan.top_priorities.filter(p => p.completed).length, 0
-                )}
-              </Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {dayPlans.reduce((acc, plan) =>
-                  acc + plan.top_priorities.filter(p => !p.completed).length, 0
-                )}
-              </Text>
-              <Text style={styles.statLabel}>Remaining</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {dayPlans.reduce((acc, plan) =>
-                  acc + plan.time_blocks.length, 0
-                )}
-              </Text>
-              <Text style={styles.statLabel}>Time Blocks</Text>
-            </View>
-          </View>
-        </Animated.View>
+        {/* Bottom Spacer */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// Timeline Day Component
+function TimelineDay({
+  date,
+  plan,
+  isToday,
+  isCompleted,
+  hasContent,
+  isLast,
+  onTogglePriority,
+}: {
+  date: Date;
+  plan: DayPlan | undefined;
+  isToday: boolean;
+  isCompleted: boolean;
+  hasContent: boolean;
+  isLast: boolean;
+  onTogglePriority: (priorityId: string) => void;
+}) {
+  const scale = useSharedValue(1);
+
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+  const dayNumber = date.getDate();
+  const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+
+  const priorities = plan?.top_priorities || [];
+  const timeBlocks = plan?.time_blocks || [];
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <View style={styles.timelineDayContainer}>
+      {/* Timeline Line */}
+      <View style={styles.timelineLineContainer}>
+        {/* Node */}
+        <View style={[
+          styles.timelineNode,
+          isToday && styles.timelineNodeToday,
+          isCompleted && styles.timelineNodeCompleted,
+        ]}>
+          {isToday && (
+            <View style={styles.timelineNodeInner} />
+          )}
+          {isCompleted && (
+            <Ionicons name="checkmark" size={12} color={Colors.white} />
+          )}
+        </View>
+
+        {/* Vertical Line */}
+        {!isLast && (
+          <View style={[
+            styles.timelineLine,
+            hasContent && styles.timelineLineActive,
+          ]} />
+        )}
+      </View>
+
+      {/* Day Content */}
+      <View style={styles.timelineDayContent}>
+        {/* Date Header */}
+        <View style={styles.dateHeader}>
+          <View style={styles.dateInfo}>
+            <Text style={[styles.dayName, isToday && styles.dayNameToday]}>
+              {dayName}
+            </Text>
+            <Text style={[styles.dayNumber, isToday && styles.dayNumberToday]}>
+              {dayNumber}
+            </Text>
+            <Text style={styles.monthName}>{monthName}</Text>
+          </View>
+          {isToday && (
+            <View style={styles.todayBadge}>
+              <Text style={styles.todayBadgeText}>Today</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Priorities */}
+        {priorities.length > 0 && (
+          <Animated.View style={[styles.prioritiesContainer, animatedStyle]}>
+            <View style={styles.prioritiesHeader}>
+              <View style={styles.goldAccent} />
+              <Text style={styles.prioritiesTitle}>Priorities</Text>
+            </View>
+            {priorities.map((priority, index) => (
+              <TouchableOpacity
+                key={priority.id}
+                style={styles.priorityItem}
+                onPress={() => onTogglePriority(priority.id)}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  styles.priorityNumber,
+                  priority.completed && styles.priorityNumberCompleted,
+                ]}>
+                  {priority.completed ? (
+                    <Ionicons name="checkmark" size={12} color={Colors.white} />
+                  ) : (
+                    <Text style={styles.priorityNumberText}>{index + 1}</Text>
+                  )}
+                </View>
+                <Text style={[
+                  styles.priorityText,
+                  priority.completed && styles.priorityTextCompleted,
+                ]}>
+                  {priority.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        )}
+
+        {/* Time Blocks */}
+        {timeBlocks.length > 0 && (
+          <View style={styles.timeBlocksContainer}>
+            <View style={styles.timeBlocksHeader}>
+              <View style={[styles.goldAccent, styles.goldAccentSmall]} />
+              <Text style={styles.timeBlocksTitle}>Time Blocks</Text>
+            </View>
+            {timeBlocks.map((block) => (
+              <View key={block.id} style={styles.timeBlockItem}>
+                <View style={styles.timeBlockTimeContainer}>
+                  <Text style={styles.timeBlockTime}>{block.start_time}</Text>
+                  <View style={styles.timeBlockTimeLine} />
+                  <Text style={styles.timeBlockTime}>{block.end_time}</Text>
+                </View>
+                <View style={styles.timeBlockContent}>
+                  <Text style={styles.timeBlockTitle}>{block.title}</Text>
+                  {block.category && (
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.categoryText}>{block.category}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Empty Day */}
+        {!hasContent && (
+          <View style={styles.emptyDay}>
+            <Text style={styles.emptyDayText}>No activities planned</Text>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.offWhite,
+    backgroundColor: Colors.warmOatmeal,
   },
   scrollContent: {
-    paddingBottom: Spacing.xxxl,
+    paddingBottom: Spacing.section,
   },
+
+  // Header
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xxl,
+  },
+  headerContent: {
+    marginBottom: Spacing.lg,
+  },
+  headerLabel: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.medium,
+    color: Colors.burnishedGold,
+    letterSpacing: Typography.letterSpacing.wider,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
   },
   headerTitle: {
-    fontSize: Typography.sizes.headline,
-    fontWeight: Typography.weights.bold,
-    color: Colors.slateCharcoal,
+    fontSize: Typography.sizes.hero,
+    fontWeight: Typography.weights.light,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+    letterSpacing: Typography.letterSpacing.tight,
   },
-  weekScroll: {
-    marginBottom: Spacing.xl,
+  headerSubtitle: {
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
+    marginTop: Spacing.sm,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
-  weekContent: {
+  generateButton: {
+    alignSelf: 'flex-start',
+    borderRadius: Radius.pill,
+    overflow: 'hidden',
+    ...Shadows.gold,
+  },
+  generateGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
     gap: Spacing.sm,
   },
-  dayButton: {
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.xl,
-    backgroundColor: Colors.white,
-    minWidth: 60,
-    ...Shadows.sm,
-  },
-  dayButtonSelected: {
-    backgroundColor: Colors.electricIndigo,
-  },
-  dayButtonToday: {
-    borderWidth: 2,
-    borderColor: Colors.electricIndigo,
-  },
-  dayName: {
-    fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.medium,
-    color: Colors.slateGray,
-    marginBottom: Spacing.xs,
-  },
-  dayNameSelected: {
+  generateText: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.semibold,
     color: Colors.white,
   },
-  dayNumber: {
+
+  // Progress Card
+  progressSection: {
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.xxl,
+  },
+  progressCard: {
+    borderRadius: Radius.squircle,
+    padding: Spacing.xl,
+    backgroundColor: Colors.glassBg,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    overflow: 'hidden',
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  progressCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.goldMuted,
+    borderWidth: 3,
+    borderColor: Colors.burnishedGold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.lg,
+  },
+  progressPercentage: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
-    color: Colors.slateCharcoal,
+    color: Colors.burnishedGold,
   },
-  dayNumberSelected: {
-    color: Colors.white,
+  progressInfo: {
+    flex: 1,
   },
-  dayIndicatorContainer: {
-    flexDirection: 'row',
-    gap: 4,
+  progressTitle: {
+    fontSize: Typography.sizes.subtitle,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+  },
+  progressSubtitle: {
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
     marginTop: Spacing.xs,
-    height: 6,
   },
-  activityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.electricIndigoLight,
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
-  activityDotSelected: {
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  statDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statValue: {
+    fontSize: Typography.sizes.title,
+    fontWeight: Typography.weights.bold,
+    color: Colors.charcoal,
+  },
+  statLabel: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.stoneGray,
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: Colors.border,
+  },
+
+  // Timeline Section
+  timelineSection: {
+    paddingHorizontal: Spacing.xxl,
+  },
+  sectionTitle: {
+    fontSize: Typography.sizes.title,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+    marginBottom: Spacing.xl,
+  },
+  timeline: {
+    paddingLeft: Spacing.sm,
+  },
+
+  // Timeline Day
+  timelineDayContainer: {
+    flexDirection: 'row',
+    marginBottom: Spacing.md,
+  },
+  timelineLineContainer: {
+    width: 24,
+    alignItems: 'center',
+  },
+  timelineNode: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.stoneGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  timelineNodeToday: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.burnishedGold,
+  },
+  timelineNodeInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: Colors.white,
   },
-  activityDotCompleted: {
+  timelineNodeCompleted: {
     backgroundColor: Colors.success,
   },
-  todayDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.electricIndigo,
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: Colors.border,
+    marginTop: -2,
   },
-  todayDotSelected: {
-    backgroundColor: Colors.white,
+  timelineLineActive: {
+    backgroundColor: Colors.goldMuted,
+    width: 3,
   },
-  selectedDateHeader: {
+  timelineDayContent: {
+    flex: 1,
+    marginLeft: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+
+  // Date Header
+  dateHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
   },
-  selectedDateTitle: {
-    fontSize: Typography.sizes.title,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
+  dateInfo: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.sm,
   },
-  todayLabel: {
-    fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.electricIndigo,
-    marginTop: Spacing.xs,
+  dayName: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.medium,
+    color: Colors.stoneGray,
+    textTransform: 'uppercase',
+    letterSpacing: Typography.letterSpacing.wide,
   },
-  progressBadge: {
-    backgroundColor: Colors.electricIndigo + '15',
+  dayNameToday: {
+    color: Colors.burnishedGold,
+  },
+  dayNumber: {
+    fontSize: Typography.sizes.headline,
+    fontWeight: Typography.weights.bold,
+    color: Colors.charcoal,
+    fontFamily: Typography.fonts.serif,
+  },
+  dayNumberToday: {
+    color: Colors.burnishedGold,
+  },
+  monthName: {
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
+  },
+  todayBadge: {
+    backgroundColor: Colors.goldMuted,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
-    borderRadius: Radius.full,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.burnishedGold,
   },
-  progressText: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.bold,
-    color: Colors.electricIndigo,
+  todayBadgeText: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.burnishedGold,
   },
-  prioritiesCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.md,
+
+  // Priorities
+  prioritiesContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.squircle,
     padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.sm,
   },
-  cardHeader: {
+  prioritiesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
-  cardTitle: {
-    fontSize: Typography.sizes.bodyLarge,
+  goldAccent: {
+    width: 3,
+    height: 16,
+    backgroundColor: Colors.burnishedGold,
+    borderRadius: 2,
+    marginRight: Spacing.sm,
+  },
+  goldAccentSmall: {
+    height: 12,
+  },
+  prioritiesTitle: {
+    fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
-    marginLeft: Spacing.sm,
-  },
-  prioritiesList: {
-    gap: Spacing.md,
+    color: Colors.charcoal,
+    letterSpacing: Typography.letterSpacing.wide,
+    textTransform: 'uppercase',
   },
   priorityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.inputBg,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
   },
-  priorityCheckbox: {
+  priorityNumber: {
     width: 24,
     height: 24,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    marginRight: Spacing.md,
+    borderRadius: 12,
+    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: Spacing.md,
   },
-  priorityCheckboxCompleted: {
-    backgroundColor: Colors.electricIndigo,
-    borderColor: Colors.electricIndigo,
+  priorityNumberCompleted: {
+    backgroundColor: Colors.success,
+  },
+  priorityNumberText: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.bold,
+    color: Colors.burnishedGold,
   },
   priorityText: {
-    fontSize: Typography.sizes.body,
-    color: Colors.slateCharcoal,
     flex: 1,
+    fontSize: Typography.sizes.body,
+    color: Colors.charcoal,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.normal,
   },
   priorityTextCompleted: {
     textDecorationLine: 'line-through',
-    color: Colors.slateLight,
+    color: Colors.stoneGray,
   },
-  progressContainer: {
-    marginTop: Spacing.lg,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: Colors.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.electricIndigo,
-    borderRadius: 2,
-  },
-  progressLabel: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.slateLight,
-    marginTop: Spacing.xs,
-  },
-  timeBlocksCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.md,
+
+  // Time Blocks
+  timeBlocksContainer: {
+    backgroundColor: Colors.warmOatmealDark,
+    borderRadius: Radius.xl,
     padding: Spacing.lg,
-  },
-  timeBlocksList: {
-    gap: Spacing.sm,
-  },
-  timeBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.inputBg,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.electricIndigo,
+    borderLeftColor: Colors.goldMuted,
   },
-  timeBlockTime: {
+  timeBlocksHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 100,
+    marginBottom: Spacing.md,
   },
-  timeBlockTimeText: {
+  timeBlocksTitle: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.slateGray,
+    color: Colors.charcoal,
+    letterSpacing: Typography.letterSpacing.wide,
+    textTransform: 'uppercase',
   },
-  timeBlockDivider: {
+  timeBlockItem: {
+    flexDirection: 'row',
+    paddingVertical: Spacing.sm,
+  },
+  timeBlockTimeContainer: {
+    alignItems: 'center',
+    marginRight: Spacing.md,
+    minWidth: 50,
+  },
+  timeBlockTime: {
     fontSize: Typography.sizes.caption,
-    color: Colors.slateLight,
-    marginHorizontal: Spacing.xs,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.stoneGray,
+  },
+  timeBlockTimeLine: {
+    width: 1,
+    height: 8,
+    backgroundColor: Colors.border,
+    marginVertical: 2,
   },
   timeBlockContent: {
     flex: 1,
-    marginLeft: Spacing.md,
   },
   timeBlockTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.slateCharcoal,
+    color: Colors.charcoal,
   },
   categoryBadge: {
-    backgroundColor: Colors.electricIndigo + '15',
+    backgroundColor: Colors.goldMuted,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
@@ -662,86 +859,98 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   categoryText: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.electricIndigo,
+    fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.medium,
+    color: Colors.burnishedGold,
+    textTransform: 'uppercase',
+    letterSpacing: Typography.letterSpacing.wide,
   },
-  emptyCard: {
-    marginHorizontal: Spacing.xl,
+
+  // Empty Day
+  emptyDay: {
+    paddingVertical: Spacing.sm,
+  },
+  emptyDayText: {
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
+    fontStyle: 'italic',
+  },
+
+  // Empty State
+  emptyState: {
     alignItems: 'center',
-    paddingVertical: Spacing.xxl,
-    padding: Spacing.xl,
+    paddingVertical: Spacing.xxxl,
+    paddingHorizontal: Spacing.xxl,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.warmOatmealDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xl,
   },
   emptyTitle: {
-    fontSize: Typography.sizes.bodyLarge,
+    fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
-    marginTop: Spacing.md,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
+    color: Colors.stoneGray,
     textAlign: 'center',
-    marginTop: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    lineHeight: 22,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
+    marginBottom: Spacing.xl,
   },
-  generateButton: {
-    marginTop: Spacing.lg,
+  emptyButton: {
+    minWidth: 180,
+  },
+
+  // Adjust Section
+  adjustSection: {
+    paddingHorizontal: Spacing.xxl,
+    marginTop: Spacing.xl,
   },
   adjustButton: {
-    marginHorizontal: Spacing.xl,
-    marginTop: Spacing.lg,
-    backgroundColor: Colors.electricIndigo,
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
-    ...Shadows.md,
+    borderRadius: Radius.squircle,
+    overflow: 'hidden',
+    ...Shadows.lg,
   },
-  adjustButtonContent: {
+  adjustGradient: {
+    padding: Spacing.xl,
+  },
+  adjustContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  adjustButtonText: {
+  adjustIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(197, 160, 89, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.lg,
+  },
+  adjustTextContainer: {
+    flex: 1,
+  },
+  adjustTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     color: Colors.white,
-    marginLeft: Spacing.sm,
+    fontFamily: Typography.fonts.serif,
   },
-  weeklyOverview: {
-    marginTop: Spacing.xxl,
-    marginHorizontal: Spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: Typography.sizes.subtitle,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
-    marginBottom: Spacing.md,
-  },
-  weeklyStats: {
-    flexDirection: 'row',
-    backgroundColor: Colors.white,
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
-    ...Shadows.sm,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: Typography.sizes.headline,
-    fontWeight: Typography.weights.bold,
-    color: Colors.electricIndigo,
-  },
-  statLabel: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.slateGray,
+  adjustSubtitle: {
+    fontSize: Typography.sizes.body,
+    color: 'rgba(255, 255, 255, 0.7)',
     marginTop: Spacing.xs,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: Spacing.md,
+
+  bottomSpacer: {
+    height: 100,
   },
 });

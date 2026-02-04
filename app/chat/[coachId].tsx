@@ -10,21 +10,32 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import Animated, {
+  FadeIn,
+  FadeInUp,
   FadeInDown,
+  SlideInDown,
+  SlideOutDown,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withRepeat,
   withSequence,
+  withSpring,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { useTextGeneration } from '@fastshot/ai';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
-import { ActionDrawer } from '@/components/ActionDrawer';
+import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { CoachIcon } from '@/components/ui/CoachIcon';
 import { Coach, Message, Session, SessionResult, ContextVault } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import {
@@ -41,6 +52,7 @@ import {
 
 export default function ChatScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { coachId, context } = useLocalSearchParams<{
     coachId: string;
     context?: string;
@@ -52,7 +64,7 @@ export default function ChatScreen() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [showDrawer, setShowDrawer] = useState(false);
+  const [showPaperArtifact, setShowPaperArtifact] = useState(false);
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [isGeneratingArtifacts, setIsGeneratingArtifacts] = useState(false);
@@ -60,7 +72,6 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useSharedValue(1);
 
-  // Use @fastshot/ai for text generation
   const { generateText, isLoading: aiLoading } = useTextGeneration({
     onSuccess: (response) => {
       handleAIResponse(response);
@@ -79,12 +90,11 @@ export default function ChatScreen() {
     },
   });
 
-  // Pulse animation for typing indicator
   useEffect(() => {
     if (isStreaming || aiLoading) {
       pulseAnim.value = withRepeat(
         withSequence(
-          withTiming(0.5, { duration: 600 }),
+          withTiming(0.4, { duration: 600 }),
           withTiming(1, { duration: 600 })
         ),
         -1
@@ -104,11 +114,9 @@ export default function ChatScreen() {
     const coachData = getCoachById(coachId);
     setCoach(coachData || null);
 
-    // Get user context for personalization
     const vault = await getContextVault();
     setUserContext(vault);
 
-    // Create a new session
     const newSessionId = Date.now().toString();
     setSessionId(newSessionId);
 
@@ -123,15 +131,14 @@ export default function ChatScreen() {
 
     await addSession(newSession);
 
-    // Build personalized greeting
-    let greeting = `Hello! I'm your ${coachData?.name || 'coach'}. How can I help you today?`;
+    let greeting = `Welcome. I'm here to help you make meaningful progress today. What's on your mind?`;
 
     if (context === 'plan') {
-      greeting = `I see you want to adjust your plan. Let's review your current priorities and make some updates. What would you like to change or focus on?`;
+      greeting = `Let's refine your plan together. What would you like to adjust or focus on?`;
     } else if (vault && vault.goals.length > 0) {
       const focusGoal = vault.goals.find((g) => g.is_30_day_focus);
       if (focusGoal) {
-        greeting = `Hello! I know your 30-day focus is "${focusGoal.title}". What's on your mind today? How can I help you make progress?`;
+        greeting = `Good to see you. Your 30-day focus is "${focusGoal.title}". How can I help you move forward today?`;
       }
     }
 
@@ -149,6 +156,8 @@ export default function ChatScreen() {
   const handleSend = async () => {
     if (!inputText.trim() || isStreaming || aiLoading) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     const userMessage: Message = {
       id: Date.now().toString(),
       session_id: sessionId || '',
@@ -164,7 +173,6 @@ export default function ChatScreen() {
     setIsStreaming(true);
     setStreamingText('');
 
-    // Scroll to bottom
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -187,7 +195,6 @@ export default function ChatScreen() {
   };
 
   const handleAIResponse = async (response: string) => {
-    // Simulate streaming effect with character-by-character reveal
     const chunkSize = 3;
     for (let i = 0; i <= response.length; i += chunkSize) {
       await new Promise((resolve) => setTimeout(resolve, 15));
@@ -195,7 +202,6 @@ export default function ChatScreen() {
     }
     setStreamingText(response);
 
-    // Add the complete message
     const assistantMessage: Message = {
       id: Date.now().toString(),
       session_id: sessionId || '',
@@ -208,13 +214,11 @@ export default function ChatScreen() {
     setStreamingText('');
     setIsStreaming(false);
 
-    // Update session title based on first exchange
     if (messages.length === 1 && sessionId) {
       const title = response.slice(0, 50) + (response.length > 50 ? '...' : '');
       await updateSession(sessionId, { title });
     }
 
-    // Check if this should trigger session result
     const lastUserMessage = messages.filter(m => m.role === 'user').pop();
     if (lastUserMessage) {
       const input = lastUserMessage.content.toLowerCase();
@@ -230,7 +234,6 @@ export default function ChatScreen() {
       }
     }
 
-    // Scroll to bottom
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -242,7 +245,6 @@ export default function ChatScreen() {
     setIsGeneratingArtifacts(true);
 
     try {
-      // Generate artifacts using AI
       const artifacts = await generateSessionArtifacts(
         messages,
         coach,
@@ -251,7 +253,6 @@ export default function ChatScreen() {
 
       setSessionResult(artifacts);
 
-      // Update session with summary
       if (sessionId) {
         await updateSession(sessionId, {
           summary: artifacts.summary,
@@ -260,7 +261,6 @@ export default function ChatScreen() {
         });
       }
 
-      // Save plan updates if any
       if (artifacts.plan_updates && artifacts.plan_updates.length > 0) {
         const existingPlans = await getDayPlans();
 
@@ -281,8 +281,8 @@ export default function ChatScreen() {
         }
       }
 
-      // Show drawer with results
-      setShowDrawer(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowPaperArtifact(true);
     } catch (error) {
       console.error('Error generating session results:', error);
     } finally {
@@ -293,21 +293,11 @@ export default function ChatScreen() {
   const handleEndSession = useCallback(async () => {
     Alert.alert(
       'End Session',
-      'Would you like to generate a summary and action items from this session?',
+      'Would you like to generate insights from this session?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Generate Summary',
-          onPress: generateSessionResults,
-        },
-        {
-          text: 'Just End',
-          style: 'destructive',
-          onPress: () => router.back(),
-        },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Generate Insights', onPress: generateSessionResults },
+        { text: 'Exit', style: 'destructive', onPress: () => router.back() },
       ]
     );
   }, [messages, coach, userContext, sessionId, router]);
@@ -320,16 +310,8 @@ export default function ChatScreen() {
     }
   };
 
-  const handleOpenDrawer = () => {
-    if (sessionResult) {
-      setShowDrawer(true);
-    } else if (messages.length > 2) {
-      generateSessionResults();
-    }
-  };
-
-  const handleUpdatePlan = () => {
-    setShowDrawer(false);
+  const handleConfirmArtifact = () => {
+    setShowPaperArtifact(false);
     router.push('/(tabs)/plan');
   };
 
@@ -339,21 +321,29 @@ export default function ChatScreen() {
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const isUser = item.role === 'user';
-    const isLast = index === messages.length - 1;
 
     return (
       <Animated.View
-        entering={FadeInDown.duration(300).delay(Math.min(index * 50, 200))}
-        style={[styles.messageContainer, isUser && styles.userMessageContainer]}
+        entering={FadeInUp.duration(400).delay(Math.min(index * 50, 200))}
+        style={styles.transcriptEntry}
       >
-        <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.aiBubble]}>
-          <Text style={[styles.messageText, isUser && styles.userMessageText]}>
+        {/* Speaker indicator */}
+        <View style={styles.speakerRow}>
+          <View style={[styles.speakerDot, isUser && styles.speakerDotUser]} />
+          <Text style={[styles.speakerLabel, isUser && styles.speakerLabelUser]}>
+            {isUser ? 'You' : coach?.name || 'Coach'}
+          </Text>
+          <Text style={styles.timestamp}>
+            {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+
+        {/* Message content - transcript style */}
+        <View style={[styles.transcriptContent, isUser && styles.transcriptContentUser]}>
+          <Text style={[styles.transcriptText, isUser && styles.transcriptTextUser]}>
             {item.content}
           </Text>
         </View>
-        {!isUser && isLast && !isStreaming && (
-          <Text style={styles.coachTyping}>{coach?.name}</Text>
-        )}
       </Animated.View>
     );
   };
@@ -362,7 +352,7 @@ export default function ChatScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={Colors.electricIndigo} />
+          <ActivityIndicator size="large" color={Colors.burnishedGold} />
         </View>
       </SafeAreaView>
     );
@@ -370,26 +360,40 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
+      {/* Premium Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={Colors.electricIndigo} />
-          <Text style={styles.backText}>Back</Text>
+          <Ionicons name="chevron-down" size={28} color={Colors.midnightEmerald} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{coach.name}</Text>
-        <TouchableOpacity onPress={handleOpenDrawer} style={styles.drawerButton}>
-          <View style={styles.drawerIconContainer}>
-            <Ionicons name="document-text-outline" size={22} color={Colors.slateGray} />
-            {sessionResult && <View style={styles.drawerBadge} />}
+
+        <View style={styles.headerCenter}>
+          <CoachIcon iconName={coach.icon_name} color={coach.color} size="sm" />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>{coach.name}</Text>
+            <Text style={styles.headerSubtitle}>Session in progress</Text>
           </View>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => sessionResult ? setShowPaperArtifact(true) : generateSessionResults()}
+          style={styles.insightsButton}
+          disabled={isGeneratingArtifacts}
+        >
+          {isGeneratingArtifacts ? (
+            <ActivityIndicator size="small" color={Colors.burnishedGold} />
+          ) : (
+            <>
+              <Ionicons name="sparkles" size={18} color={Colors.burnishedGold} />
+              {sessionResult && <View style={styles.insightsBadge} />}
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
-      {/* Messages */}
+      {/* Transcript-style messages */}
       <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <FlatList
           ref={flatListRef}
@@ -401,257 +405,511 @@ export default function ChatScreen() {
           ListFooterComponent={() => (
             <>
               {isStreaming && streamingText && (
-                <Animated.View style={styles.messageContainer}>
-                  <View style={styles.aiBubble}>
-                    <Text style={styles.messageText}>{streamingText}</Text>
+                <Animated.View entering={FadeIn.duration(300)} style={styles.transcriptEntry}>
+                  <View style={styles.speakerRow}>
+                    <View style={styles.speakerDot} />
+                    <Text style={styles.speakerLabel}>{coach.name}</Text>
+                    <Animated.View style={[styles.typingIndicator, pulseStyle]}>
+                      <Text style={styles.typingText}>composing</Text>
+                    </Animated.View>
+                  </View>
+                  <View style={styles.transcriptContent}>
+                    <Text style={styles.transcriptText}>{streamingText}</Text>
                     <Animated.View style={[styles.cursor, pulseStyle]} />
                   </View>
-                  <Text style={styles.coachTyping}>{coach.name} is typing...</Text>
                 </Animated.View>
               )}
               {(aiLoading && !isStreaming && !streamingText) && (
-                <View style={styles.loadingContainer}>
-                  <Animated.View style={[styles.typingDots, pulseStyle]}>
-                    <View style={styles.dot} />
-                    <View style={[styles.dot, styles.dotMiddle]} />
-                    <View style={styles.dot} />
-                  </Animated.View>
-                  <Text style={styles.loadingText}>{coach.name} is thinking...</Text>
-                </View>
-              )}
-              {isGeneratingArtifacts && (
-                <View style={styles.artifactsLoading}>
-                  <ActivityIndicator size="small" color={Colors.electricIndigo} />
-                  <Text style={styles.artifactsText}>Generating session summary...</Text>
-                </View>
+                <Animated.View entering={FadeIn.duration(300)} style={styles.thinkingContainer}>
+                  <View style={styles.thinkingDots}>
+                    <View style={styles.thinkingDot} />
+                    <View style={[styles.thinkingDot, { marginHorizontal: 4 }]} />
+                    <View style={styles.thinkingDot} />
+                  </View>
+                  <Text style={styles.thinkingText}>{coach.name} is reflecting...</Text>
+                </Animated.View>
               )}
             </>
           )}
         />
 
-        {/* Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Type your message..."
-            placeholderTextColor={Colors.slateLight}
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={1000}
-            editable={!aiLoading && !isStreaming}
-            onSubmitEditing={handleSend}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || aiLoading || isStreaming) && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSend}
-            disabled={!inputText.trim() || aiLoading || isStreaming}
-          >
-            <Ionicons
-              name="send"
-              size={20}
-              color={
-                !inputText.trim() || aiLoading || isStreaming
-                  ? Colors.slateLight
-                  : Colors.electricIndigo
-              }
+        {/* Premium Input */}
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom || Spacing.md }]}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Share your thoughts..."
+              placeholderTextColor={Colors.stoneGray}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxLength={1000}
+              editable={!aiLoading && !isStreaming}
             />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.sendButton, (!inputText.trim() || aiLoading || isStreaming) && styles.sendButtonDisabled]}
+              onPress={handleSend}
+              disabled={!inputText.trim() || aiLoading || isStreaming}
+            >
+              <Ionicons
+                name="arrow-up"
+                size={20}
+                color={(!inputText.trim() || aiLoading || isStreaming) ? Colors.stoneGray : Colors.white}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
-      {/* Action Drawer */}
-      <ActionDrawer
-        visible={showDrawer}
-        onClose={() => setShowDrawer(false)}
-        sessionResult={sessionResult}
-        onUpdatePlan={handleUpdatePlan}
-      />
+      {/* Paper Artifact Modal */}
+      <Modal
+        visible={showPaperArtifact}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPaperArtifact(false)}
+      >
+        <PaperArtifact
+          sessionResult={sessionResult}
+          coach={coach}
+          onClose={() => setShowPaperArtifact(false)}
+          onConfirm={handleConfirmArtifact}
+        />
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+function PaperArtifact({
+  sessionResult,
+  coach,
+  onClose,
+  onConfirm,
+}: {
+  sessionResult: SessionResult | null;
+  coach: Coach;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  if (!sessionResult) return null;
+
+  return (
+    <View style={[paperStyles.container, { paddingTop: insets.top }]}>
+      {/* Paper Header */}
+      <View style={paperStyles.header}>
+        <TouchableOpacity onPress={onClose} style={paperStyles.closeButton}>
+          <Ionicons name="close" size={24} color={Colors.stoneGray} />
+        </TouchableOpacity>
+        <Text style={paperStyles.headerTitle}>Session Insights</Text>
+        <View style={paperStyles.headerSpacer} />
+      </View>
+
+      <ScrollView
+        style={paperStyles.scrollView}
+        contentContainerStyle={paperStyles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Coach Attribution */}
+        <Animated.View entering={FadeInUp.duration(600)} style={paperStyles.attribution}>
+          <CoachIcon iconName={coach.icon_name} color={coach.color} size="md" />
+          <View style={paperStyles.attributionText}>
+            <Text style={paperStyles.attributionLabel}>Guided by</Text>
+            <Text style={paperStyles.attributionName}>{coach.name}</Text>
+          </View>
+        </Animated.View>
+
+        {/* Summary Section */}
+        <Animated.View entering={FadeInUp.duration(600).delay(100)} style={paperStyles.section}>
+          <Text style={paperStyles.sectionTitle}>Summary</Text>
+          <View style={paperStyles.summaryCard}>
+            <Text style={paperStyles.summaryText}>{sessionResult.summary}</Text>
+          </View>
+        </Animated.View>
+
+        {/* Next Actions */}
+        {sessionResult.next_actions && sessionResult.next_actions.length > 0 && (
+          <Animated.View entering={FadeInUp.duration(600).delay(200)} style={paperStyles.section}>
+            <Text style={paperStyles.sectionTitle}>Next Actions</Text>
+            <View style={paperStyles.actionsContainer}>
+              {sessionResult.next_actions.map((action, index) => (
+                <Animated.View
+                  key={action.id}
+                  entering={FadeInUp.duration(400).delay(300 + index * 100)}
+                  style={paperStyles.actionItem}
+                >
+                  <View style={paperStyles.actionNumber}>
+                    <Text style={paperStyles.actionNumberText}>{index + 1}</Text>
+                  </View>
+                  <Text style={paperStyles.actionText}>{action.title}</Text>
+                </Animated.View>
+              ))}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Signature Line */}
+        <Animated.View entering={FadeInUp.duration(600).delay(400)} style={paperStyles.signatureSection}>
+          <View style={paperStyles.signatureLine} />
+          <Text style={paperStyles.signatureLabel}>Committed on {new Date().toLocaleDateString()}</Text>
+        </Animated.View>
+      </ScrollView>
+
+      {/* Footer Actions */}
+      <View style={[paperStyles.footer, { paddingBottom: insets.bottom || Spacing.xl }]}>
+        <Button
+          title="View Plan"
+          onPress={onConfirm}
+          variant="gold"
+          size="lg"
+          fullWidth
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.offWhite,
+    backgroundColor: Colors.warmOatmeal,
   },
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    backgroundColor: Colors.white,
+    borderBottomColor: Colors.borderLight,
+    backgroundColor: Colors.warmOatmeal,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  backText: {
-    fontSize: Typography.sizes.bodyLarge,
-    color: Colors.electricIndigo,
-    marginLeft: Spacing.xs,
-  },
-  headerTitle: {
-    fontSize: Typography.sizes.subtitle,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
-    flex: 2,
-    textAlign: 'center',
-  },
-  drawerButton: {
-    flex: 1,
-    alignItems: 'flex-end',
     padding: Spacing.xs,
   },
-  drawerIconContainer: {
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: Spacing.md,
+  },
+  headerInfo: {
+    marginLeft: Spacing.md,
+  },
+  headerTitle: {
+    fontSize: Typography.sizes.bodyLarge,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+  },
+  headerSubtitle: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.stoneGray,
+    marginTop: 2,
+  },
+  insightsButton: {
+    padding: Spacing.sm,
     position: 'relative',
   },
-  drawerBadge: {
+  insightsBadge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
+    top: 6,
+    right: 6,
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: Colors.success,
   },
+
+  // Chat
   chatContainer: {
     flex: 1,
   },
   messagesList: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
   },
-  messageContainer: {
-    marginBottom: Spacing.md,
-    maxWidth: '85%',
+
+  // Transcript style
+  transcriptEntry: {
+    marginBottom: Spacing.xxl,
   },
-  userMessageContainer: {
-    alignSelf: 'flex-end',
+  speakerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
   },
-  messageBubble: {
-    padding: Spacing.md,
-    borderRadius: Radius.xl,
-    maxWidth: '100%',
+  speakerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.burnishedGold,
+    marginRight: Spacing.sm,
   },
-  userBubble: {
-    backgroundColor: Colors.electricIndigo,
-    borderBottomRightRadius: Radius.sm,
+  speakerDotUser: {
+    backgroundColor: Colors.midnightEmerald,
   },
-  aiBubble: {
-    backgroundColor: Colors.aiMessage,
-    borderBottomLeftRadius: Radius.sm,
+  speakerLabel: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.burnishedGold,
+    textTransform: 'uppercase',
+    letterSpacing: Typography.letterSpacing.wider,
+    flex: 1,
+  },
+  speakerLabelUser: {
+    color: Colors.midnightEmerald,
+  },
+  timestamp: {
+    fontSize: Typography.sizes.micro,
+    color: Colors.stoneGray,
+  },
+  transcriptContent: {
+    paddingLeft: Spacing.lg,
+    borderLeftWidth: 2,
+    borderLeftColor: Colors.goldMuted,
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-end',
   },
-  messageText: {
-    fontSize: Typography.sizes.body,
-    color: Colors.slateCharcoal,
-    lineHeight: 22,
+  transcriptContentUser: {
+    borderLeftColor: Colors.borderLight,
   },
-  userMessageText: {
-    color: Colors.white,
+  transcriptText: {
+    fontSize: Typography.sizes.bodyLarge,
+    color: Colors.charcoal,
+    lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
+    fontFamily: Typography.fonts.serif,
+  },
+  transcriptTextUser: {
+    fontFamily: Typography.fonts.sans,
   },
   cursor: {
     width: 2,
-    height: 16,
-    backgroundColor: Colors.electricIndigo,
-    marginLeft: 2,
-    marginBottom: 3,
+    height: 20,
+    backgroundColor: Colors.burnishedGold,
+    marginLeft: 4,
+    marginBottom: 2,
   },
-  coachTyping: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.slateLight,
-    marginTop: Spacing.xs,
-    marginLeft: Spacing.sm,
+  typingIndicator: {
+    backgroundColor: Colors.goldMuted,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
   },
-  loadingContainer: {
+  typingText: {
+    fontSize: Typography.sizes.micro,
+    color: Colors.burnishedGold,
+    fontStyle: 'italic',
+  },
+
+  // Thinking
+  thinkingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.md,
   },
-  typingDots: {
+  thinkingDots: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.aiMessage,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.xl,
-    borderBottomLeftRadius: Radius.sm,
+    marginRight: Spacing.md,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.slateLight,
+  thinkingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.burnishedGold,
   },
-  dotMiddle: {
-    marginHorizontal: Spacing.xs,
-  },
-  loadingText: {
+  thinkingText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.slateLight,
-    marginLeft: Spacing.sm,
+    color: Colors.stoneGray,
+    fontStyle: 'italic',
   },
-  artifactsLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.electricIndigo + '10',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
-    marginTop: Spacing.md,
-  },
-  artifactsText: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.electricIndigo,
-    marginLeft: Spacing.sm,
-    fontWeight: Typography.weights.medium,
-  },
+
+  // Input
   inputContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    backgroundColor: Colors.warmOatmeal,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
     backgroundColor: Colors.white,
+    borderRadius: Radius.squircle,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingLeft: Spacing.lg,
+    paddingRight: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    ...Shadows.sm,
   },
   input: {
     flex: 1,
-    backgroundColor: Colors.inputBg,
-    borderRadius: Radius.xl,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
     fontSize: Typography.sizes.body,
-    color: Colors.slateCharcoal,
+    color: Colors.charcoal,
     maxHeight: 100,
-    marginRight: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.inputBg,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.burnishedGold,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: Colors.warmOatmealDark,
+  },
+});
+
+const paperStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.warmOatmeal,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  closeButton: {
+    padding: Spacing.xs,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: Typography.sizes.title,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: Spacing.xxl,
+  },
+  attribution: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xxxl,
+    paddingBottom: Spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  attributionText: {
+    marginLeft: Spacing.md,
+  },
+  attributionLabel: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.stoneGray,
+    textTransform: 'uppercase',
+    letterSpacing: Typography.letterSpacing.wider,
+  },
+  attributionName: {
+    fontSize: Typography.sizes.bodyLarge,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+  },
+  section: {
+    marginBottom: Spacing.xxl,
+  },
+  sectionTitle: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.stoneGray,
+    textTransform: 'uppercase',
+    letterSpacing: Typography.letterSpacing.wider,
+    marginBottom: Spacing.md,
+  },
+  summaryCard: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.squircle,
+    padding: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.sm,
+  },
+  summaryText: {
+    fontSize: Typography.sizes.bodyLarge,
+    color: Colors.charcoal,
+    lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
+    fontFamily: Typography.fonts.serif,
+    fontStyle: 'italic',
+  },
+  actionsContainer: {
+    gap: Spacing.md,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.white,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.subtle,
+  },
+  actionNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.goldMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  actionNumberText: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.burnishedGold,
+    fontFamily: Typography.fonts.serif,
+  },
+  actionText: {
+    flex: 1,
+    fontSize: Typography.sizes.body,
+    color: Colors.charcoal,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
+  },
+  signatureSection: {
+    alignItems: 'center',
+    marginTop: Spacing.xxl,
+    paddingTop: Spacing.xl,
+  },
+  signatureLine: {
+    width: 200,
+    height: 1,
+    backgroundColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  signatureLabel: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.stoneGray,
+    fontStyle: 'italic',
+  },
+  footer: {
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    backgroundColor: Colors.warmOatmeal,
   },
 });
