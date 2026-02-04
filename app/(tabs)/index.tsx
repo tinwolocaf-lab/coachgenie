@@ -15,35 +15,80 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInUp,
-  FadeInDown,
   useAnimatedStyle,
   withSpring,
   useSharedValue,
-  interpolate,
+  withDelay,
   withTiming,
-  Easing,
 } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { CoachIcon } from '@/components/ui/CoachIcon';
+import { StreakTimeline } from '@/components/ui/StreakTimeline';
+import { FeaturedCard } from '@/components/ui/FeaturedCard';
+import { QuickActions } from '@/components/ui/QuickActions';
+import { StaggeredFadeIn } from '@/components/ui/AnimatedContainer';
 import { Coach, Session, DayPlan, Priority } from '@/types';
-import { getCoachById } from '@/data/coaches';
+import { getCoachById, SAMPLE_COACHES } from '@/data/coaches';
 import {
   getActiveCoachId,
   getSessions,
   getDayPlan,
+  getInstalledCoaches,
 } from '@/store/app';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Dynamic auth hook
+const getAuthHook = () => {
+  if (isSupabaseConfigured) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require('@fastshot/auth').useAuth;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+// Get greeting based on time of day
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
+// Get streak days for timeline
+const getStreakDays = (): { day: string; completed: boolean; isToday: boolean }[] => {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const today = new Date().getDay();
+  const todayIndex = today === 0 ? 6 : today - 1; // Convert Sunday=0 to index 6
+
+  return days.map((day, index) => ({
+    day,
+    completed: index < todayIndex,
+    isToday: index === todayIndex,
+  }));
+};
+
 export default function HomeScreen() {
   const router = useRouter();
+  const useAuth = getAuthHook();
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+
   const [activeCoach, setActiveCoach] = useState<Coach | null>(null);
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
   const [todayPlan, setTodayPlan] = useState<DayPlan | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [userName, setUserName] = useState<string>('');
+  const [currentStreak, setCurrentStreak] = useState(3);
+  const [featuredCoach, setFeaturedCoach] = useState<Coach | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -59,6 +104,22 @@ export default function HomeScreen() {
       const today = new Date().toISOString().split('T')[0];
       const plan = await getDayPlan(today);
       setTodayPlan(plan);
+
+      // Get installed coaches to find a featured one
+      const installedCoaches = await getInstalledCoaches();
+      const installedIds = installedCoaches.map(c => c.coach_id);
+
+      // Feature a coach that's not installed yet
+      const uninstalledCoaches = SAMPLE_COACHES.filter(c => !installedIds.includes(c.id));
+      if (uninstalledCoaches.length > 0) {
+        setFeaturedCoach(uninstalledCoaches[0]);
+      } else {
+        setFeaturedCoach(SAMPLE_COACHES[0]);
+      }
+
+      // Set streak based on sessions
+      const sessionCount = sessions.length;
+      setCurrentStreak(Math.min(sessionCount + 1, 7));
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -67,6 +128,15 @@ export default function HomeScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Get user name from auth
+  useEffect(() => {
+    if (auth?.user) {
+      const metadata = auth.user.user_metadata || {};
+      const name = metadata.full_name || metadata.name || auth.user.email?.split('@')[0] || '';
+      setUserName(name.split(' ')[0]); // First name only
+    }
+  }, [auth?.user]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -78,20 +148,28 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (activeCoach) {
       router.push(`/chat/${activeCoach.id}`);
+    } else {
+      router.push('/(tabs)/coaches');
     }
   };
 
   const handleOpenChat = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (activeCoach) {
       router.push(`/chat/${activeCoach.id}`);
     }
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+  const handleAccountPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/account');
+  };
+
+  const handleFeaturedPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (featuredCoach) {
+      router.push(`/coach/${featuredCoach.id}`);
+    }
   };
 
   const today = new Date();
@@ -114,6 +192,40 @@ export default function HomeScreen() {
     { id: '3', title: 'Review your Context Vault', completed: false, order: 3 },
   ];
 
+  // Quick actions
+  const quickActions = [
+    {
+      id: 'resume',
+      label: 'Resume Session',
+      icon: 'play-circle-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handleOpenChat,
+    },
+    {
+      id: 'checkin',
+      label: 'Daily Check-in',
+      icon: 'sunny-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handleStartCheckIn,
+    },
+    {
+      id: 'vault',
+      label: 'Context Vault',
+      icon: 'diamond-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push('/(tabs)/vault');
+      },
+    },
+    {
+      id: 'plan',
+      label: 'View Plan',
+      icon: 'calendar-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push('/(tabs)/plan');
+      },
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -128,55 +240,80 @@ export default function HomeScreen() {
         }
       >
         {/* Editorial Hero Section */}
-        <Animated.View entering={FadeInUp.duration(700).delay(100)} style={styles.heroSection}>
-          <View style={styles.heroHeader}>
-            <View>
-              <Text style={styles.heroGreeting}>{getGreeting()}</Text>
-              <Text style={styles.heroDate}>{dateString}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.avatarButton}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/account');
-              }}
-            >
-              <LinearGradient
-                colors={[Colors.burnishedGold, Colors.goldLight]}
-                style={styles.avatarGradient}
+        <StaggeredFadeIn index={0} baseDelay={0} staggerDelay={0}>
+          <View style={styles.heroSection}>
+            {/* Header with greeting and avatar */}
+            <View style={styles.heroHeader}>
+              <View style={styles.greetingContainer}>
+                <Text style={styles.heroGreeting}>
+                  {getGreeting()}{userName ? ',' : ''}
+                </Text>
+                {userName && (
+                  <Text style={styles.heroName}>{userName}</Text>
+                )}
+                <Text style={styles.heroDate}>{dateString}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.avatarButton}
+                onPress={handleAccountPress}
+                activeOpacity={0.9}
               >
-                <Ionicons name="person" size={20} color={Colors.white} />
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={[Colors.burnishedGold, Colors.goldLight]}
+                  style={styles.avatarGradient}
+                >
+                  <Ionicons name="person" size={20} color={Colors.white} />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
+        </StaggeredFadeIn>
 
-          {/* Progress Ring */}
-          <View style={styles.progressContainer}>
-            <ProgressRing
-              progress={progressPercentage}
-              size={180}
-              strokeWidth={14}
-              label="Alignment"
-              sublabel="with daily goals"
-            />
+        {/* Progress Snapshot Section */}
+        <StaggeredFadeIn index={1} baseDelay={100}>
+          <View style={styles.progressSection}>
+            <Card variant="elevated" style={styles.progressCard}>
+              <View style={styles.progressContent}>
+                {/* Progress Ring */}
+                <View style={styles.progressRingWrapper}>
+                  <ProgressRing
+                    progress={progressPercentage}
+                    size={140}
+                    strokeWidth={12}
+                    label="Alignment"
+                    sublabel="with daily goals"
+                  />
+                </View>
+
+                {/* Streak Timeline */}
+                <View style={styles.streakWrapper}>
+                  <StreakTimeline
+                    days={getStreakDays()}
+                    currentStreak={currentStreak}
+                  />
+                </View>
+              </View>
+
+              {/* Quick insight */}
+              <View style={styles.insightCard}>
+                <Ionicons name="sparkles" size={16} color={Colors.burnishedGold} />
+                <Text style={styles.insightText}>
+                  {progressPercentage === 100
+                    ? "Perfect alignment today. Well done."
+                    : progressPercentage > 50
+                    ? "Making great progress. Keep the momentum."
+                    : currentStreak > 3
+                    ? `${currentStreak} day streak! Consistency is key.`
+                    : "Start with one small action today."}
+                </Text>
+              </View>
+            </Card>
           </View>
+        </StaggeredFadeIn>
 
-          {/* Quick insight */}
-          <View style={styles.insightCard}>
-            <Ionicons name="sparkles" size={16} color={Colors.burnishedGold} />
-            <Text style={styles.insightText}>
-              {progressPercentage === 100
-                ? "Perfect alignment today. Well done."
-                : progressPercentage > 50
-                ? "Making great progress. Keep the momentum."
-                : "Start with one small action today."}
-            </Text>
-          </View>
-        </Animated.View>
-
-        {/* Active Coach Card - Floating Premium Style */}
+        {/* Active Coach Card */}
         {activeCoach && (
-          <Animated.View entering={FadeInUp.duration(600).delay(200)}>
+          <StaggeredFadeIn index={2} baseDelay={200}>
             <TouchableOpacity
               style={styles.activeCoachCard}
               onPress={handleOpenChat}
@@ -203,54 +340,88 @@ export default function HomeScreen() {
                 </View>
               </LinearGradient>
             </TouchableOpacity>
-          </Animated.View>
+          </StaggeredFadeIn>
         )}
 
-        {/* Today's Focus - Editorial Card */}
-        <Animated.View entering={FadeInUp.duration(600).delay(300)}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today&apos;s Focus</Text>
-            <Text style={styles.sectionSubtitle}>Top 3 Priorities</Text>
+        {/* Quick Actions */}
+        <StaggeredFadeIn index={3} baseDelay={300}>
+          <View style={styles.quickActionsContainer}>
+            <QuickActions actions={quickActions} baseDelay={400} />
           </View>
+        </StaggeredFadeIn>
 
-          <Card variant="elevated" style={styles.prioritiesCard}>
-            <View style={styles.prioritiesList}>
-              {displayPriorities.slice(0, 3).map((priority, index) => (
-                <PriorityItem
-                  key={priority.id}
-                  priority={priority}
-                  index={index + 1}
-                />
-              ))}
+        {/* Featured Card - Editorial Magazine Style */}
+        {featuredCoach && (
+          <StaggeredFadeIn index={4} baseDelay={400}>
+            <View style={styles.featuredSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Featured</Text>
+              </View>
+              <FeaturedCard
+                type="coach"
+                title={featuredCoach.name}
+                subtitle={featuredCoach.tagline}
+                description={featuredCoach.method}
+                iconName={featuredCoach.icon_name}
+                accentColor={featuredCoach.color}
+                badge="Premium"
+                onPress={handleFeaturedPress}
+                delay={500}
+              />
+            </View>
+          </StaggeredFadeIn>
+        )}
+
+        {/* Today's Focus */}
+        <StaggeredFadeIn index={5} baseDelay={500}>
+          <View style={styles.focusSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Today&apos;s Focus</Text>
+              <Text style={styles.sectionSubtitle}>Top 3 Priorities</Text>
             </View>
 
-            <Button
-              title="Begin Check-in"
-              onPress={handleStartCheckIn}
-              variant="gold"
-              fullWidth
-              size="lg"
-              style={styles.checkInButton}
-            />
-          </Card>
-        </Animated.View>
+            <Card variant="elevated" style={styles.prioritiesCard}>
+              <View style={styles.prioritiesList}>
+                {displayPriorities.slice(0, 3).map((priority, index) => (
+                  <PriorityItem
+                    key={priority.id}
+                    priority={priority}
+                    index={index + 1}
+                    delay={600 + index * 100}
+                  />
+                ))}
+              </View>
+
+              <Button
+                title="Begin Check-in"
+                onPress={handleStartCheckIn}
+                variant="gold"
+                fullWidth
+                size="lg"
+                style={styles.checkInButton}
+              />
+            </Card>
+          </View>
+        </StaggeredFadeIn>
 
         {/* Recent Sessions */}
         {recentSessions.length > 0 && (
-          <Animated.View entering={FadeInUp.duration(600).delay(400)}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Sessions</Text>
+          <StaggeredFadeIn index={6} baseDelay={700}>
+            <View style={styles.sessionsSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Sessions</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.sessionsScroll}
+              >
+                {recentSessions.map((session, index) => (
+                  <SessionCard key={session.id} session={session} index={index} />
+                ))}
+              </ScrollView>
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.sessionsScroll}
-            >
-              {recentSessions.map((session, index) => (
-                <SessionCard key={session.id} session={session} index={index} />
-              ))}
-            </ScrollView>
-          </Animated.View>
+          </StaggeredFadeIn>
         )}
 
         {/* Spacer for tab bar */}
@@ -263,14 +434,24 @@ export default function HomeScreen() {
 function PriorityItem({
   priority,
   index,
+  delay,
 }: {
   priority: Priority;
   index: number;
+  delay: number;
 }) {
   const scale = useSharedValue(1);
+  const opacity = useSharedValue(0);
+  const translateX = useSharedValue(-20);
+
+  useEffect(() => {
+    opacity.value = withDelay(delay, withTiming(1, { duration: 500 }));
+    translateX.value = withDelay(delay, withSpring(0, Timing.springGentle));
+  }, [delay, opacity, translateX]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: scale.value }, { translateX: translateX.value }],
+    opacity: opacity.value,
   }));
 
   const handlePress = () => {
@@ -321,7 +502,7 @@ function SessionCard({ session, index }: { session: Session; index: number }) {
   });
 
   return (
-    <Animated.View entering={FadeInUp.duration(500).delay(500 + index * 100)}>
+    <Animated.View entering={FadeInUp.duration(500).delay(800 + index * 100)}>
       <Card style={styles.sessionCard} variant="glass">
         <View style={styles.sessionMeta}>
           <Ionicons name="chatbubble-outline" size={14} color={Colors.stoneGray} />
@@ -348,42 +529,67 @@ const styles = StyleSheet.create({
   heroSection: {
     paddingHorizontal: Spacing.xxl,
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingBottom: Spacing.lg,
   },
   heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.xxxl,
+  },
+  greetingContainer: {
+    flex: 1,
   },
   heroGreeting: {
-    fontSize: Typography.sizes.hero,
+    fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.light,
     color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     letterSpacing: Typography.letterSpacing.tight,
   },
+  heroName: {
+    fontSize: Typography.sizes.display,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+    letterSpacing: Typography.letterSpacing.tight,
+    marginTop: -4,
+  },
   heroDate: {
     fontSize: Typography.sizes.body,
     color: Colors.stoneGray,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
     letterSpacing: Typography.letterSpacing.wide,
   },
   avatarButton: {
     padding: 2,
   },
   avatarGradient: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Shadows.gold,
   },
 
-  // Progress Ring
-  progressContainer: {
+  // Progress Section
+  progressSection: {
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.lg,
+  },
+  progressCard: {
+    padding: Spacing.xl,
+  },
+  progressContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.lg,
+  },
+  progressRingWrapper: {
+    marginRight: Spacing.xl,
+  },
+  streakWrapper: {
+    flex: 1,
   },
 
   // Insight Card
@@ -406,7 +612,7 @@ const styles = StyleSheet.create({
   // Active Coach Card
   activeCoachCard: {
     marginHorizontal: Spacing.xxl,
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.lg,
     borderRadius: Radius.squircle,
     overflow: 'hidden',
     ...Shadows.lg,
@@ -450,9 +656,26 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
   },
 
+  // Quick Actions
+  quickActionsContainer: {
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.lg,
+  },
+
+  // Featured Section
+  featuredSection: {
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.xxl,
+  },
+
+  // Focus Section
+  focusSection: {
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.xxl,
+  },
+
   // Section Headers
   sectionHeader: {
-    paddingHorizontal: Spacing.xxl,
     marginBottom: Spacing.lg,
   },
   sectionTitle: {
@@ -469,8 +692,6 @@ const styles = StyleSheet.create({
 
   // Priorities Card
   prioritiesCard: {
-    marginHorizontal: Spacing.xxl,
-    marginBottom: Spacing.xxl,
     padding: Spacing.xl,
   },
   prioritiesList: {
@@ -527,6 +748,9 @@ const styles = StyleSheet.create({
   },
 
   // Sessions
+  sessionsSection: {
+    marginBottom: Spacing.lg,
+  },
   sessionsScroll: {
     paddingHorizontal: Spacing.xxl,
     gap: Spacing.md,
