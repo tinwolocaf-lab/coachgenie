@@ -103,6 +103,13 @@ function AppContent() {
           animation: 'none',
         }}
       />
+      <Stack.Screen
+        name="account"
+        options={{
+          animation: 'slide_from_right',
+          presentation: 'card',
+        }}
+      />
     </Stack>
   );
 }

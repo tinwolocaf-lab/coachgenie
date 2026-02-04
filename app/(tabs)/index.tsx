@@ -134,7 +134,13 @@ export default function HomeScreen() {
               <Text style={styles.heroGreeting}>{getGreeting()}</Text>
               <Text style={styles.heroDate}>{dateString}</Text>
             </View>
-            <TouchableOpacity style={styles.avatarButton}>
+            <TouchableOpacity
+              style={styles.avatarButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/account');
+              }}
+            >
               <LinearGradient
                 colors={[Colors.burnishedGold, Colors.goldLight]}
                 style={styles.avatarGradient}
