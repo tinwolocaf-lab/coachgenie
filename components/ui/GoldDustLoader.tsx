@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Text } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,11 +8,9 @@ import Animated, {
   withSequence,
   withDelay,
   Easing,
-  interpolate,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { Typography, Spacing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface GoldDustLoaderProps {
   message?: string;
@@ -26,9 +24,10 @@ interface ParticleProps {
   size: number;
   x: number;
   y: number;
+  color: string;
 }
 
-function GoldParticle({ index, delay, size, x, y }: ParticleProps) {
+function GoldParticle({ index, delay, size, x, y, color }: ParticleProps) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(0);
   const scale = useSharedValue(0);
@@ -89,6 +88,8 @@ function GoldParticle({ index, delay, size, x, y }: ParticleProps) {
           borderRadius: size / 2,
           left: x,
           top: y,
+          backgroundColor: color,
+          shadowColor: color,
         },
         animatedStyle,
       ]}
@@ -96,7 +97,13 @@ function GoldParticle({ index, delay, size, x, y }: ParticleProps) {
   );
 }
 
-function CentralOrb({ size }: { size: 'sm' | 'md' | 'lg' }) {
+interface CentralOrbProps {
+  size: 'sm' | 'md' | 'lg';
+  accentColor: string;
+  accentMuted: string;
+}
+
+function CentralOrb({ size, accentColor, accentMuted }: CentralOrbProps) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0.6);
   const rotation = useSharedValue(0);
@@ -139,14 +146,33 @@ function CentralOrb({ size }: { size: 'sm' | 'md' | 'lg' }) {
 
   return (
     <Animated.View style={[styles.orbContainer, { width: orbSize, height: orbSize }, animatedStyle]}>
-      <View style={[styles.orbOuter, { width: orbSize, height: orbSize, borderRadius: orbSize / 2 }]}>
-        <View style={[styles.orbInner, { width: orbSize * 0.6, height: orbSize * 0.6, borderRadius: (orbSize * 0.6) / 2 }]} />
+      <View style={[
+        styles.orbOuter,
+        {
+          width: orbSize,
+          height: orbSize,
+          borderRadius: orbSize / 2,
+          backgroundColor: accentMuted,
+          borderColor: accentColor,
+        }
+      ]}>
+        <View style={[
+          styles.orbInner,
+          {
+            width: orbSize * 0.6,
+            height: orbSize * 0.6,
+            borderRadius: (orbSize * 0.6) / 2,
+            backgroundColor: accentColor,
+            shadowColor: accentColor,
+          }
+        ]} />
       </View>
     </Animated.View>
   );
 }
 
 export function GoldDustLoader({ message, subMessage, size = 'md' }: GoldDustLoaderProps) {
+  const { palette } = useThemeSafe();
   const containerSize = size === 'sm' ? 100 : size === 'md' ? 150 : 200;
 
   // Generate particles around the orb
@@ -169,6 +195,7 @@ export function GoldDustLoader({ message, subMessage, size = 'md' }: GoldDustLoa
         size={particleSize}
         x={x}
         y={y}
+        color={palette.accent}
       />
     );
   }
@@ -178,14 +205,18 @@ export function GoldDustLoader({ message, subMessage, size = 'md' }: GoldDustLoa
       <View style={[styles.particleContainer, { width: containerSize, height: containerSize }]}>
         {particles}
         <View style={styles.orbWrapper}>
-          <CentralOrb size={size} />
+          <CentralOrb
+            size={size}
+            accentColor={palette.accent}
+            accentMuted={palette.accentMuted}
+          />
         </View>
       </View>
       {message && (
-        <Text style={styles.message}>{message}</Text>
+        <Text style={[styles.message, { color: palette.textPrimary }]}>{message}</Text>
       )}
       {subMessage && (
-        <Text style={styles.subMessage}>{subMessage}</Text>
+        <Text style={[styles.subMessage, { color: palette.textTertiary }]}>{subMessage}</Text>
       )}
     </View>
   );
@@ -203,8 +234,6 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: 'absolute',
-    backgroundColor: Colors.burnishedGold,
-    shadowColor: Colors.burnishedGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 6,
@@ -224,15 +253,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   orbOuter: {
-    backgroundColor: Colors.goldMuted,
     borderWidth: 2,
-    borderColor: Colors.burnishedGold,
     alignItems: 'center',
     justifyContent: 'center',
   },
   orbInner: {
-    backgroundColor: Colors.burnishedGold,
-    shadowColor: Colors.burnishedGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 12,
@@ -241,14 +266,12 @@ const styles = StyleSheet.create({
   message: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.medium,
-    color: Colors.midnightEmerald,
     textAlign: 'center',
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.sm,
   },
   subMessage: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
     fontStyle: 'italic',
   },

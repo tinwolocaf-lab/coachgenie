@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
@@ -18,6 +19,7 @@ import { ContextVault, Goal, AVAILABLE_VALUES } from '@/types';
 import { getContextVault, saveContextVault } from '@/store/app';
 
 export default function VaultScreen() {
+  const { palette } = useThemeSafe();
   const [vault, setVault] = useState<ContextVault | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -81,16 +83,16 @@ export default function VaultScreen() {
 
   if (!vault) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.loading}>
-          <Text style={styles.loadingText}>Loading your vault...</Text>
+          <Text style={[styles.loadingText, { color: palette.textTertiary }]}>Loading your vault...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -98,14 +100,14 @@ export default function VaultScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.electricIndigo}
+            tintColor={palette.accent}
           />
         }
       >
         {/* Header */}
         <Animated.View entering={FadeInUp.duration(400)} style={styles.header}>
-          <Text style={styles.headerTitle}>Context Vault</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Context Vault</Text>
+          <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
             Your identity and goals that shape coaching
           </Text>
         </Animated.View>

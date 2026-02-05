@@ -21,10 +21,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
+import { AtmosphereGallery } from '@/components/settings/AtmosphereGallery';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 // Dynamic import for auth
 const getAuthHook = () => {
@@ -47,6 +49,7 @@ interface UserProfile {
 
 export default function AccountScreen() {
   const router = useRouter();
+  const { palette, isSovereignMember, setSovereignMember } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -76,8 +79,13 @@ export default function AccountScreen() {
         avatarInitial: name.charAt(0).toUpperCase(),
       });
       setEditedName(name);
+
+      // Check if user has sovereign membership (you would typically check this from your subscription service)
+      // For now, we'll check a user metadata flag
+      const hasSovereign = metadata.is_sovereign === true;
+      setSovereignMember(hasSovereign);
     }
-  }, [auth?.user]);
+  }, [auth?.user, setSovereignMember]);
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -160,14 +168,46 @@ export default function AccountScreen() {
     );
   };
 
+  const handlePremiumRequired = () => {
+    // Navigate to subscription/paywall screen
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      'Sovereign Membership Required',
+      'Unlock premium atmospheres and exclusive features with Sovereign membership.',
+      [
+        { text: 'Maybe Later', style: 'cancel' },
+        {
+          text: 'Learn More',
+          onPress: () => {
+            // Navigate to subscription screen when available
+            console.log('Navigate to subscription');
+          }
+        },
+      ]
+    );
+  };
+
   const headerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: headerScale.value }],
   }));
 
+  // Dynamic styles based on current theme
+  const dynamicStyles = {
+    container: { backgroundColor: palette.background },
+    headerTitle: { color: palette.textPrimary },
+    sectionTitle: { color: palette.textTertiary },
+    cardBg: { backgroundColor: palette.cardBg },
+    textPrimary: { color: palette.textPrimary },
+    textSecondary: { color: palette.textSecondary },
+    textTertiary: { color: palette.textTertiary },
+    accentColor: palette.accent,
+    borderColor: palette.border,
+  };
+
   // Show loading state while signing out
   if (isSigningOut) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'bottom']}>
         <View style={styles.loadingContainer}>
           <GoldDustLoader
             message="Signing out"
@@ -182,19 +222,19 @@ export default function AccountScreen() {
   // If no auth configured, show guest account
   if (!isSupabaseConfigured || !auth?.isAuthenticated) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'bottom']}>
         <View style={styles.guestContainer}>
           <Animated.View entering={FadeIn.duration(500)} style={styles.guestContent}>
             <View style={styles.guestIconContainer}>
               <LinearGradient
-                colors={[Colors.stoneGray, '#A8A39D']}
+                colors={[palette.textTertiary, palette.textSecondary]}
                 style={styles.guestIconBg}
               >
-                <Ionicons name="person-outline" size={40} color={Colors.white} />
+                <Ionicons name="person-outline" size={40} color={palette.textInverse} />
               </LinearGradient>
             </View>
-            <Text style={styles.guestTitle}>Guest Account</Text>
-            <Text style={styles.guestText}>
+            <Text style={[styles.guestTitle, { color: palette.textPrimary }]}>Guest Account</Text>
+            <Text style={[styles.guestText, { color: palette.textTertiary }]}>
               Sign in to access your profile, sync your progress, and unlock personalized features.
             </Text>
             <Button
@@ -206,7 +246,7 @@ export default function AccountScreen() {
               style={styles.guestButton}
             />
             <TouchableOpacity onPress={handleBack} style={styles.guestBackButton}>
-              <Text style={styles.guestBackText}>Go Back</Text>
+              <Text style={[styles.guestBackText, { color: palette.textTertiary }]}>Go Back</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -215,7 +255,7 @@ export default function AccountScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -227,83 +267,96 @@ export default function AccountScreen() {
         >
           {/* Header */}
           <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={22} color={Colors.charcoal} />
+            <TouchableOpacity
+              onPress={handleBack}
+              style={[styles.backButton, { backgroundColor: palette.cardBg }]}
+            >
+              <Ionicons name="arrow-back" size={22} color={palette.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Account</Text>
+            <Text style={[styles.headerTitle, dynamicStyles.headerTitle]}>Account</Text>
             <View style={styles.headerSpacer} />
           </Animated.View>
 
           {/* Profile Card */}
           <Animated.View entering={FadeIn.duration(600).delay(100)}>
-            <View style={styles.profileCard}>
+            <View style={[styles.profileCard, { shadowColor: palette.shadowColor }]}>
               <LinearGradient
-                colors={[Colors.midnightEmerald, '#243D2E']}
+                colors={[palette.gradientStart, palette.gradientEnd]}
                 style={styles.profileGradient}
               >
                 <Animated.View style={[styles.avatarContainer, headerAnimatedStyle]}>
                   <LinearGradient
-                    colors={[Colors.burnishedGold, Colors.goldLight]}
-                    style={styles.avatarGradient}
+                    colors={[palette.accent, palette.accentLight]}
+                    style={[styles.avatarGradient, { shadowColor: palette.accent }]}
                   >
-                    <Text style={styles.avatarText}>{profile.avatarInitial}</Text>
+                    <Text style={[styles.avatarText, { color: palette.textInverse }]}>{profile.avatarInitial}</Text>
                   </LinearGradient>
                 </Animated.View>
-                <Text style={styles.profileName}>{profile.fullName}</Text>
-                <Text style={styles.profileEmail}>{profile.email}</Text>
+                <Text style={[styles.profileName, { color: palette.textInverse }]}>{profile.fullName}</Text>
+                <Text style={[styles.profileEmail, { color: palette.accentLight }]}>{profile.email}</Text>
                 <View style={styles.memberBadge}>
-                  <Ionicons name="sparkles" size={14} color={Colors.burnishedGold} />
-                  <Text style={styles.memberText}>Premium Member</Text>
+                  <Ionicons name="sparkles" size={14} color={palette.accent} />
+                  <Text style={[styles.memberText, { color: palette.accent }]}>
+                    {isSovereignMember ? 'Sovereign Member' : 'Premium Member'}
+                  </Text>
                 </View>
               </LinearGradient>
             </View>
           </Animated.View>
 
+          {/* Atmospheres Section */}
+          <Animated.View entering={FadeInUp.duration(500).delay(150)}>
+            <AtmosphereGallery onPremiumRequired={handlePremiumRequired} />
+          </Animated.View>
+
           {/* Edit Profile Section */}
           <Animated.View entering={FadeInUp.duration(500).delay(200)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Profile Settings</Text>
+              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Profile Settings</Text>
             </View>
 
-            <View style={styles.settingsCard}>
+            <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
               {/* Name Field */}
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="person-outline" size={20} color={Colors.burnishedGold} />
+              <View style={[styles.settingItem, { borderBottomColor: palette.borderLight }]}>
+                <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                  <Ionicons name="person-outline" size={20} color={palette.accent} />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>Display Name</Text>
+                  <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Display Name</Text>
                   {isEditing ? (
                     <TextInput
-                      style={styles.settingInput}
+                      style={[styles.settingInput, { color: palette.textSecondary, borderBottomColor: palette.accent }]}
                       value={editedName}
                       onChangeText={setEditedName}
                       placeholder="Enter your name"
-                      placeholderTextColor={Colors.stoneGray}
+                      placeholderTextColor={palette.textTertiary}
                       autoFocus
                     />
                   ) : (
-                    <Text style={styles.settingValue}>{profile.fullName}</Text>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>{profile.fullName}</Text>
                   )}
                 </View>
                 {!isEditing && (
-                  <TouchableOpacity onPress={handleEditProfile} style={styles.editButton}>
-                    <Ionicons name="pencil" size={16} color={Colors.burnishedGold} />
+                  <TouchableOpacity
+                    onPress={handleEditProfile}
+                    style={[styles.editButton, { backgroundColor: palette.accentMuted }]}
+                  >
+                    <Ionicons name="pencil" size={16} color={palette.accent} />
                   </TouchableOpacity>
                 )}
               </View>
 
               {/* Email Field (Read-only) */}
               <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="mail-outline" size={20} color={Colors.burnishedGold} />
+                <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                  <Ionicons name="mail-outline" size={20} color={palette.accent} />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>Email Address</Text>
-                  <Text style={styles.settingValue}>{profile.email}</Text>
+                  <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Email Address</Text>
+                  <Text style={[styles.settingValue, { color: palette.textSecondary }]}>{profile.email}</Text>
                 </View>
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                <View style={[styles.verifiedBadge, { backgroundColor: palette.successLight }]}>
+                  <Ionicons name="checkmark-circle" size={16} color={palette.success} />
                 </View>
               </View>
 
@@ -333,43 +386,47 @@ export default function AccountScreen() {
           {/* Subscription Section */}
           <Animated.View entering={FadeInUp.duration(500).delay(300)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Subscription</Text>
+              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Subscription</Text>
             </View>
 
-            <View style={styles.subscriptionCard}>
+            <View style={[styles.subscriptionCard, { borderColor: palette.borderAccent }]}>
               <LinearGradient
-                colors={[Colors.goldMuted, 'rgba(197, 160, 89, 0.05)']}
+                colors={[palette.accentMuted, `${palette.accent}08`]}
                 style={styles.subscriptionGradient}
               >
                 <View style={styles.subscriptionHeader}>
-                  <View style={styles.subscriptionIcon}>
-                    <Ionicons name="diamond" size={24} color={Colors.burnishedGold} />
+                  <View style={[styles.subscriptionIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="diamond" size={24} color={palette.accent} />
                   </View>
                   <View style={styles.subscriptionInfo}>
-                    <Text style={styles.subscriptionTitle}>Premium Plan</Text>
-                    <Text style={styles.subscriptionStatus}>Active</Text>
+                    <Text style={[styles.subscriptionTitle, { color: palette.textSecondary }]}>
+                      {isSovereignMember ? 'Sovereign Plan' : 'Premium Plan'}
+                    </Text>
+                    <Text style={[styles.subscriptionStatus, { color: palette.success }]}>Active</Text>
                   </View>
-                  <View style={styles.subscriptionBadge}>
-                    <Text style={styles.subscriptionBadgeText}>CURRENT</Text>
+                  <View style={[styles.subscriptionBadge, { backgroundColor: palette.accent }]}>
+                    <Text style={[styles.subscriptionBadgeText, { color: palette.textInverse }]}>CURRENT</Text>
                   </View>
                 </View>
                 <View style={styles.subscriptionFeatures}>
                   <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={16} color={Colors.success} />
-                    <Text style={styles.featureText}>Unlimited AI coaching sessions</Text>
+                    <Ionicons name="checkmark" size={16} color={palette.success} />
+                    <Text style={[styles.featureText, { color: palette.textSecondary }]}>Unlimited AI coaching sessions</Text>
                   </View>
                   <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={16} color={Colors.success} />
-                    <Text style={styles.featureText}>All premium coaches</Text>
+                    <Ionicons name="checkmark" size={16} color={palette.success} />
+                    <Text style={[styles.featureText, { color: palette.textSecondary }]}>All premium coaches</Text>
                   </View>
                   <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={16} color={Colors.success} />
-                    <Text style={styles.featureText}>Priority support</Text>
+                    <Ionicons name="checkmark" size={16} color={palette.success} />
+                    <Text style={[styles.featureText, { color: palette.textSecondary }]}>
+                      {isSovereignMember ? 'All premium atmospheres' : 'Priority support'}
+                    </Text>
                   </View>
                 </View>
-                <TouchableOpacity style={styles.manageButton}>
-                  <Text style={styles.manageButtonText}>Manage Subscription</Text>
-                  <Ionicons name="arrow-forward" size={14} color={Colors.burnishedGold} />
+                <TouchableOpacity style={[styles.manageButton, { borderTopColor: palette.borderAccent }]}>
+                  <Text style={[styles.manageButtonText, { color: palette.accent }]}>Manage Subscription</Text>
+                  <Ionicons name="arrow-forward" size={14} color={palette.accent} />
                 </TouchableOpacity>
               </LinearGradient>
             </View>
@@ -378,19 +435,19 @@ export default function AccountScreen() {
           {/* Security Section */}
           <Animated.View entering={FadeInUp.duration(500).delay(400)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Security</Text>
+              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Security</Text>
             </View>
 
-            <View style={styles.settingsCard}>
+            <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
               <TouchableOpacity style={styles.settingItemClickable}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="lock-closed-outline" size={20} color={Colors.burnishedGold} />
+                <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                  <Ionicons name="lock-closed-outline" size={20} color={palette.accent} />
                 </View>
                 <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>Change Password</Text>
-                  <Text style={styles.settingDescription}>Update your account password</Text>
+                  <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Change Password</Text>
+                  <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Update your account password</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.stoneGray} />
+                <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -399,20 +456,20 @@ export default function AccountScreen() {
           <Animated.View entering={FadeInUp.duration(500).delay(500)} style={styles.signOutSection}>
             <TouchableOpacity
               onPress={handleSignOut}
-              style={styles.signOutButton}
+              style={[styles.signOutButton, { backgroundColor: palette.errorLight }]}
               activeOpacity={0.8}
             >
               <View style={styles.signOutContent}>
-                <Ionicons name="log-out-outline" size={20} color={Colors.error} />
-                <Text style={styles.signOutText}>Sign Out</Text>
+                <Ionicons name="log-out-outline" size={20} color={palette.error} />
+                <Text style={[styles.signOutText, { color: palette.error }]}>Sign Out</Text>
               </View>
             </TouchableOpacity>
           </Animated.View>
 
           {/* App Info */}
           <Animated.View entering={FadeIn.duration(400).delay(600)} style={styles.appInfo}>
-            <Text style={styles.appVersion}>Coachgenie v1.0.0</Text>
-            <Text style={styles.appCopyright}>© 2024 Coachgenie. All rights reserved.</Text>
+            <Text style={[styles.appVersion, { color: palette.textTertiary }]}>Coachgenie v1.0.0</Text>
+            <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 Coachgenie. All rights reserved.</Text>
           </Animated.View>
 
           {/* Bottom Spacer */}
@@ -426,13 +483,11 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.xxl,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.section,
   },
@@ -440,7 +495,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Header
@@ -449,12 +503,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.xxl,
   },
   backButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.subtle,
@@ -462,7 +516,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   headerSpacer: {
@@ -471,6 +524,7 @@ const styles = StyleSheet.create({
 
   // Profile Card
   profileCard: {
+    marginHorizontal: Spacing.xxl,
     borderRadius: Radius.squircle,
     overflow: 'hidden',
     marginBottom: Spacing.xxl,
@@ -489,24 +543,24 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
   },
   avatarText: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.bold,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
   },
   profileName: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.xs,
   },
   profileEmail: {
     fontSize: Typography.sizes.body,
-    color: Colors.goldLight,
     marginBottom: Spacing.md,
   },
   memberBadge: {
@@ -520,7 +574,6 @@ const styles = StyleSheet.create({
   },
   memberText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.burnishedGold,
     fontWeight: Typography.weights.medium,
     letterSpacing: Typography.letterSpacing.wide,
   },
@@ -528,18 +581,18 @@ const styles = StyleSheet.create({
   // Section Headers
   sectionHeader: {
     marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xxl,
   },
   sectionTitle: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.stoneGray,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.widest,
   },
 
   // Settings Card
   settingsCard: {
-    backgroundColor: Colors.cardBg,
+    marginHorizontal: Spacing.xxl,
     borderRadius: Radius.lg,
     marginBottom: Spacing.xxl,
     ...Shadows.subtle,
@@ -549,7 +602,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   settingItemClickable: {
     flexDirection: 'row',
@@ -560,7 +612,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -570,34 +621,28 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wide,
   },
   settingValue: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     fontWeight: Typography.weights.medium,
   },
   settingInput: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     fontWeight: Typography.weights.medium,
     padding: 0,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.burnishedGold,
     paddingBottom: Spacing.xs,
   },
   settingDescription: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
   },
   editButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -605,7 +650,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -624,11 +668,11 @@ const styles = StyleSheet.create({
 
   // Subscription Card
   subscriptionCard: {
+    marginHorizontal: Spacing.xxl,
     borderRadius: Radius.lg,
     overflow: 'hidden',
     marginBottom: Spacing.xxl,
     borderWidth: 1,
-    borderColor: Colors.borderGold,
   },
   subscriptionGradient: {
     padding: Spacing.xl,
@@ -642,7 +686,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -653,23 +696,19 @@ const styles = StyleSheet.create({
   subscriptionTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
   },
   subscriptionStatus: {
     fontSize: Typography.sizes.caption,
-    color: Colors.success,
     fontWeight: Typography.weights.medium,
   },
   subscriptionBadge: {
-    backgroundColor: Colors.burnishedGold,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.pill,
   },
   subscriptionBadgeText: {
     fontSize: Typography.sizes.micro,
-    color: Colors.white,
     fontWeight: Typography.weights.bold,
     letterSpacing: Typography.letterSpacing.wider,
   },
@@ -684,7 +723,6 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
   },
   manageButton: {
     flexDirection: 'row',
@@ -693,21 +731,19 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderGold,
     marginTop: Spacing.md,
   },
   manageButtonText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
 
   // Sign Out
   signOutSection: {
     marginBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.xxl,
   },
   signOutButton: {
-    backgroundColor: Colors.errorLight,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
   },
@@ -720,22 +756,20 @@ const styles = StyleSheet.create({
   signOutText: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.error,
   },
 
   // App Info
   appInfo: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.xxl,
   },
   appVersion: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: Spacing.xs,
   },
   appCopyright: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
   },
 
   // Guest State
@@ -763,13 +797,11 @@ const styles = StyleSheet.create({
   guestTitle: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.md,
   },
   guestText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
     marginBottom: Spacing.xxl,
@@ -783,7 +815,6 @@ const styles = StyleSheet.create({
   },
   guestBackText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textDecorationLine: 'underline',
   },
 

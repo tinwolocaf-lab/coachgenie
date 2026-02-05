@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Share,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,21 +18,48 @@ import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
   FadeInDown,
+  FadeInUp,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { toggleInsightHighlight } from '@/lib/supabase-sanctuary';
-import { KeyInsight } from '@/types';
+import { createRitualFromInsight, getRituals } from '@/lib/supabase-rituals';
+import { suggestRitualFromInsight } from '@/lib/ai-rituals';
+import { KeyInsight, Ritual } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
+import { Button } from '@/components/ui/Button';
+
+// Dynamic auth hook
+const getAuthHook = () => {
+  if (isSupabaseConfigured) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require('@fastshot/auth').useAuth;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
 
 export default function InsightDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const useAuth = getAuthHook();
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+
   const [loading, setLoading] = useState(true);
   const [insight, setInsight] = useState<KeyInsight | null>(null);
   const [isHighlighted, setIsHighlighted] = useState(false);
+  const [showRitualModal, setShowRitualModal] = useState(false);
+  const [ritualTitle, setRitualTitle] = useState('');
+  const [ritualDescription, setRitualDescription] = useState('');
+  const [isCreatingRitual, setIsCreatingRitual] = useState(false);
+  const [isSuggestingRitual, setIsSuggestingRitual] = useState(false);
+  const [ritualCreated, setRitualCreated] = useState(false);
 
   const loadInsight = useCallback(async () => {
     if (!id || !isSupabaseConfigured) return;
@@ -90,6 +119,83 @@ export default function InsightDetailScreen() {
     } catch (error) {
       console.error('Error sharing:', error);
     }
+  };
+
+  const handleOpenRitualModal = async () => {
+    if (!insight || !auth?.user) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowRitualModal(true);
+    setIsSuggestingRitual(true);
+
+    try {
+      // Get existing rituals to avoid duplicates
+      const existingRituals = await getRituals(auth.user.id);
+
+      // Use AI to suggest a ritual based on the insight
+      const suggestion = await suggestRitualFromInsight(
+        insight.title,
+        insight.content,
+        existingRituals
+      );
+
+      if (suggestion) {
+        setRitualTitle(suggestion.title);
+        setRitualDescription(suggestion.description);
+      } else {
+        // Fallback to generating from insight title
+        setRitualTitle(`Practice: ${insight.title.slice(0, 30)}...`);
+        setRitualDescription(`A daily ritual inspired by the insight "${insight.title}"`);
+      }
+    } catch (error) {
+      console.error('Error suggesting ritual:', error);
+      // Set fallback values
+      setRitualTitle(`Practice: ${insight.title.slice(0, 30)}${insight.title.length > 30 ? '...' : ''}`);
+      setRitualDescription(`A daily ritual inspired by this insight`);
+    } finally {
+      setIsSuggestingRitual(false);
+    }
+  };
+
+  const handleCreateRitual = async () => {
+    if (!insight || !auth?.user || !ritualTitle.trim()) return;
+
+    setIsCreatingRitual(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    try {
+      const result = await createRitualFromInsight(
+        auth.user.id,
+        insight.id,
+        ritualTitle.trim(),
+        ritualDescription.trim() || undefined
+      );
+
+      if (result) {
+        setRitualCreated(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Close modal after a short delay
+        setTimeout(() => {
+          setShowRitualModal(false);
+          setRitualCreated(false);
+          setRitualTitle('');
+          setRitualDescription('');
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error creating ritual:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsCreatingRitual(false);
+    }
+  };
+
+  const handleCloseRitualModal = () => {
+    setShowRitualModal(false);
+    setRitualTitle('');
+    setRitualDescription('');
+    setRitualCreated(false);
   };
 
   if (loading) {
@@ -241,8 +347,134 @@ export default function InsightDetailScreen() {
           </Animated.View>
         )}
 
+        {/* Insight-to-Action: Create Ritual Button */}
+        {auth?.user && (
+          <Animated.View entering={FadeInDown.duration(500).delay(700)} style={styles.actionSection}>
+            <View style={styles.actionDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Turn insight into action</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.createRitualButton}
+              onPress={handleOpenRitualModal}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={[Colors.midnightEmerald, '#2D4A38']}
+                style={styles.createRitualGradient}
+              >
+                <View style={styles.createRitualIcon}>
+                  <Ionicons name="leaf" size={24} color={Colors.burnishedGold} />
+                </View>
+                <View style={styles.createRitualContent}>
+                  <Text style={styles.createRitualTitle}>Create a Daily Ritual</Text>
+                  <Text style={styles.createRitualSubtitle}>Transform this insight into a habit</Text>
+                </View>
+                <Ionicons name="add-circle" size={28} color={Colors.burnishedGold} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Create Ritual Modal */}
+      <Modal
+        visible={showRitualModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCloseRitualModal}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={handleCloseRitualModal} style={styles.modalClose}>
+              <Ionicons name="close" size={24} color={Colors.charcoal} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>New Daily Ritual</Text>
+            <View style={styles.modalClose} />
+          </View>
+
+          {ritualCreated ? (
+            <Animated.View entering={FadeInUp.duration(500)} style={styles.successContainer}>
+              <View style={styles.successIcon}>
+                <Ionicons name="checkmark-circle" size={64} color={Colors.success} />
+              </View>
+              <Text style={styles.successTitle}>Ritual Created!</Text>
+              <Text style={styles.successSubtitle}>
+                Your new daily ritual has been added to The Practice
+              </Text>
+            </Animated.View>
+          ) : (
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {/* Source Insight */}
+              <View style={styles.sourceInsight}>
+                <Text style={styles.sourceLabel}>Based on insight:</Text>
+                <Text style={styles.sourceTitle} numberOfLines={2}>{insight?.title}</Text>
+              </View>
+
+              {isSuggestingRitual ? (
+                <View style={styles.suggestingContainer}>
+                  <ActivityIndicator size="large" color={Colors.burnishedGold} />
+                  <Text style={styles.suggestingText}>AI is crafting a ritual suggestion...</Text>
+                </View>
+              ) : (
+                <>
+                  {/* Ritual Name Input */}
+                  <View style={styles.inputSection}>
+                    <Text style={styles.inputLabel}>Ritual Name</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={ritualTitle}
+                      onChangeText={setRitualTitle}
+                      placeholder="e.g., Morning Gratitude Practice"
+                      placeholderTextColor={Colors.stoneGray}
+                      maxLength={50}
+                    />
+                  </View>
+
+                  {/* Description Input */}
+                  <View style={styles.inputSection}>
+                    <Text style={styles.inputLabel}>Description (optional)</Text>
+                    <TextInput
+                      style={[styles.textInput, styles.textInputMultiline]}
+                      value={ritualDescription}
+                      onChangeText={setRitualDescription}
+                      placeholder="What does this ritual involve?"
+                      placeholderTextColor={Colors.stoneGray}
+                      multiline
+                      numberOfLines={3}
+                      maxLength={200}
+                    />
+                  </View>
+
+                  {/* Info Note */}
+                  <View style={styles.infoNote}>
+                    <Ionicons name="information-circle" size={18} color={Colors.burnishedGold} />
+                    <Text style={styles.infoNoteText}>
+                      This ritual will be linked to this insight and appear in your daily Practice.
+                    </Text>
+                  </View>
+
+                  {/* Create Button */}
+                  <Button
+                    title={isCreatingRitual ? 'Creating...' : 'Create Ritual'}
+                    onPress={handleCreateRitual}
+                    variant="gold"
+                    fullWidth
+                    size="lg"
+                    disabled={!ritualTitle.trim() || isCreatingRitual}
+                  />
+                </>
+              )}
+
+              <View style={styles.modalSpacer} />
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -421,6 +653,188 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
     color: Colors.charcoal,
+  },
+
+  // Action Section - Insight to Action
+  actionSection: {
+    marginTop: Spacing.xl,
+  },
+  actionDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    gap: Spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.borderLight,
+  },
+  dividerText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.stoneGray,
+    fontStyle: 'italic',
+    letterSpacing: Typography.letterSpacing.wide,
+  },
+  createRitualButton: {
+    borderRadius: Radius.squircle,
+    overflow: 'hidden',
+    ...Shadows.lg,
+  },
+  createRitualGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.xl,
+    gap: Spacing.md,
+  },
+  createRitualIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createRitualContent: {
+    flex: 1,
+  },
+  createRitualTitle: {
+    fontSize: Typography.sizes.bodyLarge,
+    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.serif,
+    color: Colors.white,
+    marginBottom: 2,
+  },
+  createRitualSubtitle: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.goldLight,
+  },
+
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.warmOatmeal,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  modalClose: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    fontSize: Typography.sizes.title,
+    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.serif,
+    color: Colors.midnightEmerald,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.xl,
+  },
+  sourceInsight: {
+    backgroundColor: Colors.goldMuted,
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.borderGold,
+  },
+  sourceLabel: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.stoneGray,
+    marginBottom: Spacing.xs,
+  },
+  sourceTitle: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.medium,
+    color: Colors.charcoal,
+    fontStyle: 'italic',
+  },
+  suggestingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xxxl,
+    gap: Spacing.lg,
+  },
+  suggestingText: {
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
+    fontStyle: 'italic',
+  },
+  inputSection: {
+    marginBottom: Spacing.xl,
+  },
+  inputLabel: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.charcoal,
+    letterSpacing: Typography.letterSpacing.wide,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.sm,
+  },
+  textInput: {
+    backgroundColor: Colors.cardBg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    fontSize: Typography.sizes.body,
+    color: Colors.charcoal,
+  },
+  textInputMultiline: {
+    height: 100,
+    textAlignVertical: 'top',
+    paddingTop: Spacing.md,
+  },
+  infoNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.goldMuted,
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  infoNoteText: {
+    flex: 1,
+    fontSize: Typography.sizes.caption,
+    color: Colors.charcoal,
+    lineHeight: Typography.sizes.caption * Typography.lineHeights.relaxed,
+  },
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xxxl,
+  },
+  successIcon: {
+    marginBottom: Spacing.xl,
+  },
+  successTitle: {
+    fontSize: Typography.sizes.headline,
+    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.serif,
+    color: Colors.midnightEmerald,
+    marginBottom: Spacing.sm,
+  },
+  successSubtitle: {
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
+    textAlign: 'center',
+  },
+  modalSpacer: {
+    height: 100,
   },
   bottomSpacer: {
     height: 100,

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,8 +21,10 @@ import Animated, {
   useSharedValue,
   withDelay,
   withTiming,
+  withSequence,
 } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressRing } from '@/components/ui/ProgressRing';
@@ -31,7 +34,8 @@ import { FeaturedCard } from '@/components/ui/FeaturedCard';
 import { QuickActions } from '@/components/ui/QuickActions';
 import { StaggeredFadeIn } from '@/components/ui/AnimatedContainer';
 import { FlashbackCard } from '@/components/archive/FlashbackCard';
-import { Coach, Session, DayPlan, Priority, KeyInsight } from '@/types';
+import { FluidProgressBar } from '@/components/rituals/FluidProgressBar';
+import { Coach, Session, DayPlan, Priority, KeyInsight, TodayPractice, TimeOfDay } from '@/types';
 import { getCoachById, SAMPLE_COACHES } from '@/data/coaches';
 import {
   getActiveCoachId,
@@ -41,6 +45,7 @@ import {
 } from '@/store/app';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { getFlashbackInsights } from '@/lib/supabase-archive';
+import { getTodayPractice, getTimeOfDay, completeRitual, uncompleteRitual } from '@/lib/supabase-rituals';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -80,6 +85,7 @@ const getStreakDays = (): { day: string; completed: boolean; isToday: boolean }[
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -92,6 +98,8 @@ export default function HomeScreen() {
   const [currentStreak, setCurrentStreak] = useState(3);
   const [featuredCoach, setFeaturedCoach] = useState<Coach | null>(null);
   const [flashbackInsight, setFlashbackInsight] = useState<{ insight: KeyInsight; type: 'monthAgo' | 'yearAgo' } | null>(null);
+  const [todayPractice, setTodayPractice] = useState<TodayPractice | null>(null);
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay());
 
   const loadData = useCallback(async () => {
     try {
@@ -134,7 +142,7 @@ export default function HomeScreen() {
     loadData();
   }, [loadData]);
 
-  // Get user name from auth and load flashback insights
+  // Get user name from auth and load flashback insights + practice data
   useEffect(() => {
     if (auth?.user) {
       const metadata = auth.user.user_metadata || {};
@@ -156,8 +164,30 @@ export default function HomeScreen() {
         }
       };
       loadFlashback();
+
+      // Load today's practice data
+      const loadPractice = async () => {
+        try {
+          const practice = await getTodayPractice(auth.user.id);
+          setTodayPractice(practice);
+          if (practice.streakDays > 0) {
+            setCurrentStreak(practice.streakDays);
+          }
+        } catch (error) {
+          console.log('No practice data available:', error);
+        }
+      };
+      loadPractice();
     }
   }, [auth?.user]);
+
+  // Update time of day periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeOfDay(getTimeOfDay());
+    }, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -200,6 +230,52 @@ export default function HomeScreen() {
     }
   };
 
+  const handleMorningPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/rituals/morning');
+  };
+
+  const handleEveningPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/rituals/evening');
+  };
+
+  const handlePracticePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/rituals');
+  };
+
+  // Ritual toggle handler - used when tapping rituals directly from home
+  const _handleRitualToggle = async (ritualId: string, isCompleted: boolean) => {
+    if (!auth?.user) return;
+
+    try {
+      if (isCompleted) {
+        await completeRitual(auth.user.id, ritualId);
+      } else {
+        await uncompleteRitual(auth.user.id, ritualId);
+      }
+
+      // Update local state
+      if (todayPractice) {
+        const updatedRituals = todayPractice.rituals.map(r =>
+          r.id === ritualId ? { ...r, is_completed_today: isCompleted } : r
+        );
+        const completedCount = updatedRituals.filter(r => r.is_completed_today).length;
+        const totalCount = updatedRituals.length;
+        const overallProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+        setTodayPractice({
+          ...todayPractice,
+          rituals: updatedRituals,
+          overallProgress,
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling ritual:', error);
+    }
+  };
+
   const today = new Date();
   const dateString = today.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -223,10 +299,10 @@ export default function HomeScreen() {
   // Quick actions
   const quickActions = [
     {
-      id: 'resume',
-      label: 'Resume Session',
-      icon: 'play-circle-outline' as keyof typeof Ionicons.glyphMap,
-      onPress: handleOpenChat,
+      id: 'practice',
+      label: 'The Practice',
+      icon: 'leaf-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handlePracticePress,
     },
     {
       id: 'checkin',
@@ -255,7 +331,7 @@ export default function HomeScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -263,7 +339,7 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.burnishedGold}
+            tintColor={palette.accent}
           />
         }
       >
@@ -273,13 +349,13 @@ export default function HomeScreen() {
             {/* Header with greeting and avatar */}
             <View style={styles.heroHeader}>
               <View style={styles.greetingContainer}>
-                <Text style={styles.heroGreeting}>
+                <Text style={[styles.heroGreeting, { color: palette.textPrimary }]}>
                   {getGreeting()}{userName ? ',' : ''}
                 </Text>
                 {userName && (
-                  <Text style={styles.heroName}>{userName}</Text>
+                  <Text style={[styles.heroName, { color: palette.textPrimary }]}>{userName}</Text>
                 )}
-                <Text style={styles.heroDate}>{dateString}</Text>
+                <Text style={[styles.heroDate, { color: palette.textTertiary }]}>{dateString}</Text>
               </View>
               <TouchableOpacity
                 style={styles.avatarButton}
@@ -287,10 +363,10 @@ export default function HomeScreen() {
                 activeOpacity={0.9}
               >
                 <LinearGradient
-                  colors={[Colors.burnishedGold, Colors.goldLight]}
-                  style={styles.avatarGradient}
+                  colors={[palette.accent, palette.accentLight]}
+                  style={[styles.avatarGradient, { shadowColor: palette.accent }]}
                 >
-                  <Ionicons name="person" size={20} color={Colors.white} />
+                  <Ionicons name="person" size={20} color={palette.textInverse} />
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -323,9 +399,9 @@ export default function HomeScreen() {
               </View>
 
               {/* Quick insight */}
-              <View style={styles.insightCard}>
-                <Ionicons name="sparkles" size={16} color={Colors.burnishedGold} />
-                <Text style={styles.insightText}>
+              <View style={[styles.insightCard, { backgroundColor: palette.accentMuted }]}>
+                <Ionicons name="sparkles" size={16} color={palette.accent} />
+                <Text style={[styles.insightText, { color: palette.textSecondary }]}>
                   {progressPercentage === 100
                     ? "Perfect alignment today. Well done."
                     : progressPercentage > 50
@@ -343,27 +419,27 @@ export default function HomeScreen() {
         {activeCoach && (
           <StaggeredFadeIn index={2} baseDelay={200}>
             <TouchableOpacity
-              style={styles.activeCoachCard}
+              style={[styles.activeCoachCard, { shadowColor: palette.shadowColor }]}
               onPress={handleOpenChat}
               activeOpacity={0.95}
             >
               <LinearGradient
-                colors={[Colors.midnightEmerald, '#243D2E']}
+                colors={[palette.gradientStart, palette.gradientEnd]}
                 style={styles.coachGradient}
               >
                 <View style={styles.coachContent}>
                   <CoachIcon
                     iconName={activeCoach.icon_name}
-                    color={Colors.burnishedGold}
+                    color={palette.accent}
                     size="md"
                   />
                   <View style={styles.coachInfo}>
-                    <Text style={styles.coachLabel}>Your Active Coach</Text>
-                    <Text style={styles.coachName}>{activeCoach.name}</Text>
+                    <Text style={[styles.coachLabel, { color: palette.accentLight }]}>Your Active Coach</Text>
+                    <Text style={[styles.coachName, { color: palette.textInverse }]}>{activeCoach.name}</Text>
                   </View>
                   <View style={styles.resumeButton}>
-                    <Text style={styles.resumeText}>Resume</Text>
-                    <Ionicons name="arrow-forward" size={14} color={Colors.burnishedGold} />
+                    <Text style={[styles.resumeText, { color: palette.accent }]}>Resume</Text>
+                    <Ionicons name="arrow-forward" size={14} color={palette.accent} />
                   </View>
                 </View>
               </LinearGradient>
@@ -371,8 +447,91 @@ export default function HomeScreen() {
           </StaggeredFadeIn>
         )}
 
+        {/* Today's Practice - Time-Sensitive Action Cards */}
+        {auth?.user && (
+          <StaggeredFadeIn index={3} baseDelay={250}>
+            <View style={styles.practiceSection}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.practiceHeaderRow}>
+                  <Text style={styles.sectionTitle}>Today&apos;s Practice</Text>
+                  <TouchableOpacity onPress={handlePracticePress} style={styles.practiceViewAll}>
+                    <Text style={styles.viewAllText}>View All</Text>
+                    <Ionicons name="chevron-forward" size={14} color={Colors.burnishedGold} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Time-Sensitive Action Card */}
+              <PracticeActionCard
+                timeOfDay={timeOfDay}
+                morningCompleted={!!todayPractice?.morningReflection}
+                eveningCompleted={!!todayPractice?.eveningReflection}
+                onMorningPress={handleMorningPress}
+                onEveningPress={handleEveningPress}
+              />
+
+              {/* Mini Rituals Progress */}
+              {todayPractice && todayPractice.rituals.length > 0 && (
+                <TouchableOpacity
+                  style={styles.miniRitualsCard}
+                  onPress={handlePracticePress}
+                  activeOpacity={0.95}
+                >
+                  <View style={styles.miniRitualsHeader}>
+                    <View style={styles.miniRitualsLabel}>
+                      <Ionicons name="leaf" size={16} color={Colors.midnightEmerald} />
+                      <Text style={styles.miniRitualsTitle}>Daily Rituals</Text>
+                    </View>
+                    <View style={styles.miniRitualsProgress}>
+                      <Text style={styles.miniRitualsPercent}>{todayPractice.overallProgress}%</Text>
+                      {todayPractice.streakDays > 0 && (
+                        <View style={styles.miniStreakBadge}>
+                          <Text style={styles.miniStreakText}>{todayPractice.streakDays}</Text>
+                          <Text style={styles.miniFireEmoji}>🔥</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.miniProgressBarWrapper}>
+                    <FluidProgressBar
+                      progress={todayPractice.overallProgress}
+                      height={8}
+                      color={Colors.midnightEmerald}
+                    />
+                  </View>
+                  <View style={styles.miniRitualsList}>
+                    {todayPractice.rituals.slice(0, 3).map((ritual) => (
+                      <View key={ritual.id} style={styles.miniRitualItem}>
+                        <View style={[
+                          styles.miniRitualCheck,
+                          ritual.is_completed_today && styles.miniRitualCheckDone
+                        ]}>
+                          {ritual.is_completed_today && (
+                            <Ionicons name="checkmark" size={10} color={Colors.white} />
+                          )}
+                        </View>
+                        <Text style={[
+                          styles.miniRitualText,
+                          ritual.is_completed_today && styles.miniRitualTextDone
+                        ]} numberOfLines={1}>
+                          {ritual.title}
+                        </Text>
+                      </View>
+                    ))}
+                    {todayPractice.rituals.length > 3 && (
+                      <Text style={styles.miniRitualMore}>
+                        +{todayPractice.rituals.length - 3} more
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          </StaggeredFadeIn>
+        )}
+
         {/* Quick Actions */}
-        <StaggeredFadeIn index={3} baseDelay={300}>
+        <StaggeredFadeIn index={4} baseDelay={350}>
           <View style={styles.quickActionsContainer}>
             <QuickActions actions={quickActions} baseDelay={400} />
           </View>
@@ -380,7 +539,7 @@ export default function HomeScreen() {
 
         {/* Flashback - From Your Archive */}
         {flashbackInsight && (
-          <StaggeredFadeIn index={4} baseDelay={400}>
+          <StaggeredFadeIn index={5} baseDelay={450}>
             <View style={styles.flashbackSection}>
               <FlashbackCard
                 insight={flashbackInsight.insight}
@@ -393,7 +552,7 @@ export default function HomeScreen() {
 
         {/* Featured Card - Editorial Magazine Style */}
         {featuredCoach && (
-          <StaggeredFadeIn index={5} baseDelay={450}>
+          <StaggeredFadeIn index={6} baseDelay={500}>
             <View style={styles.featuredSection}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Featured</Text>
@@ -414,7 +573,7 @@ export default function HomeScreen() {
         )}
 
         {/* Today's Focus */}
-        <StaggeredFadeIn index={6} baseDelay={500}>
+        <StaggeredFadeIn index={7} baseDelay={550}>
           <View style={styles.focusSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today&apos;s Focus</Text>
@@ -447,7 +606,7 @@ export default function HomeScreen() {
 
         {/* Recent Sessions */}
         {recentSessions.length > 0 && (
-          <StaggeredFadeIn index={7} baseDelay={700}>
+          <StaggeredFadeIn index={8} baseDelay={650}>
             <View style={styles.sessionsSection}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Recent Sessions</Text>
@@ -554,6 +713,90 @@ function SessionCard({ session, index }: { session: Session; index: number }) {
         </Text>
       </Card>
     </Animated.View>
+  );
+}
+
+// Time-Sensitive Practice Action Card
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function PracticeActionCard({
+  timeOfDay,
+  morningCompleted,
+  eveningCompleted,
+  onMorningPress,
+  onEveningPress,
+}: {
+  timeOfDay: TimeOfDay;
+  morningCompleted: boolean;
+  eveningCompleted: boolean;
+  onMorningPress: () => void;
+  onEveningPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+
+  // Determine which card to show based on time of day
+  const showMorning = timeOfDay === 'morning' || timeOfDay === 'afternoon';
+  // Evening shows when not morning (evening or night)
+  const _showEvening = !showMorning;
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    scale.value = withSequence(
+      withTiming(0.98, { duration: 100 }),
+      withSpring(1, Timing.springBouncy)
+    );
+    if (showMorning) {
+      onMorningPress();
+    } else {
+      onEveningPress();
+    }
+  };
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const isMorning = showMorning;
+  const isCompleted = isMorning ? morningCompleted : eveningCompleted;
+  const gradientColors: [string, string] = isMorning
+    ? [Colors.goldMuted, Colors.warmOatmealDark]
+    : [Colors.midnightEmerald + '20', Colors.warmOatmealDark];
+
+  const iconName = isMorning ? 'sunny' : 'moon';
+  const iconColor = isMorning ? Colors.burnishedGold : Colors.midnightEmerald;
+  const title = isMorning ? 'Morning Intention' : 'Evening Audit';
+  const subtitle = isMorning
+    ? 'Set your focus for today'
+    : 'Reflect on your day';
+
+  return (
+    <AnimatedPressable onPress={handlePress} style={cardStyle}>
+      <LinearGradient
+        colors={gradientColors}
+        style={[styles.practiceActionCard, isCompleted && styles.practiceActionCompleted]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.practiceActionContent}>
+          <View style={[styles.practiceActionIcon, { backgroundColor: iconColor + '20' }]}>
+            <Ionicons name={iconName} size={24} color={iconColor} />
+          </View>
+          <View style={styles.practiceActionText}>
+            <Text style={styles.practiceActionTitle}>{title}</Text>
+            <Text style={styles.practiceActionSubtitle}>{subtitle}</Text>
+          </View>
+          {isCompleted ? (
+            <View style={styles.practiceCompletedBadge}>
+              <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
+            </View>
+          ) : (
+            <View style={styles.practiceActionArrow}>
+              <Ionicons name="arrow-forward" size={18} color={iconColor} />
+            </View>
+          )}
+        </View>
+      </LinearGradient>
+    </AnimatedPressable>
   );
 }
 
@@ -695,6 +938,170 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.caption,
     color: Colors.burnishedGold,
     fontWeight: Typography.weights.medium,
+  },
+
+  // Practice Section
+  practiceSection: {
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.lg,
+  },
+  practiceHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  practiceViewAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  viewAllText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.burnishedGold,
+    fontWeight: Typography.weights.medium,
+    letterSpacing: Typography.letterSpacing.wide,
+    textTransform: 'uppercase',
+  },
+  practiceActionCard: {
+    borderRadius: Radius.squircle,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  practiceActionCompleted: {
+    opacity: 0.8,
+  },
+  practiceActionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  practiceActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  practiceActionText: {
+    flex: 1,
+  },
+  practiceActionTitle: {
+    fontSize: Typography.sizes.bodyLarge,
+    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.serif,
+    color: Colors.midnightEmerald,
+    marginBottom: 2,
+  },
+  practiceActionSubtitle: {
+    fontSize: Typography.sizes.body,
+    color: Colors.stoneGray,
+  },
+  practiceCompletedBadge: {
+    backgroundColor: Colors.successLight,
+    borderRadius: 16,
+    padding: 4,
+  },
+  practiceActionArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.warmOatmealDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniRitualsCard: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: Radius.squircle,
+    padding: Spacing.lg,
+    ...Shadows.subtle,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  miniRitualsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  miniRitualsLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  miniRitualsTitle: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.charcoal,
+  },
+  miniRitualsProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  miniRitualsPercent: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.bold,
+    color: Colors.midnightEmerald,
+    fontFamily: Typography.fonts.serif,
+  },
+  miniStreakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.goldMuted,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: Radius.pill,
+  },
+  miniStreakText: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.bold,
+    color: Colors.charcoal,
+  },
+  miniFireEmoji: {
+    fontSize: 10,
+    marginLeft: 2,
+  },
+  miniProgressBarWrapper: {
+    marginBottom: Spacing.md,
+  },
+  miniRitualsList: {
+    gap: Spacing.sm,
+  },
+  miniRitualItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  miniRitualCheck: {
+    width: 16,
+    height: 16,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniRitualCheckDone: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
+  },
+  miniRitualText: {
+    flex: 1,
+    fontSize: Typography.sizes.body,
+    color: Colors.charcoal,
+  },
+  miniRitualTextDone: {
+    color: Colors.stoneGray,
+    textDecorationLine: 'line-through',
+  },
+  miniRitualMore: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.stoneGray,
+    marginLeft: 24,
+    fontStyle: 'italic',
   },
 
   // Quick Actions

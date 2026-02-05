@@ -10,7 +10,8 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { Colors, Typography, Shadows, Timing } from '@/constants/theme';
+import { Typography, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useEffect } from 'react';
 
 interface TabIconProps {
@@ -18,9 +19,10 @@ interface TabIconProps {
   nameOutline: keyof typeof Ionicons.glyphMap;
   focused: boolean;
   color: string;
+  accentColor: string;
 }
 
-function TabIcon({ name, nameOutline, focused, color }: TabIconProps) {
+function TabIcon({ name, nameOutline, focused, color, accentColor }: TabIconProps) {
   const scale = useSharedValue(focused ? 1 : 0.9);
   const opacity = useSharedValue(focused ? 1 : 0.6);
   const glowOpacity = useSharedValue(focused ? 0.2 : 0);
@@ -48,7 +50,7 @@ function TabIcon({ name, nameOutline, focused, color }: TabIconProps) {
   return (
     <Animated.View style={[styles.iconContainer, containerStyle]}>
       {/* Glow effect */}
-      <Animated.View style={[styles.glowEffect, glowStyle]} />
+      <Animated.View style={[styles.glowEffect, { backgroundColor: accentColor }, glowStyle]} />
 
       {/* Icon */}
       <Ionicons
@@ -59,7 +61,7 @@ function TabIcon({ name, nameOutline, focused, color }: TabIconProps) {
 
       {/* Active indicator */}
       {focused && (
-        <Animated.View style={styles.activeIndicator} />
+        <Animated.View style={[styles.activeIndicator, { backgroundColor: accentColor }]} />
       )}
     </Animated.View>
   );
@@ -67,13 +69,17 @@ function TabIcon({ name, nameOutline, focused, color }: TabIconProps) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { palette, atmosphere } = useThemeSafe();
+
+  // Determine blur tint based on theme
+  const blurTint = atmosphere.id === 'midnight-gallery' ? 'dark' : 'light';
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.burnishedGold,
-        tabBarInactiveTintColor: Colors.stoneGray,
+        tabBarActiveTintColor: palette.tabBarActive,
+        tabBarInactiveTintColor: palette.tabBarInactive,
         tabBarLabelStyle: {
           fontSize: Typography.sizes.micro,
           fontWeight: Typography.weights.medium,
@@ -82,17 +88,18 @@ export default function TabLayout() {
         },
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: 'rgba(253, 252, 248, 0.92)',
+          backgroundColor: palette.tabBarBg,
           borderTopWidth: 0,
           paddingTop: 10,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 14,
           height: 70 + (insets.bottom > 0 ? insets.bottom : 14),
           ...Shadows.lg,
+          shadowColor: palette.shadowColor,
         },
         tabBarBackground: () => (
           <BlurView
             intensity={90}
-            tint="light"
+            tint={blurTint}
             style={StyleSheet.absoluteFill}
           />
         ),
@@ -108,6 +115,7 @@ export default function TabLayout() {
               nameOutline="home-outline"
               focused={focused}
               color={color}
+              accentColor={palette.tabBarActive}
             />
           ),
         }}
@@ -127,6 +135,7 @@ export default function TabLayout() {
               nameOutline="grid-outline"
               focused={focused}
               color={color}
+              accentColor={palette.tabBarActive}
             />
           ),
         }}
@@ -146,6 +155,7 @@ export default function TabLayout() {
               nameOutline="calendar-outline"
               focused={focused}
               color={color}
+              accentColor={palette.tabBarActive}
             />
           ),
         }}
@@ -165,6 +175,7 @@ export default function TabLayout() {
               nameOutline="diamond-outline"
               focused={focused}
               color={color}
+              accentColor={palette.tabBarActive}
             />
           ),
         }}
@@ -191,7 +202,6 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: Colors.burnishedGold,
   },
   activeIndicator: {
     position: 'absolute',
@@ -199,6 +209,5 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.burnishedGold,
   },
 });

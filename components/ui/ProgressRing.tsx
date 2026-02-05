@@ -7,7 +7,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { Colors, Typography, Timing } from '@/constants/theme';
+import { Typography, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -28,6 +29,7 @@ export function ProgressRing({
   label,
   sublabel,
 }: ProgressRingProps) {
+  const { palette } = useThemeSafe();
   const animatedProgress = useSharedValue(0);
 
   const radius = (size - strokeWidth) / 2;
@@ -53,8 +55,8 @@ export function ProgressRing({
       <Svg width={size} height={size} style={styles.svg}>
         <Defs>
           <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={Colors.burnishedGold} />
-            <Stop offset="100%" stopColor={Colors.goldLight} />
+            <Stop offset="0%" stopColor={palette.accent} />
+            <Stop offset="100%" stopColor={palette.accentLight} />
           </LinearGradient>
         </Defs>
 
@@ -63,7 +65,7 @@ export function ProgressRing({
           cx={center}
           cy={center}
           r={radius}
-          stroke={Colors.border}
+          stroke={palette.border}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -87,10 +89,10 @@ export function ProgressRing({
       {/* Center content */}
       <View style={styles.centerContent}>
         {showPercentage && (
-          <Text style={styles.percentage}>{Math.round(progress)}%</Text>
+          <Text style={[styles.percentage, { color: palette.textPrimary }]}>{Math.round(progress)}%</Text>
         )}
-        {label && <Text style={styles.label}>{label}</Text>}
-        {sublabel && <Text style={styles.sublabel}>{sublabel}</Text>}
+        {label && <Text style={[styles.label, { color: palette.textTertiary }]}>{label}</Text>}
+        {sublabel && <Text style={[styles.sublabel, { color: palette.textTertiary }]}>{sublabel}</Text>}
       </View>
     </View>
   );
@@ -111,20 +113,17 @@ const styles = StyleSheet.create({
   percentage: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.bold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   label: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.stoneGray,
     marginTop: 4,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
   },
   sublabel: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
 });

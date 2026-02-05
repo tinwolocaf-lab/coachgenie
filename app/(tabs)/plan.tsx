@@ -25,9 +25,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { DayPlan, Priority, TimeBlock } from '@/types';
 import { getDayPlans, updateDayPlan, getActiveCoachId, getContextVault } from '@/store/app';
 import { generate7DayPlan } from '@/lib/ai-coaching';
@@ -49,6 +50,7 @@ function generateWeekDates(): Date[] {
 
 export default function PlanScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const [weekDates] = useState(generateWeekDates);
   const [dayPlans, setDayPlans] = useState<DayPlan[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,7 +153,7 @@ export default function PlanScreen() {
     : 0;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -159,16 +161,16 @@ export default function PlanScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.burnishedGold}
+            tintColor={palette.accent}
           />
         }
       >
         {/* Editorial Header */}
         <Animated.View entering={FadeInUp.duration(600)} style={styles.header}>
           <View style={styles.headerContent}>
-            <Text style={styles.headerLabel}>Your Journey</Text>
-            <Text style={styles.headerTitle}>7-Day Timeline</Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerLabel, { color: palette.accent }]}>Your Journey</Text>
+            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>7-Day Timeline</Text>
+            <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
               A curated plan aligned with your values and goals
             </Text>
           </View>
@@ -181,17 +183,17 @@ export default function PlanScreen() {
               disabled={isGeneratingPlan}
             >
               <LinearGradient
-                colors={[Colors.burnishedGold, Colors.goldLight]}
+                colors={[palette.accent, palette.accentLight]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.generateGradient}
               >
                 {isGeneratingPlan ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
+                  <ActivityIndicator size="small" color={palette.textInverse} />
                 ) : (
                   <>
-                    <Ionicons name="sparkles" size={18} color={Colors.white} />
-                    <Text style={styles.generateText}>Generate</Text>
+                    <Ionicons name="sparkles" size={18} color={palette.textInverse} />
+                    <Text style={[styles.generateText, { color: palette.textInverse }]}>Generate</Text>
                   </>
                 )}
               </LinearGradient>
@@ -201,30 +203,30 @@ export default function PlanScreen() {
 
         {/* Weekly Progress Card */}
         <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.progressSection}>
-          <BlurView intensity={40} tint="light" style={styles.progressCard}>
+          <BlurView intensity={40} tint={palette.statusBarStyle === 'light' ? 'dark' : 'light'} style={[styles.progressCard, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}>
             <View style={styles.progressHeader}>
-              <View style={styles.progressCircle}>
-                <Text style={styles.progressPercentage}>{completionRate}%</Text>
+              <View style={[styles.progressCircle, { borderColor: palette.accent }]}>
+                <Text style={[styles.progressPercentage, { color: palette.accent }]}>{completionRate}%</Text>
               </View>
               <View style={styles.progressInfo}>
-                <Text style={styles.progressTitle}>Week Progress</Text>
-                <Text style={styles.progressSubtitle}>
+                <Text style={[styles.progressTitle, { color: palette.textPrimary }]}>Week Progress</Text>
+                <Text style={[styles.progressSubtitle, { color: palette.textTertiary }]}>
                   {weeklyStats.completed} of {totalPriorities} priorities complete
                 </Text>
               </View>
             </View>
 
-            <View style={styles.statsRow}>
+            <View style={[styles.statsRow, { borderTopColor: palette.border }]}>
               <View style={styles.statItem}>
-                <View style={[styles.statDot, { backgroundColor: Colors.success }]} />
-                <Text style={styles.statValue}>{weeklyStats.completed}</Text>
-                <Text style={styles.statLabel}>Done</Text>
+                <View style={[styles.statDot, { backgroundColor: palette.success }]} />
+                <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.completed}</Text>
+                <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Done</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
               <View style={styles.statItem}>
-                <View style={[styles.statDot, { backgroundColor: Colors.burnishedGold }]} />
-                <Text style={styles.statValue}>{weeklyStats.remaining}</Text>
-                <Text style={styles.statLabel}>Pending</Text>
+                <View style={[styles.statDot, { backgroundColor: palette.accent }]} />
+                <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.remaining}</Text>
+                <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Pending</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>

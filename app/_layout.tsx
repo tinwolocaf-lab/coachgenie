@@ -5,9 +5,9 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
-import { Colors } from '@/constants/theme';
 import { isOnboardingComplete } from '@/store/onboarding';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
 
 // Conditionally import AuthProvider
 let AuthProvider: React.ComponentType<{
@@ -146,9 +146,10 @@ function useDeepLinkHandler() {
   return { isProcessingDeepLink };
 }
 
-function AppContent() {
+function ThemedAppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const { isProcessingDeepLink } = useDeepLinkHandler();
+  const { palette } = useThemeSafe();
 
   useEffect(() => {
     checkOnboarding();
@@ -166,8 +167,8 @@ function AppContent() {
 
   if (isLoading || isProcessingDeepLink) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.burnishedGold} />
+      <View style={[styles.loading, { backgroundColor: palette.background }]}>
+        <ActivityIndicator size="large" color={palette.accent} />
       </View>
     );
   }
@@ -176,7 +177,7 @@ function AppContent() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: Colors.warmOatmeal },
+        contentStyle: { backgroundColor: palette.background },
         animation: 'fade',
       }}
     >
@@ -256,12 +257,29 @@ function AppContent() {
   );
 }
 
+function AppContent() {
+  return (
+    <ThemeProvider>
+      <ThemedAppContentWithStatusBar />
+    </ThemeProvider>
+  );
+}
+
+function ThemedAppContentWithStatusBar() {
+  const { palette } = useThemeSafe();
+  return (
+    <>
+      <StatusBar style={palette.statusBarStyle === 'light' ? 'light' : 'dark'} />
+      <ThemedAppContent />
+    </>
+  );
+}
+
 export default function RootLayout() {
   // Wrap with AuthProvider if available
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
         <AppContent />
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -301,6 +319,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.warmOatmeal,
   },
 });
