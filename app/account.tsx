@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -185,6 +186,59 @@ export default function AccountScreen() {
         },
       ]
     );
+  };
+
+  const handleManageSubscription = async () => {
+    // Premium haptic feedback for a refined feel
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      let subscriptionUrl: string;
+
+      if (Platform.OS === 'ios') {
+        // iOS App Store subscription management
+        subscriptionUrl = 'itms-apps://apps.apple.com/account/subscriptions';
+      } else {
+        // Google Play Store subscription management
+        subscriptionUrl = 'https://play.google.com/store/account/subscriptions';
+      }
+
+      const canOpen = await Linking.canOpenURL(subscriptionUrl);
+
+      if (canOpen) {
+        // Success haptic before opening
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await Linking.openURL(subscriptionUrl);
+      } else {
+        // Fallback for web or if URL scheme isn't supported
+        const fallbackUrl = Platform.OS === 'ios'
+          ? 'https://apps.apple.com/account/subscriptions'
+          : 'https://play.google.com/store/account/subscriptions';
+
+        await Linking.openURL(fallbackUrl);
+      }
+    } catch (error) {
+      console.error('Failed to open subscription management:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      Alert.alert(
+        'Unable to Open',
+        'Could not open subscription management. Please manage your subscription through your device settings.',
+        [
+          { text: 'OK', style: 'default' },
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              if (Platform.OS === 'ios') {
+                Linking.openURL('app-settings:');
+              } else {
+                Linking.openSettings();
+              }
+            }
+          }
+        ]
+      );
+    }
   };
 
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -424,7 +478,11 @@ export default function AccountScreen() {
                     </Text>
                   </View>
                 </View>
-                <TouchableOpacity style={[styles.manageButton, { borderTopColor: palette.borderAccent }]}>
+                <TouchableOpacity
+                  onPress={handleManageSubscription}
+                  style={[styles.manageButton, { borderTopColor: palette.borderAccent }]}
+                  activeOpacity={0.7}
+                >
                   <Text style={[styles.manageButtonText, { color: palette.accent }]}>Manage Subscription</Text>
                   <Ionicons name="arrow-forward" size={14} color={palette.accent} />
                 </TouchableOpacity>
