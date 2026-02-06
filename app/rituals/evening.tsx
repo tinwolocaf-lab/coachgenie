@@ -34,7 +34,7 @@ import {
   getTodayDate,
   getRitualsWithStatus,
 } from '@/lib/supabase-rituals';
-import { generateClosingThought } from '@/lib/ai-rituals';
+import { generateClosingThought } from '@/lib/apiClient';
 import { getContextVault } from '@/store/app';
 import { DailyReflection, RitualWithStatus, ContextVault } from '@/types';
 
@@ -161,14 +161,14 @@ export default function EveningAuditScreen() {
       const filteredWins = wins.filter(w => w.trim());
       const filteredLessons = lessons.filter(l => l.trim());
 
-      const thought = await generateClosingThought(
-        auth.user.id,
-        filteredWins,
-        filteredLessons,
+      const thought = await generateClosingThought({
+        wins: filteredWins,
+        lessons: filteredLessons,
         morningIntention,
         ritualProgress,
-        userContext
-      );
+        values: userContext?.values ?? [],
+        goals: userContext?.goals.map(goal => goal.title) ?? [],
+      });
 
       setClosingThought(thought);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -193,14 +193,14 @@ export default function EveningAuditScreen() {
       // Generate closing thought if not already generated
       let finalThought = closingThought;
       if (!finalThought && (filteredWins.length > 0 || filteredLessons.length > 0)) {
-        finalThought = await generateClosingThought(
-          auth.user.id,
-          filteredWins,
-          filteredLessons,
+        finalThought = await generateClosingThought({
+          wins: filteredWins,
+          lessons: filteredLessons,
           morningIntention,
           ritualProgress,
-          userContext
-        );
+          values: userContext?.values ?? [],
+          goals: userContext?.goals.map(goal => goal.title) ?? [],
+        });
       }
 
       const reflection = await saveDailyReflection(auth.user.id, {

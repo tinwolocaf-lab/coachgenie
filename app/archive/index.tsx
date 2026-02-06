@@ -34,9 +34,8 @@ import {
   getRecentHistoryQueries,
   ArchiveStats,
 } from '@/lib/supabase-archive';
-import { askYourHistory } from '@/lib/ai-archive';
-import { EnhancedSession, KeyInsight, Breakthrough, ContextVault, HistoryQuery } from '@/types';
-import { getContextVault } from '@/store/app';
+import { askHistory } from '@/lib/apiClient';
+import { EnhancedSession, KeyInsight, Breakthrough, HistoryQuery, QuerySource } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -75,7 +74,6 @@ export default function ArchiveScreen() {
   const [breakthroughs, setBreakthroughs] = useState<Breakthrough[]>([]);
   const [stats, setStats] = useState<ArchiveStats | null>(null);
   const [recentQueries, setRecentQueries] = useState<HistoryQuery[]>([]);
-  const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [askLoading, setAskLoading] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -88,14 +86,12 @@ export default function ArchiveScreen() {
         breakthroughsData,
         statsData,
         queriesData,
-        contextData,
       ] = await Promise.all([
         getInsightsWithDetails(auth.user.id, 20),
         getArchivedSessions(auth.user.id, 20),
         getAllBreakthroughs(auth.user.id, 10),
         getArchiveStats(auth.user.id),
         getRecentHistoryQueries(auth.user.id, 5),
-        getContextVault(),
       ]);
 
       setInsights(insightsData);
@@ -103,7 +99,6 @@ export default function ArchiveScreen() {
       setBreakthroughs(breakthroughsData);
       setStats(statsData);
       setRecentQueries(queriesData);
-      setUserContext(contextData);
     } catch (error) {
       console.error('Error loading archive data:', error);
     }
@@ -138,11 +133,15 @@ export default function ArchiveScreen() {
     if (!auth?.user?.id) return null;
     setAskLoading(true);
     try {
-      const result = await askYourHistory(auth.user.id, query, userContext);
+      const result = await askHistory(query);
+      const typedResult = {
+        answer: result.answer,
+        sources: (result.sources ?? []) as QuerySource[],
+      };
       // Refresh recent queries
       const queries = await getRecentHistoryQueries(auth.user.id, 5);
       setRecentQueries(queries);
-      return result;
+      return typedResult;
     } finally {
       setAskLoading(false);
     }

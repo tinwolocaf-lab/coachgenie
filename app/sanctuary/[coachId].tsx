@@ -28,19 +28,22 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
-import { useTextGeneration } from '@fastshot/ai';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
-import { Coach, EnhancedMessage, ContextVault, KeyInsight } from '@/types';
+import { Coach, EnhancedMessage, ContextVault } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { getContextVault } from '@/store/app';
+import { supabase } from '@/lib/supabase';
 import {
-  generateCoachResponse,
   detectInsightInMessage,
-  generateBreakthroughSummary,
-  expandOnPoint,
-  generateInsightTitle,
 } from '@/lib/ai-sanctuary';
 import {
+  streamChat,
+  generateBreakthrough as fetchBreakthrough,
+  expandOnPoint,
+  generateInsightTitle,
+} from '@/lib/apiClient';
+import {
+  createSession,
   saveInsight,
   saveBreakthrough,
 } from '@/lib/supabase-sanctuary';
@@ -69,6 +72,7 @@ export default function SanctuaryScreen() {
   const [inputText, setInputText] = useState('');
   const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
 
   // UI state
   const [showEntryAnimation, setShowEntryAnimation] = useState(true);
@@ -129,9 +133,23 @@ export default function SanctuaryScreen() {
     const vault = await getContextVault();
     setUserContext(vault);
 
-    // Create session ID
-    const newSessionId = `session-${Date.now()}`;
-    setSessionId(newSessionId);
+    const { data: authData } = await supabase.auth.getSession();
+    const authUser = authData.session?.user;
+    if (!authUser) {
+      Alert.alert('Sign in required', 'Please sign in to start a coaching session.');
+      router.replace('/(auth)/login');
+      return;
+    }
+
+    setAuthUserId(authUser.id);
+
+    const dbSession = await createSession(authUser.id, coachId, 'New Session');
+    if (!dbSession) {
+      Alert.alert('Error', 'Could not start a session. Please try again.');
+      return;
+    }
+
+    setSessionId(dbSession.id);
   };
 
   // Start session after entry animation
@@ -199,16 +217,20 @@ export default function SanctuaryScreen() {
     }, 100);
 
     try {
-      // Generate AI response
-      const response = await generateCoachResponse(
-        coach,
-        userContext,
-        messages,
-        messageText
-      );
+      if (!sessionId) {
+        throw new Error('Session not ready');
+      }
 
-      // Simulate streaming for elegant reveal
-      await streamResponse(response);
+      let response = '';
+      await streamChat(sessionId, messageText, {
+        onToken: (chunk) => {
+          response += chunk;
+          setStreamingText(response);
+        },
+        onError: (message) => {
+          throw new Error(message);
+        },
+      });
 
       // Check for insights
       const insightCheck = detectInsightInMessage(response);
@@ -219,7 +241,7 @@ export default function SanctuaryScreen() {
         id: `msg-${Date.now()}`,
         session_id: sessionId || '',
         role: 'assistant',
-        content: response,
+        content: response || 'I am here with you. What feels most important right now?',
         created_at: new Date().toISOString(),
         is_insight: isInsightMessage,
         insight_title: insightCheck.insightContent,
@@ -265,16 +287,6 @@ export default function SanctuaryScreen() {
     }
   };
 
-  // Stream response for elegant reveal
-  const streamResponse = async (text: string) => {
-    const chunkSize = 2;
-    for (let i = 0; i <= text.length; i += chunkSize) {
-      await new Promise(resolve => setTimeout(resolve, 10));
-      setStreamingText(text.slice(0, i));
-    }
-    setStreamingText(text);
-  };
-
   // Check for session end cues
   const checkForSessionEnd = (message: string) => {
     const endCues = [
@@ -316,20 +328,20 @@ export default function SanctuaryScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const breakthrough = await generateBreakthroughSummary(
-        coach,
-        messages,
-        userContext
-      );
+      if (!sessionId) {
+        throw new Error('Session not ready');
+      }
+
+      const breakthrough = await fetchBreakthrough(sessionId);
 
       if (breakthrough) {
         setBreakthroughData(breakthrough);
         setShowBreakthrough(true);
 
         // Save to database
-        if (userContext?.user_id) {
+        if (authUserId) {
           await saveBreakthrough(
-            userContext.user_id,
+            authUserId,
             sessionId || undefined,
             coachId,
             breakthrough.title,
@@ -385,7 +397,7 @@ export default function SanctuaryScreen() {
     setReflectContent('');
 
     try {
-      const expanded = await expandOnPoint(coach, message.content, messages);
+      const expanded = await expandOnPoint(message.content);
       setReflectContent(expanded);
     } catch (error) {
       console.error('Error expanding point:', error);
@@ -396,13 +408,13 @@ export default function SanctuaryScreen() {
   };
 
   const handleSaveInsight = async (message: EnhancedMessage) => {
-    if (!userContext?.user_id || !coachId) return;
+    if (!authUserId || !coachId) return;
 
     try {
       const title = await generateInsightTitle(message.content);
 
       await saveInsight(
-        userContext.user_id,
+        authUserId,
         sessionId || undefined,
         coachId,
         title,
@@ -453,13 +465,13 @@ export default function SanctuaryScreen() {
 
   // Save pending insight to journal
   const handleSavePendingInsight = async () => {
-    if (!pendingInsight || !userContext?.user_id || !coachId) return;
+    if (!pendingInsight || !authUserId || !coachId) return;
 
     try {
       const title = await generateInsightTitle(pendingInsight.content);
 
       await saveInsight(
-        userContext.user_id,
+        authUserId,
         sessionId || undefined,
         coachId,
         title,

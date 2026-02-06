@@ -31,13 +31,12 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated';
-import { useTextGeneration } from '@fastshot/ai';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { Coach, Message, Session, SessionResult, ContextVault } from '@/types';
 import { getCoachById } from '@/data/coaches';
+import { supabase } from '@/lib/supabase';
 import {
   addSession,
   updateSession,
@@ -45,10 +44,8 @@ import {
   updateDayPlan,
   getDayPlans,
 } from '@/store/app';
-import {
-  buildCoachingPrompt,
-  generateSessionArtifacts,
-} from '@/lib/ai-coaching';
+import { createSession, updateSessionById } from '@/lib/supabase-sanctuary';
+import { streamChat, generateArtifacts } from '@/lib/apiClient';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -72,26 +69,8 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useSharedValue(1);
 
-  const { generateText, isLoading: aiLoading } = useTextGeneration({
-    onSuccess: (response) => {
-      handleAIResponse(response);
-    },
-    onError: (err) => {
-      console.error('AI Error:', err);
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        session_id: sessionId || '',
-        role: 'assistant',
-        content: 'I apologize, but I encountered an error. Let me try a different approach. What specific area would you like to focus on?',
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-      setIsStreaming(false);
-    },
-  });
-
   useEffect(() => {
-    if (isStreaming || aiLoading) {
+    if (isStreaming) {
       pulseAnim.value = withRepeat(
         withSequence(
           withTiming(0.4, { duration: 600 }),
@@ -102,7 +81,7 @@ export default function ChatScreen() {
     } else {
       pulseAnim.value = 1;
     }
-  }, [isStreaming, aiLoading, pulseAnim]);
+  }, [isStreaming, pulseAnim]);
 
   useEffect(() => {
     initializeChat();
@@ -117,16 +96,29 @@ export default function ChatScreen() {
     const vault = await getContextVault();
     setUserContext(vault);
 
-    const newSessionId = Date.now().toString();
-    setSessionId(newSessionId);
+    const { data: authData } = await supabase.auth.getSession();
+    const authUser = authData.session?.user;
+    if (!authUser) {
+      Alert.alert('Sign in required', 'Please sign in to start a coaching session.');
+      router.replace('/(auth)/login');
+      return;
+    }
+
+    const dbSession = await createSession(authUser.id, coachId, 'New Session');
+    if (!dbSession) {
+      Alert.alert('Error', 'Could not start a session. Please try again.');
+      return;
+    }
+
+    setSessionId(dbSession.id);
 
     const newSession: Session = {
-      id: newSessionId,
-      user_id: vault?.user_id || 'local-user',
+      id: dbSession.id,
+      user_id: authUser.id,
       coach_id: coachId,
-      title: 'New Session',
-      status: 'active',
-      created_at: new Date().toISOString(),
+      title: dbSession.title,
+      status: dbSession.status as Session['status'],
+      created_at: dbSession.created_at,
     };
 
     await addSession(newSession);
@@ -154,7 +146,7 @@ export default function ChatScreen() {
   };
 
   const handleSend = async () => {
-    if (!inputText.trim() || isStreaming || aiLoading) return;
+    if (!inputText.trim() || isStreaming) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -178,65 +170,70 @@ export default function ChatScreen() {
     }, 100);
 
     try {
-      if (!coach) return;
+      if (!coach || !sessionId) {
+        throw new Error('Session not ready');
+      }
 
-      const fullPrompt = buildCoachingPrompt(
-        coach,
-        userContext,
-        updatedMessages.slice(0, -1),
-        currentInput
-      );
+      let streamedText = '';
+      await streamChat(sessionId, currentInput, {
+        onToken: (chunk) => {
+          streamedText += chunk;
+          setStreamingText(streamedText);
+        },
+        onError: (message) => {
+          throw new Error(message);
+        },
+      });
 
-      await generateText(fullPrompt);
+      const assistantMessage: Message = {
+        id: Date.now().toString(),
+        session_id: sessionId,
+        role: 'assistant',
+        content: streamedText || 'I am here to help. What would you like to focus on next?',
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      setStreamingText('');
+      setIsStreaming(false);
+
+      if (messages.length === 1 && sessionId) {
+        const title = assistantMessage.content.slice(0, 50) + (assistantMessage.content.length > 50 ? '...' : '');
+        await updateSession(sessionId, { title });
+        await updateSessionById(sessionId, { title });
+      }
+
+      const lastUserMessage = updatedMessages.filter(m => m.role === 'user').pop();
+      if (lastUserMessage) {
+        const input = lastUserMessage.content.toLowerCase();
+        if (
+          input.includes('done') ||
+          input.includes('finish') ||
+          input.includes('end session') ||
+          input.includes('wrap up') ||
+          input.includes('that helps') ||
+          input.includes(\"that's all\")
+        ) {
+          await generateSessionResults();
+        }
+      }
+
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
       setIsStreaming(false);
+
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        session_id: sessionId || '',
+        role: 'assistant',
+        content: 'I apologize, but I encountered an error. Please try again in a moment.',
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     }
-  };
-
-  const handleAIResponse = async (response: string) => {
-    const chunkSize = 3;
-    for (let i = 0; i <= response.length; i += chunkSize) {
-      await new Promise((resolve) => setTimeout(resolve, 15));
-      setStreamingText(response.slice(0, i));
-    }
-    setStreamingText(response);
-
-    const assistantMessage: Message = {
-      id: Date.now().toString(),
-      session_id: sessionId || '',
-      role: 'assistant',
-      content: response,
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, assistantMessage]);
-    setStreamingText('');
-    setIsStreaming(false);
-
-    if (messages.length === 1 && sessionId) {
-      const title = response.slice(0, 50) + (response.length > 50 ? '...' : '');
-      await updateSession(sessionId, { title });
-    }
-
-    const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-    if (lastUserMessage) {
-      const input = lastUserMessage.content.toLowerCase();
-      if (
-        input.includes('done') ||
-        input.includes('finish') ||
-        input.includes('end session') ||
-        input.includes('wrap up') ||
-        input.includes('that helps') ||
-        input.includes("that's all")
-      ) {
-        await generateSessionResults();
-      }
-    }
-
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
   };
 
   const generateSessionResults = async () => {
@@ -245,21 +242,23 @@ export default function ChatScreen() {
     setIsGeneratingArtifacts(true);
 
     try {
-      const artifacts = await generateSessionArtifacts(
-        messages,
-        coach,
-        userContext
-      );
+      if (!sessionId) {
+        throw new Error('Session not ready');
+      }
 
+      const artifacts = await generateArtifacts(sessionId);
       setSessionResult(artifacts);
 
-      if (sessionId) {
-        await updateSession(sessionId, {
-          summary: artifacts.summary,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        });
-      }
+      await updateSession(sessionId, {
+        summary: artifacts.summary,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      });
+      await updateSessionById(sessionId, {
+        summary: artifacts.summary,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      });
 
       if (artifacts.plan_updates && artifacts.plan_updates.length > 0) {
         const existingPlans = await getDayPlans();
@@ -419,7 +418,7 @@ export default function ChatScreen() {
                   </View>
                 </Animated.View>
               )}
-              {(aiLoading && !isStreaming && !streamingText) && (
+              {(isStreaming && !streamingText) && (
                 <Animated.View entering={FadeIn.duration(300)} style={styles.thinkingContainer}>
                   <View style={styles.thinkingDots}>
                     <View style={styles.thinkingDot} />
@@ -444,17 +443,17 @@ export default function ChatScreen() {
               onChangeText={setInputText}
               multiline
               maxLength={1000}
-              editable={!aiLoading && !isStreaming}
+              editable={!isStreaming}
             />
             <TouchableOpacity
-              style={[styles.sendButton, (!inputText.trim() || aiLoading || isStreaming) && styles.sendButtonDisabled]}
+              style={[styles.sendButton, (!inputText.trim() || isStreaming) && styles.sendButtonDisabled]}
               onPress={handleSend}
-              disabled={!inputText.trim() || aiLoading || isStreaming}
+              disabled={!inputText.trim() || isStreaming}
             >
               <Ionicons
                 name="arrow-up"
                 size={20}
-                color={(!inputText.trim() || aiLoading || isStreaming) ? Colors.stoneGray : Colors.white}
+                color={(!inputText.trim() || isStreaming) ? Colors.stoneGray : Colors.white}
               />
             </TouchableOpacity>
           </View>

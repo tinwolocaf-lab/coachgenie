@@ -25,8 +25,9 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
-import { transcribeAudio } from '@fastshot/ai';
+import * as FileSystem from 'expo-file-system';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { transcribeVoiceNote } from '@/lib/apiClient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -45,6 +46,7 @@ export function VoiceNoteInput({
 }: VoiceNoteInputProps) {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [transcriptionPreview, setTranscriptionPreview] = useState('');
   const [permissionResponse, requestPermission] = Audio.usePermissions();
   const recording = useRef<Audio.Recording | null>(null);
   const recordingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -153,6 +155,7 @@ export function VoiceNoteInput({
       }
 
       setRecordingState('processing');
+      setTranscriptionPreview('');
 
       // Stop recording
       await recording.current.stopAndUnloadAsync();
@@ -167,8 +170,37 @@ export function VoiceNoteInput({
         throw new Error('No recording URI');
       }
 
-      // Transcribe
-      const transcription = await transcribeAudio({ audioUri: uri });
+      const info = await FileSystem.getInfoAsync(uri);
+      if (info.exists && info.size && info.size > 24 * 1024 * 1024) {
+        Alert.alert('Recording too large', 'Please record a shorter note (max ~24MB).');
+        setRecordingState('idle');
+        return;
+      }
+
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const fileName = uri.split('/').pop() || 'voice-note.m4a';
+      const extension = fileName.split('.').pop()?.toLowerCase();
+      const mimeType = extension === 'wav'
+        ? 'audio/wav'
+        : extension === 'mp3'
+          ? 'audio/mpeg'
+          : 'audio/m4a';
+
+      const transcription = await transcribeVoiceNote({
+        audioBase64: base64Audio,
+        fileName,
+        mimeType,
+        onToken: (chunk) => {
+          if (!chunk) return;
+          setTranscriptionPreview((prev) => {
+            const next = `${prev}${chunk}`;
+            return next.length > 240 ? next.slice(-240) : next;
+          });
+        },
+      });
 
       if (transcription && transcription.trim()) {
         onTranscription(transcription);
@@ -181,9 +213,11 @@ export function VoiceNoteInput({
       }
 
       setRecordingState('idle');
+      setTranscriptionPreview('');
     } catch (error) {
       console.error('Failed to transcribe:', error);
       setRecordingState('idle');
+      setTranscriptionPreview('');
       Alert.alert('Transcription Error', 'Could not process your voice note. Please try again.');
     }
   };
@@ -206,6 +240,7 @@ export function VoiceNoteInput({
 
     setRecordingState('idle');
     setRecordingDuration(0);
+    setTranscriptionPreview('');
     onCancel();
   };
 
@@ -250,7 +285,14 @@ export function VoiceNoteInput({
               </Text>
             </>
           ) : (
-            <Text style={styles.processingText}>Processing...</Text>
+            <View style={styles.processingBlock}>
+              <Text style={styles.processingText}>Transcribing...</Text>
+              {!!transcriptionPreview && (
+                <Text style={styles.transcriptionPreview} numberOfLines={2}>
+                  {transcriptionPreview}
+                </Text>
+              )}
+            </View>
           )}
         </View>
 
@@ -384,6 +426,16 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.body,
     color: Colors.goldLight,
     fontStyle: 'italic',
+  },
+  processingBlock: {
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+  },
+  transcriptionPreview: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.white,
+    textAlign: 'center',
   },
   recordButtonContainer: {
     alignItems: 'center',

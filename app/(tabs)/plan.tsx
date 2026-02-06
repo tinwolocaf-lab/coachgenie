@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,9 +30,11 @@ import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme'
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { DayPlan, Priority, TimeBlock } from '@/types';
-import { getDayPlans, updateDayPlan, getActiveCoachId, getContextVault } from '@/store/app';
-import { generate7DayPlan } from '@/lib/ai-coaching';
+import { DayPlan } from '@/types';
+import { getDayPlans, updateDayPlan, getActiveCoachId } from '@/store/app';
+import { supabase } from '@/lib/supabase';
+import { createSession } from '@/lib/supabase-sanctuary';
+import { generatePlan } from '@/lib/apiClient';
 import { getCoachById } from '@/data/coaches';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -105,19 +108,55 @@ export default function PlanScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const userContext = await getContextVault();
-      const coach = getCoachById(activeCoachId);
-
-      if (coach) {
-        const newPlans = await generate7DayPlan(userContext, coach, dayPlans);
-
-        for (const plan of newPlans) {
-          await updateDayPlan(plan);
-        }
-
-        await loadData();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const { data: authData } = await supabase.auth.getSession();
+      const authUser = authData.session?.user;
+      if (!authUser) {
+        Alert.alert('Sign in required', 'Please sign in to generate a plan.');
+        return;
       }
+
+      const coach = getCoachById(activeCoachId);
+      if (!coach) {
+        Alert.alert('Coach not found', 'Please select a coach and try again.');
+        return;
+      }
+
+      const session = await createSession(authUser.id, activeCoachId, 'Plan Session');
+      if (!session) {
+        Alert.alert('Error', 'Could not start a planning session. Please try again.');
+        return;
+      }
+
+      const response = await generatePlan(session.id, 7);
+      const now = new Date().toISOString();
+
+      const newPlans: DayPlan[] = (response.days || []).map((day, index) => ({
+        id: `plan-${day.day}-${Date.now()}-${index}`,
+        user_id: authUser.id,
+        date: day.day,
+        top_priorities: (day.top_3 || []).map((title, idx) => ({
+          id: `${day.day}-${idx + 1}`,
+          title,
+          completed: false,
+          order: idx + 1,
+        })),
+        time_blocks: (day.time_blocks || []).map((block: any, idx: number) => ({
+          id: block.id || `${day.day}-${idx + 1}`,
+          start_time: block.start_time || '09:00',
+          end_time: block.end_time || '10:00',
+          title: block.title || 'Focus block',
+          category: block.category,
+        })),
+        created_at: now,
+        updated_at: now,
+      }));
+
+      for (const plan of newPlans) {
+        await updateDayPlan(plan);
+      }
+
+      await loadData();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Error generating plan:', error);
     } finally {

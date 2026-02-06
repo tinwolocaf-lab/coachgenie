@@ -16,9 +16,8 @@ import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { SynthesisReport } from '@/components/archive/SynthesisReport';
 import { getMonthlySynthesis, getAllMonthlySyntheses } from '@/lib/supabase-archive';
-import { generateMonthlySynthesis } from '@/lib/ai-archive';
-import { MonthlySynthesis, ContextVault } from '@/types';
-import { getContextVault } from '@/store/app';
+import { generateMonthlySynthesis } from '@/lib/apiClient';
+import { MonthlySynthesis } from '@/types';
 
 // Dynamic auth hook
 const getAuthHook = () => {
@@ -47,22 +46,19 @@ export default function SynthesisScreen() {
   const [allSyntheses, setAllSyntheses] = useState<MonthlySynthesis[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [userContext, setUserContext] = useState<ContextVault | null>(null);
 
   const loadData = useCallback(async () => {
     if (!auth?.user?.id) return;
 
     setIsLoading(true);
     try {
-      const [synthData, allData, contextData] = await Promise.all([
+      const [synthData, allData] = await Promise.all([
         getMonthlySynthesis(auth.user.id, currentMonth),
         getAllMonthlySyntheses(auth.user.id),
-        getContextVault(),
       ]);
 
       setSynthesis(synthData);
       setAllSyntheses(allData);
-      setUserContext(contextData);
     } catch (error) {
       console.error('Error loading synthesis:', error);
     } finally {
@@ -81,10 +77,11 @@ export default function SynthesisScreen() {
     setIsGenerating(true);
 
     try {
-      const result = await generateMonthlySynthesis(auth.user.id, currentMonth, userContext);
-      if (result) {
-        setSynthesis(result);
-        setAllSyntheses(prev => [result, ...prev.filter(s => s.month_year !== currentMonth)]);
+      const result = await generateMonthlySynthesis(currentMonth);
+      const synthesisPayload = (result as { synthesis?: MonthlySynthesis | null })?.synthesis ?? null;
+      if (synthesisPayload) {
+        setSynthesis(synthesisPayload);
+        setAllSyntheses(prev => [synthesisPayload, ...prev.filter(s => s.month_year !== currentMonth)]);
       }
     } catch (error) {
       console.error('Error generating synthesis:', error);
