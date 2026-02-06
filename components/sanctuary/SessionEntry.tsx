@@ -1,5 +1,5 @@
 // Session Entry - Immersive transition animation
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Colors, Typography, Spacing, Shadows, Timing } from '@/constants/theme';
 import { Coach } from '@/types';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 
@@ -31,8 +31,6 @@ interface SessionEntryProps {
 }
 
 export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) {
-  const [phase, setPhase] = useState<'portrait' | 'blur' | 'focus' | 'reveal'>('portrait');
-
   // Animation values
   const portraitScale = useSharedValue(0.8);
   const portraitOpacity = useSharedValue(0);
@@ -59,7 +57,6 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
 
     // Phase 2: Background scales and blurs
     setTimeout(() => {
-      setPhase('blur');
       backgroundScale.value = withTiming(1.2, { duration: 1200, easing: Easing.inOut(Easing.ease) });
       portraitBlur.value = withTiming(15, { duration: 800 });
       overlayOpacity.value = withTiming(0.7, { duration: 800 });
@@ -68,7 +65,6 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
 
     // Phase 3: Text appears
     setTimeout(() => {
-      setPhase('focus');
       textOpacity.value = withTiming(1, { duration: 600 });
       textTranslateY.value = withSpring(0, Timing.springGentle);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -76,7 +72,6 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
 
     // Phase 4: Reveal chat
     setTimeout(() => {
-      setPhase('reveal');
       overlayOpacity.value = withTiming(0, { duration: 500 });
       textOpacity.value = withTiming(0, { duration: 400 });
       portraitOpacity.value = withTiming(0, { duration: 500 });
@@ -85,7 +80,19 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
         runOnJS(onAnimationComplete)();
       }, 500);
     }, 3000);
-  }, []);
+  }, [
+    backgroundScale,
+    onAnimationComplete,
+    overlayOpacity,
+    particlesOpacity,
+    portraitBlur,
+    portraitOpacity,
+    portraitScale,
+    ringOpacity,
+    ringScale,
+    textOpacity,
+    textTranslateY,
+  ]);
 
   // Animated styles
   const portraitContainerStyle = useAnimatedStyle(() => ({
@@ -186,8 +193,6 @@ function GoldParticle({ index }: { index: number }) {
     const delay = index * 100;
     const duration = 2000 + Math.random() * 1000;
     const startX = (Math.random() - 0.5) * SCREEN_WIDTH * 0.8;
-    const startY = SCREEN_HEIGHT * 0.3 + Math.random() * SCREEN_HEIGHT * 0.4;
-
     setTimeout(() => {
       opacity.value = withSequence(
         withTiming(1, { duration: 500 }),

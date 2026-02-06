@@ -5,6 +5,7 @@ import {
   EnhancedMessage,
   KeyInsight,
   Breakthrough,
+  BreakthroughAction,
 } from '@/types';
 
 // Sessions
@@ -371,14 +372,35 @@ export async function updateBreakthroughAction(
     if (fetchError) throw fetchError;
 
     // Update the action
-    const actionItems = (breakthrough.action_items || []).map(
-      (item: { id: string; title: string; completed: boolean }) =>
-        item.id === actionId ? { ...item, completed } : item
+    const rawActionItems = breakthrough?.action_items;
+    const existingActionItems: BreakthroughAction[] = Array.isArray(rawActionItems)
+      ? (rawActionItems as unknown[]).flatMap((item) => {
+          if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+            return [];
+          }
+          const record = item as Record<string, unknown>;
+          if (typeof record.id !== 'string' || record.id.length === 0) {
+            return [];
+          }
+          return [{
+            id: record.id,
+            title: typeof record.title === 'string' ? record.title : '',
+            completed: typeof record.completed === 'boolean' ? record.completed : false,
+          }];
+        })
+      : [];
+    const actionItems = existingActionItems.map((item) =>
+      item.id === actionId ? { ...item, completed } : item
     );
+    const actionItemsForDb: Record<string, string | boolean>[] = actionItems.map((item) => ({
+      id: item.id,
+      title: item.title,
+      completed: item.completed,
+    }));
 
     const { error } = await supabase
       .from('breakthroughs')
-      .update({ action_items: actionItems })
+      .update({ action_items: actionItemsForDb })
       .eq('id', breakthroughId);
 
     if (error) throw error;
@@ -408,12 +430,13 @@ export async function getActiveSession(
 
     if (sessionError && sessionError.code !== 'PGRST116') throw sessionError;
     if (!session) return null;
+    const typedSession = session as EnhancedSession;
 
     // Get messages for this session
-    const messages = await getSessionMessages(session.id);
+    const messages = await getSessionMessages(typedSession.id);
 
     return {
-      session: session as EnhancedSession,
+      session: typedSession,
       messages,
     };
   } catch (error) {

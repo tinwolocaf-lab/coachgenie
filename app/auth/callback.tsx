@@ -10,24 +10,16 @@ import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { Button } from '@/components/ui/Button';
+import { getFastshotAuthCallbackPage } from '@/lib/fastshot-auth';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 // Conditionally import AuthCallbackPage
-let AuthCallbackPage: React.ComponentType<{
+const AuthCallbackPage: React.ComponentType<{
   supabaseClient: typeof supabase;
   onSuccess: () => void;
   onError: (error: { message: string; type?: string }) => void;
   loadingText?: string;
-}> | null = null;
-
-try {
-  if (isSupabaseConfigured) {
-    const authModule = require('@fastshot/auth');
-    AuthCallbackPage = authModule.AuthCallbackPage;
-  }
-} catch {
-  // Auth not available
-}
+}> | null = isSupabaseConfigured ? getFastshotAuthCallbackPage() : null;
 
 // Custom loading component with premium styling
 function PremiumLoadingState({ message }: { message: string }) {

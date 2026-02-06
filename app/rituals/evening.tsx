@@ -18,12 +18,9 @@ import Animated, {
   FadeIn,
   FadeInUp,
   FadeOut,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FluidProgressBar } from '@/components/rituals/FluidProgressBar';
@@ -70,11 +67,6 @@ export default function EveningAuditScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // Load data
-  useEffect(() => {
-    loadData();
-  }, [auth?.user?.id]);
-
   const loadData = useCallback(async () => {
     if (!auth?.user?.id) return;
 
@@ -110,6 +102,11 @@ export default function EveningAuditScreen() {
       console.error('Error loading evening data:', error);
     }
   }, [auth?.user?.id]);
+
+  // Load data
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleAddWin = () => {
     if (wins.length < 5) {

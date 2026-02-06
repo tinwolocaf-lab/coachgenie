@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -12,8 +12,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { CoachIcon } from './CoachIcon';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface FeaturedCardProps {
   type: 'coach' | 'lesson' | 'insight';

@@ -1,27 +1,30 @@
 // Conditional Auth Hook wrapper
 // Provides auth functionality only when Supabase is configured
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { getFastshotUseAuth, type FastshotUseAuthReturn } from '@/lib/fastshot-auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
-interface AuthState {
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: { message: string } | null;
-  pendingEmailVerification: boolean;
-  pendingPasswordReset: boolean;
-  user: { email?: string } | null;
-  session: unknown | null;
-}
+interface AuthState extends Pick<
+  FastshotUseAuthReturn,
+  'isAuthenticated'
+  | 'isLoading'
+  | 'error'
+  | 'pendingEmailVerification'
+  | 'pendingPasswordReset'
+  | 'user'
+  | 'session'
+> {}
 
-interface AuthActions {
-  signInWithGoogle: () => Promise<void>;
-  signInWithApple: () => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<{ emailConfirmationRequired?: boolean; email?: string }>;
-  resetPassword: (email: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  clearError: () => void;
-}
+interface AuthActions extends Pick<
+  FastshotUseAuthReturn,
+  | 'signInWithGoogle'
+  | 'signInWithApple'
+  | 'signInWithEmail'
+  | 'signUpWithEmail'
+  | 'resetPassword'
+  | 'signOut'
+  | 'clearError'
+> {}
 
 type UseAuthReturn = AuthState & AuthActions;
 
@@ -53,14 +56,11 @@ function getUseAuth(): (() => UseAuthReturn) | null {
   if (cachedUseAuth !== null) return cachedUseAuth;
 
   if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const authModule = require('@fastshot/auth');
-      cachedUseAuth = authModule.useAuth;
-      return cachedUseAuth;
-    } catch {
-      cachedUseAuth = null;
-    }
+    const useAuth = getFastshotUseAuth();
+    if (!useAuth) return null;
+
+    cachedUseAuth = useAuth as () => UseAuthReturn;
+    return cachedUseAuth;
   }
   return null;
 }
@@ -68,44 +68,28 @@ function getUseAuth(): (() => UseAuthReturn) | null {
 export function useConditionalAuth(): UseAuthReturn {
   const [localState, setLocalState] = useState<AuthState>(defaultAuthState);
 
-  // Get the real useAuth hook if available
-  const realUseAuth = getUseAuth();
-
-  // Always call the real hook if it exists (to satisfy rules of hooks)
-  // We'll do this in useEffect to avoid issues with conditional rendering
-  const [realAuthState, setRealAuthState] = useState<UseAuthReturn | null>(null);
-
   useEffect(() => {
-    // This is a workaround - we can't conditionally call hooks
-    // So we just use local state management
     if (!isSupabaseConfigured) {
       setLocalState(defaultAuthState);
     }
   }, []);
 
-  // If we have real auth, use it (this component should not be used if Supabase is configured)
-  // This hook is meant for graceful degradation
-  if (realAuthState) {
-    return realAuthState;
-  }
-
-  // Return local state with fallback actions
   return {
     ...localState,
     ...defaultAuthActions,
-    signInWithEmail: async (email: string, password: string) => {
+    signInWithEmail: async (_email: string, _password: string) => {
       setLocalState(s => ({ ...s, isLoading: true }));
       // Simulate loading
       await new Promise(r => setTimeout(r, 500));
       setLocalState(s => ({ ...s, isLoading: false }));
     },
-    signUpWithEmail: async (email: string, password: string) => {
+    signUpWithEmail: async (email: string, _password: string) => {
       setLocalState(s => ({ ...s, isLoading: true }));
       await new Promise(r => setTimeout(r, 500));
       setLocalState(s => ({ ...s, isLoading: false, pendingEmailVerification: true }));
       return { emailConfirmationRequired: true, email };
     },
-    resetPassword: async (email: string) => {
+    resetPassword: async (_email: string) => {
       setLocalState(s => ({ ...s, isLoading: true }));
       await new Promise(r => setTimeout(r, 500));
       setLocalState(s => ({ ...s, isLoading: false, pendingPasswordReset: true }));
@@ -113,21 +97,12 @@ export function useConditionalAuth(): UseAuthReturn {
   };
 }
 
-// Export a hook that uses the real auth if available
+const resolvedUseAuthHook = getUseAuth();
+const useAuthSafeImpl: () => UseAuthReturn =
+  isSupabaseConfigured && resolvedUseAuthHook
+    ? resolvedUseAuthHook
+    : useConditionalAuth;
+
 export function useAuthSafe() {
-  const useAuthHook = getUseAuth();
-
-  // Always call in consistent order
-  const fallback = useConditionalAuth();
-
-  if (useAuthHook && isSupabaseConfigured) {
-    // This is a type assertion - we know the hook exists
-    try {
-      return useAuthHook();
-    } catch {
-      return fallback;
-    }
-  }
-
-  return fallback;
+  return useAuthSafeImpl();
 }

@@ -17,7 +17,6 @@ import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
   FadeInUp,
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -90,10 +89,6 @@ export default function GrowthChaptersScreen() {
   });
   const [isCreating, setIsCreating] = useState(false);
 
-  useEffect(() => {
-    loadChapters();
-  }, [auth?.user?.id]);
-
   const loadChapters = useCallback(async () => {
     if (!auth?.user?.id) return;
 
@@ -104,6 +99,10 @@ export default function GrowthChaptersScreen() {
       console.error('Error loading chapters:', error);
     }
   }, [auth?.user?.id]);
+
+  useEffect(() => {
+    loadChapters();
+  }, [loadChapters]);
 
   const handleCreateChapter = async () => {
     if (!auth?.user?.id || !newChapter.title.trim()) return;
@@ -144,7 +143,10 @@ export default function GrowthChaptersScreen() {
 
   const handleChapterPress = (chapter: GrowthChapter) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/rituals/chapter/${chapter.id}`);
+    router.push({
+      pathname: '/rituals',
+      params: { chapterId: chapter.id },
+    });
   };
 
   const handleSetPrimary = async (chapter: GrowthChapter) => {

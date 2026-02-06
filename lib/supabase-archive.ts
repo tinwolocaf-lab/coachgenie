@@ -171,7 +171,7 @@ export async function getSessionsByDateRange(
 export async function getInsightsWithDetails(
   userId: string,
   limit = 100,
-  category?: string
+  category?: KeyInsight['category'] | 'all'
 ): Promise<KeyInsight[]> {
   if (!isSupabaseConfigured) return [];
 
@@ -236,7 +236,8 @@ export async function getInsightsByCategory(
     if (error) throw error;
 
     const grouped: Record<string, KeyInsight[]> = {};
-    (data || []).forEach((insight: KeyInsight) => {
+    const insights = (data || []) as KeyInsight[];
+    insights.forEach((insight) => {
       const cat = insight.category || 'general';
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(insight);
@@ -600,7 +601,7 @@ export async function getArchiveStats(userId: string): Promise<ArchiveStats> {
     ]);
 
     // Calculate streaks from breakthroughs
-    const breakthroughs = (breakthroughsRes.data || []) as Array<{ id: string; date: string }>;
+    const breakthroughs = (breakthroughsRes.data || []) as { id: string; date: string }[];
     let currentStreak = 0;
     let longestStreak = 0;
     let tempStreak = 0;
@@ -646,7 +647,7 @@ export async function getArchiveStats(userId: string): Promise<ArchiveStats> {
     }
 
     // Find top coach
-    const sessions = (sessionsRes.data || []) as Array<{ id: string; coach_id: string }>;
+    const sessions = (sessionsRes.data || []) as { id: string; coach_id: string }[];
     const coachCounts: Record<string, number> = {};
     sessions.forEach(s => {
       coachCounts[s.coach_id] = (coachCounts[s.coach_id] || 0) + 1;

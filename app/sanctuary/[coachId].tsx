@@ -9,7 +9,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Modal,
   Alert,
   Clipboard,
   Keyboard,
@@ -20,12 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
-  FadeInUp,
-  FadeOut,
-  SlideInDown,
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   withSpring,
 } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
@@ -50,7 +45,6 @@ import {
 
 // Components
 import { CoachIcon } from '@/components/ui/CoachIcon';
-import { Button } from '@/components/ui/Button';
 import { SessionEntry } from '@/components/sanctuary/SessionEntry';
 import { EditorialBlock, KeyInsightCard } from '@/components/sanctuary/EditorialBlock';
 import { GoldPulseIndicator } from '@/components/ui/GoldPulseIndicator';
@@ -61,9 +55,8 @@ import { VoiceNoteInput, VoiceNoteTrigger } from '@/components/sanctuary/VoiceNo
 export default function SanctuaryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { coachId, resume } = useLocalSearchParams<{
+  const { coachId } = useLocalSearchParams<{
     coachId: string;
-    resume?: string;
   }>();
 
   // Core state
@@ -113,11 +106,7 @@ export default function SanctuaryScreen() {
   const inputScale = useSharedValue(1);
 
   // Initialize session
-  useEffect(() => {
-    initializeSession();
-  }, [coachId]);
-
-  const initializeSession = async () => {
+  const initializeSession = useCallback(async () => {
     if (!coachId) return;
 
     const coachData = getCoachById(coachId);
@@ -150,7 +139,11 @@ export default function SanctuaryScreen() {
     }
 
     setSessionId(dbSession.id);
-  };
+  }, [coachId, router]);
+
+  useEffect(() => {
+    initializeSession();
+  }, [initializeSession]);
 
   // Start session after entry animation
   const handleEntryComplete = () => {

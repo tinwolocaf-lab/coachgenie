@@ -66,7 +66,6 @@ export default function InsightsGalleryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
 
   const loadInsights = useCallback(async () => {
     if (!auth?.user?.id) return;
@@ -107,16 +106,11 @@ export default function InsightsGalleryScreen() {
 
     if (!auth?.user?.id) return;
 
-    setIsSearching(true);
-    try {
-      const results = await searchInsights(auth.user.id, query.trim());
-      if (activeFilter === 'all') {
-        setFilteredInsights(results);
-      } else {
-        setFilteredInsights(results.filter(i => i.category === activeFilter));
-      }
-    } finally {
-      setIsSearching(false);
+    const results = await searchInsights(auth.user.id, query.trim());
+    if (activeFilter === 'all') {
+      setFilteredInsights(results);
+    } else {
+      setFilteredInsights(results.filter(i => i.category === activeFilter));
     }
   }, [activeFilter, auth?.user?.id, insights]);
 

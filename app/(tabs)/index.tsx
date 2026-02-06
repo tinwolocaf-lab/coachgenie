@@ -45,7 +45,7 @@ import {
 } from '@/store/app';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { getFlashbackInsights } from '@/lib/supabase-archive';
-import { getTodayPractice, getTimeOfDay, completeRitual, uncompleteRitual } from '@/lib/supabase-rituals';
+import { getTodayPractice, getTimeOfDay } from '@/lib/supabase-rituals';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -243,37 +243,6 @@ export default function HomeScreen() {
   const handlePracticePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/rituals');
-  };
-
-  // Ritual toggle handler - used when tapping rituals directly from home
-  const _handleRitualToggle = async (ritualId: string, isCompleted: boolean) => {
-    if (!auth?.user) return;
-
-    try {
-      if (isCompleted) {
-        await completeRitual(auth.user.id, ritualId);
-      } else {
-        await uncompleteRitual(auth.user.id, ritualId);
-      }
-
-      // Update local state
-      if (todayPractice) {
-        const updatedRituals = todayPractice.rituals.map(r =>
-          r.id === ritualId ? { ...r, is_completed_today: isCompleted } : r
-        );
-        const completedCount = updatedRituals.filter(r => r.is_completed_today).length;
-        const totalCount = updatedRituals.length;
-        const overallProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-        setTodayPractice({
-          ...todayPractice,
-          rituals: updatedRituals,
-          overallProgress,
-        });
-      }
-    } catch (error) {
-      console.error('Error toggling ritual:', error);
-    }
   };
 
   const today = new Date();
@@ -736,8 +705,6 @@ function PracticeActionCard({
 
   // Determine which card to show based on time of day
   const showMorning = timeOfDay === 'morning' || timeOfDay === 'afternoon';
-  // Evening shows when not morning (evening or night)
-  const _showEvening = !showMorning;
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

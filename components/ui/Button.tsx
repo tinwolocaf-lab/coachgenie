@@ -34,6 +34,8 @@ export interface ButtonProps {
   iconPosition?: 'left' | 'right';
 }
 
+type GradientColors = readonly [string, string, ...string[]];
+
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export function Button({
@@ -72,7 +74,12 @@ export function Button({
     onPress();
   };
 
-  const variantTokens = useMemo(() => {
+  const variantTokens = useMemo<{
+    backgroundColor: string;
+    borderColor: string;
+    textColor: string;
+    gradient: GradientColors | null;
+  }>(() => {
     if (variant === 'gold') {
       return {
         backgroundColor: 'transparent',

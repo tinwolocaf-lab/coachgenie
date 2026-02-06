@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -14,7 +13,6 @@ import Animated, {
   withTiming,
   withDelay,
   withSpring,
-  withSequence,
   FadeIn,
   FadeInUp,
   FadeInDown,
@@ -24,11 +22,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
-import { Breakthrough, Coach } from '@/types';
+import { Coach } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface BreakthroughViewProps {
   breakthrough: {
@@ -121,7 +117,7 @@ export function BreakthroughView({
           </Animated.View>
 
           {/* Title */}
-          <Text style={styles.label}>TODAY'S BREAKTHROUGH</Text>
+          <Text style={styles.label}>TODAY&apos;S BREAKTHROUGH</Text>
           <Text style={styles.title}>{breakthrough.title}</Text>
 
           {/* Gold accent line bottom */}

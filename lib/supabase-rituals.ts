@@ -95,10 +95,13 @@ export async function getRitualsWithStatus(userId: string, date?: string): Promi
     // Merge data
     type CompletionRecord = { ritual_id: string; [key: string]: unknown };
     type StreakRecord = { ritual_id: string; current_streak?: number; [key: string]: unknown };
-    const completionMap = new Map((completions || []).map((c: CompletionRecord) => [c.ritual_id, c]));
-    const streakMap = new Map((streaks || []).map((s: StreakRecord) => [s.ritual_id, s]));
+    const completionRecords = (completions || []) as CompletionRecord[];
+    const streakRecords = (streaks || []) as StreakRecord[];
+    const ritualRecords = (rituals || []) as Ritual[];
+    const completionMap = new Map(completionRecords.map((completion) => [completion.ritual_id, completion]));
+    const streakMap = new Map(streakRecords.map((streak) => [streak.ritual_id, streak]));
 
-    return (rituals || []).map((ritual: Ritual) => {
+    return ritualRecords.map((ritual) => {
       const completion = completionMap.get(ritual.id) as RitualCompletion | undefined;
       const streak = streakMap.get(ritual.id) as RitualStreak | undefined;
 
@@ -438,7 +441,7 @@ export async function getRecentReflections(
 
 export async function getGrowthChapters(
   userId: string,
-  status?: string
+  status?: GrowthChapter['status']
 ): Promise<GrowthChapter[]> {
   if (!isSupabaseConfigured) return [];
 

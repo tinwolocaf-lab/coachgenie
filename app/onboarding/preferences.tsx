@@ -16,7 +16,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   useSharedValue,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -26,8 +25,6 @@ import { Preferences } from '@/types';
 import { getOnboardingState, updatePreferences } from '@/store/onboarding';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_SIZE = SCREEN_WIDTH - Spacing.xxl * 2;
-
 // 2D Style Grid positions
 const STYLE_POSITIONS = [
   { id: 'gentle-nurturing', tone: 0, directness: 0, label: 'Nurturing', icon: 'heart-outline' },

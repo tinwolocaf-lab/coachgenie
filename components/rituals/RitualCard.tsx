@@ -15,9 +15,7 @@ import Animated, {
   withSpring,
   withTiming,
   withSequence,
-  withDelay,
   interpolateColor,
-  runOnJS,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';

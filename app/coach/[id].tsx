@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
@@ -33,11 +33,7 @@ export default function CoachDetailScreen() {
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadCoach();
-  }, [id]);
-
-  const loadCoach = async () => {
+  const loadCoach = useCallback(async () => {
     if (!id) return;
 
     const coachData = getCoachById(id);
@@ -49,7 +45,11 @@ export default function CoachDetailScreen() {
 
     const activeId = await getActiveCoachId();
     setIsActive(activeId === id);
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadCoach();
+  }, [loadCoach]);
 
   const handleInstall = async () => {
     if (!coach) return;

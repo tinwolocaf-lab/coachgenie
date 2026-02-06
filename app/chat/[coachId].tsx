@@ -15,23 +15,18 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
   FadeInUp,
-  FadeInDown,
-  SlideInDown,
-  SlideOutDown,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withRepeat,
   withSequence,
-  withSpring,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { Coach, Message, Session, SessionResult, ContextVault } from '@/types';
@@ -83,11 +78,7 @@ export default function ChatScreen() {
     }
   }, [isStreaming, pulseAnim]);
 
-  useEffect(() => {
-    initializeChat();
-  }, [coachId]);
-
-  const initializeChat = async () => {
+  const initializeChat = useCallback(async () => {
     if (!coachId) return;
 
     const coachData = getCoachById(coachId);
@@ -136,14 +127,18 @@ export default function ChatScreen() {
 
     const initialMessage: Message = {
       id: Date.now().toString(),
-      session_id: newSessionId,
+      session_id: dbSession.id,
       role: 'assistant',
       content: greeting,
       created_at: new Date().toISOString(),
     };
 
     setMessages([initialMessage]);
-  };
+  }, [coachId, context, router]);
+
+  useEffect(() => {
+    initializeChat();
+  }, [initializeChat]);
 
   const handleSend = async () => {
     if (!inputText.trim() || isStreaming) return;
@@ -236,7 +231,7 @@ export default function ChatScreen() {
     }
   };
 
-  const generateSessionResults = async () => {
+  const generateSessionResults = useCallback(async () => {
     if (!coach || isGeneratingArtifacts) return;
 
     setIsGeneratingArtifacts(true);
@@ -287,7 +282,7 @@ export default function ChatScreen() {
     } finally {
       setIsGeneratingArtifacts(false);
     }
-  };
+  }, [coach, isGeneratingArtifacts, sessionId, userContext]);
 
   const handleEndSession = useCallback(async () => {
     Alert.alert(
@@ -299,7 +294,7 @@ export default function ChatScreen() {
         { text: 'Exit', style: 'destructive', onPress: () => router.back() },
       ]
     );
-  }, [messages, coach, userContext, sessionId, router]);
+  }, [generateSessionResults, router]);
 
   const handleBack = () => {
     if (messages.length > 2) {

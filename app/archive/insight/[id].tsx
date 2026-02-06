@@ -26,7 +26,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { toggleInsightHighlight } from '@/lib/supabase-sanctuary';
 import { createRitualFromInsight, getRituals } from '@/lib/supabase-rituals';
 import { suggestRitualFromInsight } from '@/lib/apiClient';
-import { KeyInsight, Ritual } from '@/types';
+import { KeyInsight } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { Button } from '@/components/ui/Button';

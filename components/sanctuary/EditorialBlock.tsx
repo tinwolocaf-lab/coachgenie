@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  Dimensions,
 } from 'react-native';
 import Animated, {
   FadeInUp,
@@ -20,8 +19,6 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { EnhancedMessage } from '@/types';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface EditorialBlockProps {
   message: EnhancedMessage;
@@ -220,7 +217,7 @@ export function KeyInsightCard({
 
         {/* Content */}
         <Text style={styles.insightCardContent}>
-          "{insightContent}"
+          &quot;{insightContent}&quot;
         </Text>
 
         {/* Attribution */}

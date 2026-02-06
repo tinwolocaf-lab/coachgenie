@@ -10,7 +10,6 @@ import Animated, {
   withSpring,
   withRepeat,
   withSequence,
-  interpolate,
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';

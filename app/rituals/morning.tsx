@@ -21,7 +21,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
@@ -35,7 +34,7 @@ import {
 } from '@/lib/supabase-rituals';
 import { getMorningPrompt } from '@/lib/ritualPrompts';
 import { getContextVault } from '@/store/app';
-import { DailyReflection, GrowthChapter, ContextVault } from '@/types';
+import { DailyReflection, GrowthChapter } from '@/types';
 
 // Dynamic auth hook
 const getAuthHook = () => {
@@ -60,16 +59,10 @@ export default function MorningIntentionScreen() {
   const [response, setResponse] = useState<string>('');
   const [existingReflection, setExistingReflection] = useState<DailyReflection | null>(null);
   const [activeChapter, setActiveChapter] = useState<GrowthChapter | null>(null);
-  const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const inputScale = useSharedValue(1);
-
-  // Load data on mount
-  useEffect(() => {
-    loadData();
-  }, [auth?.user?.id]);
 
   const loadData = useCallback(async () => {
     if (!auth?.user?.id) return;
@@ -86,7 +79,6 @@ export default function MorningIntentionScreen() {
 
       // Load context for personalized prompt
       const context = await getContextVault();
-      setUserContext(context);
 
       // Load active chapter
       const chapters = await getGrowthChapters(auth.user.id, 'active');
@@ -103,6 +95,11 @@ export default function MorningIntentionScreen() {
       setPrompt('What intention will guide your actions today?');
     }
   }, [auth?.user?.id]);
+
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSave = async () => {
     if (!auth?.user?.id || !response.trim()) return;

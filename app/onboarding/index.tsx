@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,16 +8,13 @@ import Animated, {
   FadeIn,
   FadeInUp,
   FadeInDown,
-  useAnimatedStyle,
   withRepeat,
   withTiming,
   useSharedValue,
   Easing,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   const router = useRouter();

@@ -7,30 +7,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { isOnboardingComplete } from '@/store/onboarding';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { getFastshotAuthProvider } from '@/lib/fastshot-auth';
 import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
 
 // Conditionally import AuthProvider
-let AuthProvider: React.ComponentType<{
-  supabaseClient: typeof supabase;
-  routes?: {
-    login: string;
-    afterLogin: string;
-  };
-  onSignIn?: (user: { email?: string }) => void;
-  onSignOut?: () => void;
-  onError?: (error: { type: string; message: string }) => void;
-  onEmailVerified?: (user: { email?: string }) => void;
-  children: React.ReactNode;
-}> | null = null;
-
-try {
-  if (isSupabaseConfigured) {
-    const authModule = require('@fastshot/auth');
-    AuthProvider = authModule.AuthProvider;
-  }
-} catch {
-  // Auth not available
-}
+const AuthProvider = isSupabaseConfigured ? getFastshotAuthProvider() : null;
 
 /**
  * Parse authentication tokens from URL hash fragment
@@ -300,7 +281,7 @@ export default function RootLayout() {
           console.log('[Auth] User signed out');
         }}
         onError={(error) => {
-          console.log('[Auth] Error:', error.type, error.message);
+          console.log('[Auth] Error:', error.type ?? 'UNKNOWN_ERROR', error.message);
         }}
         onEmailVerified={(user) => {
           console.log('[Auth] Email verified for:', user.email);

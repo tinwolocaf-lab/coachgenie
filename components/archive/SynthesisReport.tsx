@@ -18,9 +18,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withTiming,
   withSpring,
-  interpolate,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
@@ -264,7 +262,7 @@ function ThemeCard({ theme, index, onPress }: { theme: ThemeItem; index: number;
           </View>
           {theme.relatedInsights.length > 0 && (
             <Text style={styles.themeInsight} numberOfLines={2}>
-              "{theme.relatedInsights[0]}"
+              &quot;{theme.relatedInsights[0]}&quot;
             </Text>
           )}
         </LinearGradient>

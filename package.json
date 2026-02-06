@@ -3,7 +3,21 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "lint": "expo lint"
+    "start": "expo start",
+    "dev": "expo start --clear",
+    "start:tunnel": "expo start --tunnel",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "lint": "expo lint",
+    "lint:fix": "expo lint --fix",
+    "check": "npm run lint -- --max-warnings=0 && npm run typecheck",
+    "builder": "npm run build",
+    "build": "npx eas build",
+    "build:android": "npx eas build --platform android",
+    "build:ios": "npx eas build --platform ios",
+    "build:local": "npx eas build --platform all --local"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

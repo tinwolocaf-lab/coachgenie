@@ -1,6 +1,6 @@
 // Gold Pulse/Shimmer Typing Indicator - Premium meditation-like effect
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,11 +9,9 @@ import Animated, {
   withTiming,
   withDelay,
   Easing,
-  interpolate,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Colors, Typography, Spacing } from '@/constants/theme';
 
 interface GoldPulseIndicatorProps {
   coachName?: string;

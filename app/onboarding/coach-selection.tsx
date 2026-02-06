@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,8 +33,6 @@ import {
   setActiveCoachId,
   saveContextVault,
 } from '@/store/app';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function CoachSelectionScreen() {
   const router = useRouter();

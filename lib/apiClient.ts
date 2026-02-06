@@ -162,12 +162,12 @@ export async function streamChat(
 
 export async function generateArtifacts(sessionId: string): Promise<{
   summary: string;
-  next_actions: Array<{ id: string; title: string; completed: boolean }>;
-  plan_updates: Array<{
+  next_actions: { id: string; title: string; completed: boolean }[];
+  plan_updates: {
     date: string;
-    priorities: Array<{ id: string; title: string; completed: boolean; order: number }>;
-    time_blocks: Array<{ id: string; start_time: string; end_time: string; title: string; category?: string }>;
-  }>;
+    priorities: { id: string; title: string; completed: boolean; order: number }[];
+    time_blocks: { id: string; start_time: string; end_time: string; title: string; category?: string }[];
+  }[];
 }> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
@@ -213,7 +213,7 @@ export async function generateArtifacts(sessionId: string): Promise<{
 
 export async function generatePlan(sessionId: string, horizonDays = 7): Promise<{
   artifact_id: string;
-  days: Array<{ day: string; top_3: string[]; time_blocks: unknown[]; notes?: string }>;
+  days: { day: string; top_3: string[]; time_blocks: unknown[]; notes?: string }[];
 }> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();

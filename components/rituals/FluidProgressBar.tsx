@@ -13,7 +13,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Radius, Shadows, Timing } from '@/constants/theme';
+import { Colors, Radius, Timing } from '@/constants/theme';
 
 interface FluidProgressBarProps {
   progress: number; // 0-100
@@ -161,10 +161,6 @@ export function FluidProgressRing({
       );
     }
   }, [progress, progressValue, pulseScale]);
-
-  const innerSize = size - strokeWidth * 2;
-  const circumference = Math.PI * (size - strokeWidth);
-  const halfCircumference = circumference / 2;
 
   const progressStyle = useAnimatedStyle(() => {
     // Use rotation to simulate arc progress
