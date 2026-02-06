@@ -50,6 +50,7 @@ function AuthenticatedLogin() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // Handle error from URL params (e.g., from callback failures)
   useEffect(() => {
@@ -60,15 +61,35 @@ function AuthenticatedLogin() {
   }, [params.error]);
 
   // Clear URL error when auth error changes or user interacts
-  const clearUrlError = () => {
+  const clearErrors = () => {
     if (urlError) setUrlError(null);
+    if (localError) setLocalError(null);
   };
 
   const isLoading = auth?.isLoading || false;
-  const error = urlError || auth?.error?.message || null;
+  const error = urlError || localError || auth?.error?.message || null;
+
+  const getErrorMessage = (err: unknown): string => {
+    if (!err) return 'Sign-in failed. Please try again.';
+    if (typeof err === 'string') return err;
+    if (typeof err === 'object') {
+      const message = (err as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+    return 'Sign-in failed. Please try again.';
+  };
+
+  const isExpectedAuthMessage = (message: string): boolean => {
+    const normalized = message.toLowerCase();
+    return normalized.includes('invalid login credentials')
+      || normalized.includes('email not confirmed')
+      || normalized.includes('invalid email')
+      || normalized.includes('invalid password')
+      || normalized.includes('too many requests');
+  };
 
   const handleEmailLogin = async () => {
-    clearUrlError();
+    clearErrors();
     if (!email.trim() || !password.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Required Fields', 'Please enter your email and password to continue.');
@@ -78,29 +99,41 @@ function AuthenticatedLogin() {
       await auth?.signInWithEmail(email, password);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
+      const message = getErrorMessage(err);
+      setLocalError(message);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      console.error('Login error:', err);
+      if (__DEV__ && !isExpectedAuthMessage(message)) {
+        console.warn('Unexpected login error:', err);
+      }
     }
   };
 
   const handleGoogleSignIn = async () => {
-    clearUrlError();
+    clearErrors();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await auth?.signInWithGoogle();
     } catch (err) {
-      console.error('Google sign-in error:', err);
+      const message = getErrorMessage(err);
+      setLocalError(message);
+      if (__DEV__ && !isExpectedAuthMessage(message)) {
+        console.warn('Unexpected Google sign-in error:', err);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
   const handleAppleSignIn = async () => {
-    clearUrlError();
+    clearErrors();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await auth?.signInWithApple();
     } catch (err) {
-      console.error('Apple sign-in error:', err);
+      const message = getErrorMessage(err);
+      setLocalError(message);
+      if (__DEV__ && !isExpectedAuthMessage(message)) {
+        console.warn('Unexpected Apple sign-in error:', err);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -329,7 +362,10 @@ function LoginUI({
                   placeholder="your@email.com"
                   placeholderTextColor={Colors.stoneGray}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(value) => {
+                    clearErrors();
+                    setEmail(value);
+                  }}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   autoComplete="email"
@@ -347,7 +383,10 @@ function LoginUI({
                   placeholder="Enter your password"
                   placeholderTextColor={Colors.stoneGray}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(value) => {
+                    clearErrors();
+                    setPassword(value);
+                  }}
                   secureTextEntry={!showPassword}
                   autoComplete="password"
                   editable={!isLoading}

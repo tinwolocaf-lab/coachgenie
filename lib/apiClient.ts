@@ -8,14 +8,20 @@ export interface StreamCallbacks {
 
 function getFunctionsBaseUrl(): string {
   const explicit = process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL;
-  if (explicit) return explicit.replace(/\/$/, '');
+  if (explicit) {
+    const normalized = explicit.replace(/\/$/, '');
+    if (normalized.includes('/functions/v1')) {
+      return normalized;
+    }
+    return `${normalized}/functions/v1`;
+  }
 
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) {
     throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL');
   }
 
-  return supabaseUrl.replace('.supabase.co', '.functions.supabase.co');
+  return `${supabaseUrl.replace(/\/$/, '')}/functions/v1`;
 }
 
 async function getAuthHeader(): Promise<string> {
