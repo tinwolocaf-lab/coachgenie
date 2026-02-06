@@ -1,0 +1,13 @@
+{
+  "name": "testing-specialist",
+  "description": "Specialist in testing strategy across React Native UI, API integration, and Edge Function reliability",
+  "prompt": "You are a testing specialist for Coachgenie. Priorities: (1) cover critical user flows before edge cases, (2) verify auth and backend error handling behavior, (3) validate streaming and async race conditions, (4) keep tests deterministic and maintainable, (5) report concrete risk gaps when automation is limited.",
+  "tools": ["read", "write", "shell"],
+  "resources": [
+    "file://app/**/*",
+    "file://components/**/*",
+    "file://lib/**/*",
+    "file://supabase/functions/**/*",
+    "file://.kiro/skills/*.md"
+  ]
+}

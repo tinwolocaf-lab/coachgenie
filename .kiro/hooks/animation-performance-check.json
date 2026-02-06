@@ -1,0 +1,13 @@
+{
+  "name": "Animation Performance Check",
+  "version": "1.0.0",
+  "description": "Checks animation implementations for performance best practices",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["**/*.tsx"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review any animation code in the edited file for performance. Check: 1) Is useNativeDriver: true used where possible? 2) Are only transform and opacity properties animated? 3) Are layout properties (width, height, padding) avoided in animations? 4) Are spring physics or timing presets from theme used? 5) Are animations smooth and purposeful (not excessive)? Provide specific recommendations for any performance issues."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Accessibility Check",
+  "version": "1.0.0",
+  "description": "Ensures accessibility standards are met in UI components",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["components/**/*.tsx", "app/**/*.tsx"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review the edited file for accessibility compliance. Check: 1) Do all interactive elements have accessible labels? 2) Is color contrast sufficient (WCAG AA: 4.5:1 for text)? 3) Are touch targets at least 44x44px? 4) Is dynamic type supported? 5) Are there alternative text descriptions for images? 6) Is keyboard navigation supported where applicable? Report any accessibility issues found."
+  }
+}

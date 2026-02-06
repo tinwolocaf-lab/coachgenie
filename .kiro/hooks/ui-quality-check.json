@@ -1,0 +1,13 @@
+{
+  "name": "UI Quality Check",
+  "version": "1.0.0",
+  "description": "Automatically checks UI component changes for premium quality standards",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["components/ui/*.tsx", "app/**/*.tsx"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review the edited file for premium UI/UX quality. Check: 1) Are theme tokens used consistently (no hardcoded colors)? 2) Are touch targets ≥ 44x44px? 3) Are animations using spring physics or timing presets? 4) Is haptic feedback included for interactions? 5) Are loading/error/empty states handled? 6) Is accessibility considered (labels, contrast)? Provide specific feedback on any issues found."
+  }
+}
