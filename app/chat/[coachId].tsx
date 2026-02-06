@@ -212,7 +212,7 @@ export default function ChatScreen() {
           input.includes('end session') ||
           input.includes('wrap up') ||
           input.includes('that helps') ||
-          input.includes(\"that's all\")
+          input.includes("that's all")
         ) {
           await generateSessionResults();
         }
