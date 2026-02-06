@@ -33,7 +33,7 @@ import {
   uncompleteRitual,
   getOverallConsistency,
 } from '@/lib/supabase-rituals';
-import { getMorningPrompt } from '@/lib/ai-rituals';
+import { getMorningPrompt } from '@/lib/ritualPrompts';
 import { getContextVault } from '@/store/app';
 import {
   TodayPractice,

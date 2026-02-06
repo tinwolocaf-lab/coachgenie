@@ -36,7 +36,7 @@ import {
   getTodayDate,
   getRitualsWithStatus,
 } from '@/lib/supabase-rituals';
-import { generateAIResonance } from '@/lib/ai-oracle';
+import { generateClosingThought } from '@/lib/apiClient';
 import { getContextVault } from '@/store/app';
 import { DailyReflection, RitualWithStatus, ContextVault } from '@/types';
 import { AIResonanceNote, CandlelightPalette } from '@/components/oracle/AIResonanceNote';
@@ -185,6 +185,35 @@ export default function EveningAuditScreen() {
     }
   };
 
+  const handleGenerateClosingThought = async () => {
+    if (!auth?.user?.id) return;
+
+    setIsGeneratingThought(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const filteredWins = wins.filter(w => w.trim());
+      const filteredLessons = lessons.filter(l => l.trim());
+
+      const thought = await generateClosingThought({
+        wins: filteredWins,
+        lessons: filteredLessons,
+        morningIntention,
+        ritualProgress,
+        values: userContext?.values ?? [],
+        goals: userContext?.goals.map(goal => goal.title) ?? [],
+      });
+
+      setClosingThought(thought);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error generating closing thought:', error);
+      setClosingThought("Rest well—every effort today was a step forward.");
+    } finally {
+      setIsGeneratingThought(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!auth?.user?.id) return;
 
@@ -195,19 +224,17 @@ export default function EveningAuditScreen() {
       const filteredWins = wins.filter(w => w.trim());
       const filteredLessons = lessons.filter(l => l.trim());
 
-      // Generate AI Resonance letter
-      setIsGeneratingResonance(true);
-      let letter = resonanceLetter;
-      if (!letter && (filteredWins.length > 0 || filteredLessons.length > 0)) {
-        letter = await generateAIResonance(
-          auth.user.id,
-          filteredWins,
-          filteredLessons,
+      // Generate closing thought if not already generated
+      let finalThought = closingThought;
+      if (!finalThought && (filteredWins.length > 0 || filteredLessons.length > 0)) {
+        finalThought = await generateClosingThought({
+          wins: filteredWins,
+          lessons: filteredLessons,
           morningIntention,
           ritualProgress,
-          userContext,
-        );
-        setResonanceLetter(letter);
+          values: userContext?.values ?? [],
+          goals: userContext?.goals.map(goal => goal.title) ?? [],
+        });
       }
       setIsGeneratingResonance(false);
 

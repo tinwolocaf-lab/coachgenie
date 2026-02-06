@@ -1,17 +1,11 @@
 // Supabase Sanctuary Service - Session Persistence
-import { createClient } from '@supabase/supabase-js';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import {
   EnhancedSession,
   EnhancedMessage,
   KeyInsight,
   Breakthrough,
-  Coach,
 } from '@/types';
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Sessions
 export async function createSession(
@@ -19,6 +13,7 @@ export async function createSession(
   coachId: string,
   title?: string
 ): Promise<EnhancedSession | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from('coaching_sessions')
@@ -40,6 +35,7 @@ export async function createSession(
 }
 
 export async function getSessionById(sessionId: string): Promise<EnhancedSession | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from('coaching_sessions')
@@ -60,6 +56,7 @@ export async function getUserSessions(
   coachId?: string,
   limit = 20
 ): Promise<EnhancedSession[]> {
+  if (!isSupabaseConfigured) return [];
   try {
     let query = supabase
       .from('coaching_sessions')
@@ -86,6 +83,7 @@ export async function updateSessionById(
   sessionId: string,
   updates: Partial<EnhancedSession>
 ): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const { error } = await supabase
       .from('coaching_sessions')
@@ -108,6 +106,7 @@ export async function completeSession(
   summary: string,
   breakthroughSummary?: string
 ): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   return updateSessionById(sessionId, {
     status: 'completed',
     summary,
@@ -124,6 +123,7 @@ export async function addMessage(
   isInsight = false,
   insightTitle?: string
 ): Promise<EnhancedMessage | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from('session_messages')
@@ -148,6 +148,7 @@ export async function addMessage(
 export async function getSessionMessages(
   sessionId: string
 ): Promise<EnhancedMessage[]> {
+  if (!isSupabaseConfigured) return [];
   try {
     const { data, error } = await supabase
       .from('session_messages')
@@ -167,6 +168,7 @@ export async function markMessageAsInsight(
   messageId: string,
   insightTitle: string
 ): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const { error } = await supabase
       .from('session_messages')
@@ -193,6 +195,7 @@ export async function saveInsight(
   content: string,
   category: KeyInsight['category'] = 'general'
 ): Promise<KeyInsight | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from('key_insights')
@@ -220,6 +223,7 @@ export async function getUserInsights(
   userId: string,
   limit = 50
 ): Promise<KeyInsight[]> {
+  if (!isSupabaseConfigured) return [];
   try {
     const { data, error } = await supabase
       .from('key_insights')
@@ -240,6 +244,7 @@ export async function toggleInsightHighlight(
   insightId: string,
   highlighted: boolean
 ): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const { error } = await supabase
       .from('key_insights')
@@ -255,6 +260,7 @@ export async function toggleInsightHighlight(
 }
 
 export async function deleteInsight(insightId: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     const { error } = await supabase
       .from('key_insights')
@@ -279,6 +285,7 @@ export async function saveBreakthrough(
   keyTakeaways: string[],
   actionItems: { id: string; title: string; completed: boolean }[]
 ): Promise<Breakthrough | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const { data, error } = await supabase
       .from('breakthroughs')
@@ -306,6 +313,7 @@ export async function saveBreakthrough(
 export async function getTodaysBreakthrough(
   userId: string
 ): Promise<Breakthrough | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
@@ -329,6 +337,7 @@ export async function getUserBreakthroughs(
   userId: string,
   limit = 30
 ): Promise<Breakthrough[]> {
+  if (!isSupabaseConfigured) return [];
   try {
     const { data, error } = await supabase
       .from('breakthroughs')
@@ -350,6 +359,7 @@ export async function updateBreakthroughAction(
   actionId: string,
   completed: boolean
 ): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   try {
     // First get the current breakthrough
     const { data: breakthrough, error: fetchError } = await supabase
@@ -384,6 +394,7 @@ export async function getActiveSession(
   userId: string,
   coachId: string
 ): Promise<{ session: EnhancedSession; messages: EnhancedMessage[] } | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     // Find most recent active or recent session with this coach
     const { data: session, error: sessionError } = await supabase

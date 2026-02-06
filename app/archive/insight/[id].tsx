@@ -25,7 +25,7 @@ import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { toggleInsightHighlight } from '@/lib/supabase-sanctuary';
 import { createRitualFromInsight, getRituals } from '@/lib/supabase-rituals';
-import { suggestRitualFromInsight } from '@/lib/ai-rituals';
+import { suggestRitualFromInsight } from '@/lib/apiClient';
 import { KeyInsight, Ritual } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
@@ -133,11 +133,11 @@ export default function InsightDetailScreen() {
       const existingRituals = await getRituals(auth.user.id);
 
       // Use AI to suggest a ritual based on the insight
-      const suggestion = await suggestRitualFromInsight(
-        insight.title,
-        insight.content,
-        existingRituals
-      );
+      const suggestion = await suggestRitualFromInsight({
+        insightTitle: insight.title,
+        insightContent: insight.content,
+        existingRituals: existingRituals.map(ritual => ritual.title),
+      });
 
       if (suggestion) {
         setRitualTitle(suggestion.title);
