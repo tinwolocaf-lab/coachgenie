@@ -1,12 +1,10 @@
 // Voice Note Input - Audio recording with transcription
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated as RNAnimated,
-  Dimensions,
   Alert,
 } from 'react-native';
 import Animated, {
@@ -17,19 +15,21 @@ import Animated, {
   withTiming,
   withSpring,
   Easing,
-  FadeIn,
-  FadeOut,
   SlideInRight,
   SlideOutRight,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import {
+  getRecordingPermissionsAsync,
+  requestRecordingPermissionsAsync,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { transcribeVoiceNote } from '@/lib/apiClient';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface VoiceNoteInputProps {
   onTranscription: (text: string) => void;
@@ -47,8 +47,7 @@ export function VoiceNoteInput({
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [transcriptionPreview, setTranscriptionPreview] = useState('');
-  const [permissionResponse, requestPermission] = Audio.usePermissions();
-  const recording = useRef<Audio.Recording | null>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recordingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Animations
@@ -91,16 +90,17 @@ export function VoiceNoteInput({
   }));
 
   // Request permissions
-  const ensurePermissions = async () => {
-    if (permissionResponse?.status !== 'granted') {
-      const response = await requestPermission();
-      return response.status === 'granted';
+  const ensurePermissions = useCallback(async () => {
+    const current = await getRecordingPermissionsAsync();
+    if (current.status === 'granted') {
+      return true;
     }
-    return true;
-  };
+    const next = await requestRecordingPermissionsAsync();
+    return next.status === 'granted';
+  }, []);
 
   // Start recording
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     try {
       const hasPermission = await ensurePermissions();
       if (!hasPermission) {
@@ -109,40 +109,42 @@ export function VoiceNoteInput({
           'Please allow microphone access to use voice notes.',
           [{ text: 'OK' }]
         );
+        onCancel();
         return;
       }
 
       // Configure audio session
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       micScale.value = withSpring(1.1, Timing.springBouncy);
 
       // Start recording
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-
-      recording.current = newRecording;
+      await recorder.prepareToRecordAsync();
+      recorder.record();
       setRecordingState('recording');
       setRecordingDuration(0);
 
       // Start duration timer
+      if (recordingTimer.current) {
+        clearInterval(recordingTimer.current);
+      }
       recordingTimer.current = setInterval(() => {
         setRecordingDuration((prev) => prev + 1);
       }, 1000);
     } catch (error) {
       console.error('Failed to start recording:', error);
       Alert.alert('Error', 'Could not start recording. Please try again.');
+      onCancel();
     }
-  };
+  }, [ensurePermissions, micScale, onCancel, recorder]);
 
   // Stop recording and transcribe
   const stopRecording = async () => {
-    if (!recording.current) return;
+    if (!recorder) return;
 
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -158,13 +160,12 @@ export function VoiceNoteInput({
       setTranscriptionPreview('');
 
       // Stop recording
-      await recording.current.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
+      await recorder.stop();
+      await setAudioModeAsync({
+        allowsRecording: false,
       });
 
-      const uri = recording.current.getURI();
-      recording.current = null;
+      const uri = recorder.uri;
 
       if (!uri) {
         throw new Error('No recording URI');
@@ -178,7 +179,7 @@ export function VoiceNoteInput({
       }
 
       const base64Audio = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
 
       const fileName = uri.split('/').pop() || 'voice-note.m4a';
@@ -229,13 +230,15 @@ export function VoiceNoteInput({
       recordingTimer.current = null;
     }
 
-    if (recording.current) {
+    if (recorder.isRecording) {
       try {
-        await recording.current.stopAndUnloadAsync();
-      } catch (e) {
+        await recorder.stop();
+        await setAudioModeAsync({
+          allowsRecording: false,
+        });
+      } catch {
         // Ignore errors during cancellation
       }
-      recording.current = null;
     }
 
     setRecordingState('idle');
@@ -243,6 +246,24 @@ export function VoiceNoteInput({
     setTranscriptionPreview('');
     onCancel();
   };
+
+  useEffect(() => {
+    if (disabled) return;
+    void startRecording();
+
+    return () => {
+      if (recordingTimer.current) {
+        clearInterval(recordingTimer.current);
+        recordingTimer.current = null;
+      }
+      if (recorder.isRecording) {
+        void recorder.stop().catch(() => undefined);
+      }
+      void setAudioModeAsync({
+        allowsRecording: false,
+      }).catch(() => undefined);
+    };
+  }, [disabled, recorder, startRecording]);
 
   // Format duration
   const formatDuration = (seconds: number) => {

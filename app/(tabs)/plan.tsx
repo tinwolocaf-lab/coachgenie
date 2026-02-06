@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Dimensions,
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -18,16 +17,10 @@ import Animated, {
   FadeInUp,
   FadeIn,
   FadeInLeft,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  useSharedValue,
-  interpolate,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { DayPlan } from '@/types';
@@ -36,8 +29,6 @@ import { supabase } from '@/lib/supabase';
 import { createSession } from '@/lib/supabase-sanctuary';
 import { generatePlan } from '@/lib/apiClient';
 import { getCoachById } from '@/data/coaches';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Generate dates for the 7-day view
 function generateWeekDates(): Date[] {
@@ -392,18 +383,12 @@ function TimelineDay({
   isLast: boolean;
   onTogglePriority: (priorityId: string) => void;
 }) {
-  const scale = useSharedValue(1);
-
   const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
   const dayNumber = date.getDate();
   const monthName = date.toLocaleDateString('en-US', { month: 'short' });
 
   const priorities = plan?.top_priorities || [];
   const timeBlocks = plan?.time_blocks || [];
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
 
   return (
     <View style={styles.timelineDayContainer}>
@@ -454,7 +439,7 @@ function TimelineDay({
 
         {/* Priorities */}
         {priorities.length > 0 && (
-          <Animated.View style={[styles.prioritiesContainer, animatedStyle]}>
+          <View style={styles.prioritiesContainer}>
             <View style={styles.prioritiesHeader}>
               <View style={styles.goldAccent} />
               <Text style={styles.prioritiesTitle}>Priorities</Text>
@@ -484,7 +469,7 @@ function TimelineDay({
                 </Text>
               </TouchableOpacity>
             ))}
-          </Animated.View>
+          </View>
         )}
 
         {/* Time Blocks */}
