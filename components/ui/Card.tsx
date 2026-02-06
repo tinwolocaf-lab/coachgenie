@@ -5,6 +5,7 @@ import Animated, {
   withSpring,
   useSharedValue,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Radius, Spacing, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 
@@ -34,7 +35,7 @@ export function Card({
 
   const handlePressIn = () => {
     if (onPress) {
-      scale.value = withSpring(0.98, Timing.springGentle);
+      scale.value = withSpring(0.985, Timing.springGentle);
     }
   };
 
@@ -42,13 +43,19 @@ export function Card({
     scale.value = withSpring(1, Timing.springGentle);
   };
 
-  // Dynamic variant styles based on palette
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress?.();
+  };
+
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case 'elevated':
         return {
           ...Shadows.lg,
           shadowColor: palette.shadowColor,
+          borderWidth: 1,
+          borderColor: palette.borderLight,
         };
       case 'outlined':
         return {
@@ -106,7 +113,7 @@ export function Card({
     return (
       <AnimatedTouchable
         style={[cardStyles, animatedStyle]}
-        onPress={onPress}
+        onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={1}
@@ -121,7 +128,7 @@ export function Card({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Radius.squircle,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
   },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -9,13 +9,15 @@ import {
   StyleProp,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   withSpring,
   useSharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Radius, Spacing, Typography, Timing, Shadows } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 export interface ButtonProps {
   title: string;
@@ -48,6 +50,7 @@ export function Button({
   icon,
   iconPosition = 'left',
 }: ButtonProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -55,11 +58,11 @@ export function Button({
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.96, Timing.springBouncy);
+    scale.value = withSpring(0.975, Timing.springGentle);
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, Timing.springBouncy);
+    scale.value = withSpring(1, Timing.springGentle);
   };
 
   const handlePress = () => {
@@ -69,10 +72,57 @@ export function Button({
     onPress();
   };
 
+  const variantTokens = useMemo(() => {
+    if (variant === 'gold') {
+      return {
+        backgroundColor: 'transparent',
+        borderColor: palette.accent,
+        textColor: palette.textInverse,
+        gradient: [palette.accent, palette.accentLight],
+      };
+    }
+
+    if (variant === 'primary') {
+      return {
+        backgroundColor: palette.textPrimary,
+        borderColor: palette.textPrimary,
+        textColor: palette.textInverse,
+        gradient: [palette.textPrimary, palette.gradientEnd],
+      };
+    }
+
+    if (variant === 'secondary') {
+      return {
+        backgroundColor: palette.backgroundSecondary,
+        borderColor: palette.border,
+        textColor: palette.textPrimary,
+        gradient: null,
+      };
+    }
+
+    if (variant === 'outline') {
+      return {
+        backgroundColor: 'transparent',
+        borderColor: palette.borderAccent,
+        textColor: palette.textPrimary,
+        gradient: null,
+      };
+    }
+
+    return {
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+      textColor: palette.textSecondary,
+      gradient: null,
+    };
+  }, [palette, variant]);
+
   const buttonStyles: StyleProp<ViewStyle>[] = [
     styles.base,
-    styles[variant as keyof typeof styles] as ViewStyle,
     styles[`size_${size}` as keyof typeof styles] as ViewStyle,
+    { backgroundColor: variantTokens.backgroundColor, borderColor: variantTokens.borderColor },
+    (variant === 'outline' || variant === 'secondary') && styles.outlineLike,
+    (variant === 'gold' || variant === 'primary') && styles.solidLike,
     fullWidth && styles.fullWidth,
     (disabled || loading) && styles.disabled,
     animatedStyle,
@@ -81,20 +131,19 @@ export function Button({
 
   const textStyles: StyleProp<TextStyle>[] = [
     styles.text,
-    styles[`text_${variant}` as keyof typeof styles] as TextStyle,
     styles[`textSize_${size}` as keyof typeof styles] as TextStyle,
+    { color: variantTokens.textColor },
     (disabled || loading) && styles.textDisabled,
     textStyle,
   ];
 
+  const spinnerColor = variant === 'ghost' || variant === 'outline' || variant === 'secondary'
+    ? palette.textPrimary
+    : palette.textInverse;
+
   const renderContent = () => {
     if (loading) {
-      return (
-        <ActivityIndicator
-          color={variant === 'ghost' || variant === 'outline' ? Colors.midnightEmerald : Colors.white}
-          size="small"
-        />
-      );
+      return <ActivityIndicator color={spinnerColor} size="small" />;
     }
 
     if (icon) {
@@ -119,58 +168,53 @@ export function Button({
       disabled={disabled || loading}
       activeOpacity={1}
     >
-      {renderContent()}
+      {variantTokens.gradient && (
+        <LinearGradient
+          colors={variantTokens.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientFill}
+        />
+      )}
+      <View style={styles.content}>{renderContent()}</View>
     </AnimatedTouchable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
+    position: 'relative',
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: Radius.pill,
   },
 
-  // Variants
-  primary: {
-    backgroundColor: Colors.midnightEmerald,
-    borderRadius: Radius.pill,
+  solidLike: {
     ...Shadows.md,
   },
-  secondary: {
-    backgroundColor: Colors.warmOatmealDark,
-    borderRadius: Radius.pill,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: Colors.midnightEmerald,
-    borderRadius: Radius.pill,
-  },
-  gold: {
-    backgroundColor: Colors.burnishedGold,
-    borderRadius: Radius.pill,
-    ...Shadows.gold,
+
+  outlineLike: {
+    borderWidth: 1.2,
   },
 
-  // Sizes
   size_sm: {
+    minHeight: 44,
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.lg,
-    minHeight: 36,
   },
+
   size_md: {
-    paddingVertical: Spacing.md + 2,
+    minHeight: 50,
+    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
-    minHeight: 48,
   },
+
   size_lg: {
-    paddingVertical: Spacing.lg + 2,
-    paddingHorizontal: Spacing.xxxl,
     minHeight: 56,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xxxl,
   },
 
   fullWidth: {
@@ -178,57 +222,52 @@ const styles = StyleSheet.create({
   },
 
   disabled: {
-    opacity: 0.5,
+    opacity: 0.52,
   },
 
-  // Content with icon
+  gradientFill: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  content: {
+    position: 'relative',
+    zIndex: 1,
+  },
+
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   iconLeft: {
     marginRight: Spacing.sm,
   },
+
   iconRight: {
     marginLeft: Spacing.sm,
   },
 
-  // Text Styles
   text: {
     fontWeight: Typography.weights.semibold,
     textAlign: 'center',
     letterSpacing: Typography.letterSpacing.wide,
   },
-  text_primary: {
-    color: Colors.white,
-  },
-  text_secondary: {
-    color: Colors.charcoal,
-  },
-  text_ghost: {
-    color: Colors.midnightEmerald,
-  },
-  text_outline: {
-    color: Colors.midnightEmerald,
-  },
-  text_gold: {
-    color: Colors.white,
-  },
 
-  // Text Sizes
   textSize_sm: {
     fontSize: Typography.sizes.body,
   },
+
   textSize_md: {
     fontSize: Typography.sizes.bodyLarge,
   },
+
   textSize_lg: {
     fontSize: Typography.sizes.subtitle,
   },
 
   textDisabled: {
-    opacity: 0.7,
+    opacity: 0.84,
   },
 });
 

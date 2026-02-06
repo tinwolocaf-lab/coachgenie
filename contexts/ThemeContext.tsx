@@ -85,52 +85,52 @@ export interface Atmosphere {
 
 // The Original - Warm oatmeal and gold
 const originalPalette: AtmospherePalette = {
-  background: '#FDFCF8',
-  backgroundSecondary: '#F5F3ED',
-  cardBg: '#FFFFFF',
+  background: '#F7F4EE',
+  backgroundSecondary: '#EDE6D9',
+  cardBg: '#FFFEFC',
 
-  textPrimary: '#1B3022',
-  textSecondary: '#2D2A26',
-  textTertiary: '#8A857E',
+  textPrimary: '#122821',
+  textSecondary: '#22201C',
+  textTertiary: '#777067',
   textInverse: '#FFFFFF',
 
-  accent: '#C5A059',
-  accentLight: '#D4B77A',
-  accentMuted: 'rgba(197, 160, 89, 0.15)',
-  accentShimmer: 'rgba(197, 160, 89, 0.3)',
+  accent: '#B7883A',
+  accentLight: '#CEA35F',
+  accentMuted: 'rgba(183, 136, 58, 0.14)',
+  accentShimmer: 'rgba(183, 136, 58, 0.26)',
 
-  success: '#3D7A5C',
-  successLight: 'rgba(61, 122, 92, 0.12)',
-  warning: '#B8860B',
-  warningLight: 'rgba(184, 134, 11, 0.12)',
-  error: '#9B4D4D',
-  errorLight: 'rgba(155, 77, 77, 0.12)',
+  success: '#2E7B5A',
+  successLight: 'rgba(46, 123, 90, 0.14)',
+  warning: '#A9791D',
+  warningLight: 'rgba(169, 121, 29, 0.14)',
+  error: '#A14A45',
+  errorLight: 'rgba(161, 74, 69, 0.14)',
 
-  border: 'rgba(45, 42, 38, 0.1)',
-  borderAccent: 'rgba(197, 160, 89, 0.3)',
-  borderLight: 'rgba(45, 42, 38, 0.05)',
+  border: 'rgba(34, 32, 28, 0.12)',
+  borderAccent: 'rgba(183, 136, 58, 0.32)',
+  borderLight: 'rgba(34, 32, 28, 0.06)',
 
-  glassBg: 'rgba(253, 252, 248, 0.85)',
-  glassBlur: 'rgba(255, 255, 255, 0.6)',
-  glassBorder: 'rgba(197, 160, 89, 0.2)',
+  glassBg: 'rgba(251, 248, 242, 0.82)',
+  glassBlur: 'rgba(255, 255, 255, 0.58)',
+  glassBorder: 'rgba(183, 136, 58, 0.18)',
 
-  overlay: 'rgba(27, 48, 34, 0.6)',
-  overlayLight: 'rgba(27, 48, 34, 0.3)',
+  overlay: 'rgba(18, 40, 33, 0.62)',
+  overlayLight: 'rgba(18, 40, 33, 0.36)',
 
-  userMessage: '#1B3022',
-  aiMessage: 'rgba(253, 252, 248, 0.9)',
+  userMessage: '#122821',
+  aiMessage: 'rgba(255, 254, 252, 0.94)',
 
-  gradientStart: '#1B3022',
-  gradientEnd: '#243D2E',
+  gradientStart: '#122821',
+  gradientEnd: '#1E3A31',
 
   statusBarStyle: 'dark',
 
-  tabBarBg: 'rgba(253, 252, 248, 0.92)',
-  tabBarActive: '#C5A059',
-  tabBarInactive: '#8A857E',
+  tabBarBg: 'rgba(247, 244, 238, 0.92)',
+  tabBarActive: '#B7883A',
+  tabBarInactive: '#777067',
 
-  shadowColor: '#1B3022',
-  glowIntensity: 0.25,
+  shadowColor: '#122821',
+  glowIntensity: 0.22,
 };
 
 // Midnight Gallery - Sophisticated dark mode

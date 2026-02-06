@@ -1,7 +1,8 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -10,7 +11,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { Typography, Shadows, Timing } from '@/constants/theme';
+import { Typography, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useEffect } from 'react';
 
@@ -23,46 +24,40 @@ interface TabIconProps {
 }
 
 function TabIcon({ name, nameOutline, focused, color, accentColor }: TabIconProps) {
-  const scale = useSharedValue(focused ? 1 : 0.9);
-  const opacity = useSharedValue(focused ? 1 : 0.6);
-  const glowOpacity = useSharedValue(focused ? 0.2 : 0);
+  const scale = useSharedValue(focused ? 1 : 0.92);
+  const lift = useSharedValue(focused ? -1 : 0);
+  const glowOpacity = useSharedValue(focused ? 1 : 0);
 
   useEffect(() => {
-    scale.value = withSpring(focused ? 1 : 0.9, Timing.springGentle);
-    opacity.value = withTiming(focused ? 1 : 0.6, { duration: 200 });
-    glowOpacity.value = withTiming(focused ? 0.2 : 0, { duration: 300 });
-
-    if (focused) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  }, [focused, scale, opacity, glowOpacity]);
+    scale.value = withSpring(focused ? 1 : 0.92, Timing.springGentle);
+    lift.value = withTiming(focused ? -1 : 0, { duration: 180 });
+    glowOpacity.value = withTiming(focused ? 1 : 0, { duration: 220 });
+  }, [focused, scale, lift, glowOpacity]);
 
   const containerStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
+    transform: [{ scale: scale.value }, { translateY: lift.value }],
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
-    transform: [{ scale: 1.5 }],
   }));
 
   return (
     <Animated.View style={[styles.iconContainer, containerStyle]}>
-      {/* Glow effect */}
-      <Animated.View style={[styles.glowEffect, { backgroundColor: accentColor }, glowStyle]} />
+      <Animated.View style={[styles.activePill, glowStyle]}>
+        <LinearGradient
+          colors={[`${accentColor}55`, `${accentColor}00`]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.activePillGradient}
+        />
+      </Animated.View>
 
-      {/* Icon */}
-      <Ionicons
-        name={focused ? name : nameOutline}
-        size={22}
-        color={color}
-      />
+      <View style={styles.iconCore}>
+        <Ionicons name={focused ? name : nameOutline} size={21} color={color} />
+      </View>
 
-      {/* Active indicator */}
-      {focused && (
-        <Animated.View style={[styles.activeIndicator, { backgroundColor: accentColor }]} />
-      )}
+      {focused && <View style={[styles.activeDot, { backgroundColor: accentColor }]} />}
     </Animated.View>
   );
 }
@@ -70,9 +65,9 @@ function TabIcon({ name, nameOutline, focused, color, accentColor }: TabIconProp
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { palette, atmosphere } = useThemeSafe();
-
-  // Determine blur tint based on theme
   const blurTint = atmosphere.id === 'midnight-gallery' ? 'dark' : 'light';
+
+  const tabPaddingBottom = insets.bottom > 0 ? insets.bottom : 12;
 
   return (
     <Tabs
@@ -82,26 +77,32 @@ export default function TabLayout() {
         tabBarInactiveTintColor: palette.tabBarInactive,
         tabBarLabelStyle: {
           fontSize: Typography.sizes.micro,
-          fontWeight: Typography.weights.medium,
+          fontWeight: Typography.weights.semibold,
           letterSpacing: Typography.letterSpacing.wide,
-          marginTop: 2,
+          marginTop: 1,
         },
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: palette.tabBarBg,
+          left: 14,
+          right: 14,
+          bottom: 10,
+          height: 68 + tabPaddingBottom,
+          paddingTop: 9,
+          paddingBottom: tabPaddingBottom,
           borderTopWidth: 0,
-          paddingTop: 10,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 14,
-          height: 70 + (insets.bottom > 0 ? insets.bottom : 14),
-          ...Shadows.lg,
+          borderWidth: 1,
+          borderColor: palette.borderLight,
+          borderRadius: 24,
+          backgroundColor: palette.tabBarBg,
+          overflow: 'hidden',
           shadowColor: palette.shadowColor,
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: 0.12,
+          shadowRadius: 24,
+          elevation: 8,
         },
         tabBarBackground: () => (
-          <BlurView
-            intensity={90}
-            tint={blurTint}
-            style={StyleSheet.absoluteFill}
-          />
+          <BlurView intensity={82} tint={blurTint} style={StyleSheet.absoluteFill} />
         ),
       }}
     >
@@ -191,23 +192,34 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   iconContainer: {
+    width: 42,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    width: 40,
-    height: 30,
   },
-  glowEffect: {
+  iconCore: {
+    width: 26,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activePill: {
     position: 'absolute',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    top: -6,
+    width: 42,
+    height: 26,
+    borderRadius: 14,
+    overflow: 'hidden',
   },
-  activeIndicator: {
+  activePillGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  activeDot: {
     position: 'absolute',
     bottom: -6,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });

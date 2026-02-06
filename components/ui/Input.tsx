@@ -7,7 +7,8 @@ import {
   ViewStyle,
   TextInputProps,
 } from 'react-native';
-import { Colors, Radius, Typography, Spacing } from '@/constants/theme';
+import { Radius, Typography, Spacing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -22,24 +23,36 @@ export function Input({
   style,
   ...props
 }: InputProps) {
+  const { palette } = useThemeSafe();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: palette.textSecondary }]}>{label}</Text>}
       <TextInput
         style={[
           styles.input,
-          isFocused && styles.inputFocused,
-          error && styles.inputError,
+          {
+            backgroundColor: palette.backgroundSecondary,
+            borderColor: palette.border,
+            color: palette.textPrimary,
+          },
+          isFocused && {
+            borderColor: palette.accent,
+            backgroundColor: palette.cardBg,
+          },
+          error && {
+            borderColor: palette.error,
+            backgroundColor: palette.errorLight,
+          },
           style,
         ]}
-        placeholderTextColor={Colors.slateLight}
+        placeholderTextColor={palette.textTertiary}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         {...props}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={[styles.error, { color: palette.error }]}>{error}</Text>}
     </View>
   );
 }
@@ -49,31 +62,23 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   label: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.medium,
-    color: Colors.slateCharcoal,
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.semibold,
+    letterSpacing: Typography.letterSpacing.wider,
     marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: Colors.inputBg,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderWidth: 1.2,
     borderRadius: Radius.lg,
+    minHeight: 52,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.slateCharcoal,
-  },
-  inputFocused: {
-    borderColor: Colors.electricIndigo,
-    backgroundColor: Colors.white,
-  },
-  inputError: {
-    borderColor: Colors.error,
+    lineHeight: Math.round(Typography.sizes.bodyLarge * 1.35),
   },
   error: {
     fontSize: Typography.sizes.caption,
-    color: Colors.error,
     marginTop: Spacing.xs,
   },
 });

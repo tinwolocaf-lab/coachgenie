@@ -1,62 +1,60 @@
-// Coachgenie Design System - Premium Editorial Aesthetic
-// Inspired by Masterclass, BetterUp, and luxury editorial apps
+// Coachgenie Design System v2 - Premium Editorial + Tactile Mobile
 
 export const Colors = {
-  // Premium Editorial Palette
-  warmOatmeal: '#FDFCF8',        // Primary background - paper-like texture
-  warmOatmealDark: '#F5F3ED',    // Secondary background
-  cream: '#FAF8F5',              // Card backgrounds
+  // Foundational surfaces
+  warmOatmeal: '#F7F4EE',
+  warmOatmealDark: '#EDE6D9',
+  cream: '#FBF8F2',
 
-  // Deep Sophisticated Tones
-  midnightEmerald: '#1B3022',    // Primary dark - headers, high-contrast text
-  deepEspresso: '#2C1E1B',       // Alternative dark tone
-  charcoal: '#2D2A26',           // Body text
-  slate: '#5A5550',              // Secondary text
-  stoneGray: '#8A857E',          // Tertiary text, captions
+  // Core ink tones
+  midnightEmerald: '#122821',
+  deepEspresso: '#2A1E1A',
+  charcoal: '#22201C',
+  slate: '#4F4A43',
+  stoneGray: '#777067',
 
-  // Accent - Premium Gold
-  burnishedGold: '#C5A059',      // Active states, premium flourishes
-  goldLight: '#D4B77A',          // Hover/lighter states
-  goldMuted: 'rgba(197, 160, 89, 0.15)', // Subtle backgrounds
-  goldShimmer: 'rgba(197, 160, 89, 0.3)', // Shimmer effects
+  // Premium accent - warm brass
+  burnishedGold: '#B7883A',
+  goldLight: '#CEA35F',
+  goldMuted: 'rgba(183, 136, 58, 0.14)',
+  goldShimmer: 'rgba(183, 136, 58, 0.26)',
 
-  // Functional Colors
-  success: '#3D7A5C',            // Muted forest green
-  successLight: 'rgba(61, 122, 92, 0.12)',
-  warning: '#B8860B',            // Dark goldenrod
-  warningLight: 'rgba(184, 134, 11, 0.12)',
-  error: '#9B4D4D',              // Muted crimson
-  errorLight: 'rgba(155, 77, 77, 0.12)',
+  // Functional semantic tones
+  success: '#2E7B5A',
+  successLight: 'rgba(46, 123, 90, 0.14)',
+  warning: '#A9791D',
+  warningLight: 'rgba(169, 121, 29, 0.14)',
+  error: '#A14A45',
+  errorLight: 'rgba(161, 74, 69, 0.14)',
 
-  // Glass & UI Effects
-  glassBg: 'rgba(253, 252, 248, 0.85)',
-  glassBlur: 'rgba(255, 255, 255, 0.6)',
-  glassBorder: 'rgba(197, 160, 89, 0.2)',
-  cardBg: '#FFFFFF',
-  overlay: 'rgba(27, 48, 34, 0.6)',
-  overlayLight: 'rgba(27, 48, 34, 0.3)',
+  // Surface effects
+  glassBg: 'rgba(251, 248, 242, 0.82)',
+  glassBlur: 'rgba(255, 255, 255, 0.58)',
+  glassBorder: 'rgba(183, 136, 58, 0.18)',
+  cardBg: '#FFFEFC',
+  overlay: 'rgba(18, 40, 33, 0.62)',
+  overlayLight: 'rgba(18, 40, 33, 0.36)',
 
   // Borders
-  border: 'rgba(45, 42, 38, 0.1)',
-  borderGold: 'rgba(197, 160, 89, 0.3)',
-  borderLight: 'rgba(45, 42, 38, 0.05)',
+  border: 'rgba(34, 32, 28, 0.12)',
+  borderGold: 'rgba(183, 136, 58, 0.32)',
+  borderLight: 'rgba(34, 32, 28, 0.06)',
 
-  // Chat Colors
-  userMessage: '#1B3022',
-  aiMessage: 'rgba(253, 252, 248, 0.9)',
+  // Messaging surfaces
+  userMessage: '#122821',
+  aiMessage: 'rgba(255, 254, 252, 0.94)',
 
-  // Legacy support - Backwards compatibility
   white: '#FFFFFF',
   black: '#000000',
 
-  // Legacy color aliases (map to new premium palette)
-  offWhite: '#FDFCF8',             // -> warmOatmeal
-  slateCharcoal: '#2D2A26',        // -> charcoal
-  slateGray: '#8A857E',            // -> stoneGray
-  slateLight: '#A8A39D',           // Lighter stone
-  electricIndigo: '#C5A059',       // -> burnishedGold (accent color)
-  electricIndigoLight: 'rgba(197, 160, 89, 0.15)', // -> goldMuted
-  inputBg: '#F5F3ED',              // -> warmOatmealDark
+  // Legacy aliases kept for backward compatibility
+  offWhite: '#F7F4EE',
+  slateCharcoal: '#22201C',
+  slateGray: '#777067',
+  slateLight: '#9B958D',
+  electricIndigo: '#B7883A',
+  electricIndigoLight: 'rgba(183, 136, 58, 0.14)',
+  inputBg: '#F2ECE2',
 } as const;
 
 export const Spacing = {
@@ -72,14 +70,12 @@ export const Spacing = {
 } as const;
 
 export const Typography = {
-  // Font Families
   fonts: {
-    serif: 'Georgia',           // Primary headings - editorial feel
+    serif: 'Georgia',
     serifItalic: 'Georgia',
-    sans: 'System',             // Body copy - clean, high-kerning
+    sans: 'Avenir Next',
   },
 
-  // Font Weights
   weights: {
     light: '300' as const,
     regular: '400' as const,
@@ -88,7 +84,6 @@ export const Typography = {
     bold: '700' as const,
   },
 
-  // Font Sizes - More editorial scale
   sizes: {
     micro: 10,
     caption: 12,
@@ -96,28 +91,26 @@ export const Typography = {
     bodyLarge: 17,
     subtitle: 19,
     title: 22,
-    headline: 26,
-    display: 34,
-    hero: 42,
-    giant: 56,
+    headline: 28,
+    display: 36,
+    hero: 44,
+    giant: 58,
   },
 
-  // Line Heights
   lineHeights: {
     tight: 1.2,
-    snug: 1.35,
+    snug: 1.34,
     normal: 1.5,
-    relaxed: 1.65,
+    relaxed: 1.64,
     loose: 1.8,
   },
 
-  // Letter Spacing
   letterSpacing: {
-    tight: -0.5,
+    tight: -0.4,
     normal: 0,
-    wide: 0.5,
-    wider: 1,
-    widest: 2,
+    wide: 0.45,
+    wider: 0.85,
+    widest: 1.8,
   },
 } as const;
 
@@ -128,7 +121,7 @@ export const Radius = {
   lg: 16,
   xl: 20,
   xxl: 24,
-  squircle: 28,       // Premium squircle corners
+  squircle: 28,
   pill: 100,
   full: 9999,
 } as const;
@@ -142,75 +135,73 @@ export const Shadows = {
     elevation: 0,
   },
   subtle: {
-    shadowColor: '#1B3022',
+    shadowColor: '#122821',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
     elevation: 1,
   },
   sm: {
-    shadowColor: '#1B3022',
+    shadowColor: '#122821',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
     elevation: 2,
   },
   md: {
-    shadowColor: '#1B3022',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowColor: '#122821',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.09,
+    shadowRadius: 14,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#1B3022',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
+    shadowColor: '#122821',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 26,
     elevation: 8,
   },
   xl: {
-    shadowColor: '#1B3022',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 32,
+    shadowColor: '#122821',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
     elevation: 12,
   },
   gold: {
-    shadowColor: '#C5A059',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowColor: '#B7883A',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
     elevation: 6,
   },
 } as const;
 
-// Animation timings - Slower, more elegant
 export const Timing = {
   instant: 100,
-  fast: 200,
-  normal: 350,
-  slow: 500,
-  elegant: 700,
-  dramatic: 1000,
+  fast: 180,
+  normal: 320,
+  slow: 460,
+  elegant: 640,
+  dramatic: 920,
   spring: {
     damping: 20,
     stiffness: 120,
     mass: 1,
   },
   springGentle: {
-    damping: 25,
-    stiffness: 90,
-    mass: 1.2,
+    damping: 24,
+    stiffness: 92,
+    mass: 1.12,
   },
   springBouncy: {
     damping: 15,
-    stiffness: 150,
-    mass: 0.8,
+    stiffness: 154,
+    mass: 0.85,
   },
 } as const;
 
-// Glass card styles
 export const GlassCard = {
   background: Colors.glassBg,
   borderWidth: 1,
@@ -219,7 +210,6 @@ export const GlassCard = {
   ...Shadows.md,
 } as const;
 
-// Premium button styles
 export const PremiumButton = {
   primary: {
     backgroundColor: Colors.burnishedGold,

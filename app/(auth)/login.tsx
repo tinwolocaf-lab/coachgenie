@@ -138,12 +138,22 @@ function AuthenticatedLogin() {
     }
   };
 
+  const handleEmailChange = (value: string) => {
+    clearErrors();
+    setEmail(value);
+  };
+
+  const handlePasswordChange = (value: string) => {
+    clearErrors();
+    setPassword(value);
+  };
+
   return (
     <LoginUI
       email={email}
-      setEmail={setEmail}
+      setEmail={handleEmailChange}
       password={password}
-      setPassword={setPassword}
+      setPassword={handlePasswordChange}
       showPassword={showPassword}
       setShowPassword={setShowPassword}
       isLoading={isLoading}
@@ -362,10 +372,7 @@ function LoginUI({
                   placeholder="your@email.com"
                   placeholderTextColor={Colors.stoneGray}
                   value={email}
-                  onChangeText={(value) => {
-                    clearErrors();
-                    setEmail(value);
-                  }}
+                  onChangeText={setEmail}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   autoComplete="email"
@@ -383,10 +390,7 @@ function LoginUI({
                   placeholder="Enter your password"
                   placeholderTextColor={Colors.stoneGray}
                   value={password}
-                  onChangeText={(value) => {
-                    clearErrors();
-                    setPassword(value);
-                  }}
+                  onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   autoComplete="password"
                   editable={!isLoading}
