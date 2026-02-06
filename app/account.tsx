@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, EditorialSpacing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { AtmosphereGallery } from '@/components/settings/AtmosphereGallery';
@@ -573,8 +573,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: Typography.sizes.title,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
+    letterSpacing: Typography.letterSpacing.editorial,
   },
   headerSpacer: {
     width: 44,
@@ -582,11 +583,11 @@ const styles = StyleSheet.create({
 
   // Profile Card
   profileCard: {
-    marginHorizontal: Spacing.xxl,
+    marginHorizontal: EditorialSpacing.breathingMargin,
     borderRadius: Radius.squircle,
     overflow: 'hidden',
-    marginBottom: Spacing.xxl,
-    ...Shadows.lg,
+    marginBottom: EditorialSpacing.sectionGap,
+    ...Shadows.floating,
   },
   profileGradient: {
     padding: Spacing.xxl,
@@ -613,12 +614,14 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: Typography.sizes.headline,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
+    letterSpacing: Typography.letterSpacing.editorial,
     marginBottom: Spacing.xs,
   },
   profileEmail: {
     fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sansLight,
     marginBottom: Spacing.md,
   },
   memberBadge: {
@@ -636,24 +639,24 @@ const styles = StyleSheet.create({
     letterSpacing: Typography.letterSpacing.wide,
   },
 
-  // Section Headers
+  // Section Headers - Premium Editorial
   sectionHeader: {
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.lg,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
   },
   sectionTitle: {
     fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.sansSemibold,
     textTransform: 'uppercase',
-    letterSpacing: Typography.letterSpacing.widest,
+    letterSpacing: Typography.letterSpacing.display,
   },
 
-  // Settings Card
+  // Settings Card - Premium Editorial
   settingsCard: {
-    marginHorizontal: Spacing.xxl,
+    marginHorizontal: EditorialSpacing.breathingMargin,
     borderRadius: Radius.lg,
-    marginBottom: Spacing.xxl,
-    ...Shadows.subtle,
+    marginBottom: EditorialSpacing.sectionGap,
+    ...Shadows.md,
   },
   settingItem: {
     flexDirection: 'row',
@@ -679,9 +682,10 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: Typography.sizes.caption,
+    fontFamily: Typography.fonts.sans,
     marginBottom: Spacing.xs,
     textTransform: 'uppercase',
-    letterSpacing: Typography.letterSpacing.wide,
+    letterSpacing: Typography.letterSpacing.wider,
   },
   settingValue: {
     fontSize: Typography.sizes.bodyLarge,
@@ -724,13 +728,14 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
 
-  // Subscription Card
+  // Subscription Card - Floating
   subscriptionCard: {
-    marginHorizontal: Spacing.xxl,
+    marginHorizontal: EditorialSpacing.breathingMargin,
     borderRadius: Radius.lg,
     overflow: 'hidden',
-    marginBottom: Spacing.xxl,
+    marginBottom: EditorialSpacing.sectionGap,
     borderWidth: 1,
+    ...Shadows.md,
   },
   subscriptionGradient: {
     padding: Spacing.xl,
@@ -753,8 +758,9 @@ const styles = StyleSheet.create({
   },
   subscriptionTitle: {
     fontSize: Typography.sizes.bodyLarge,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
+    letterSpacing: Typography.letterSpacing.editorial,
   },
   subscriptionStatus: {
     fontSize: Typography.sizes.caption,
@@ -798,8 +804,8 @@ const styles = StyleSheet.create({
 
   // Sign Out
   signOutSection: {
-    marginBottom: Spacing.xxl,
-    paddingHorizontal: Spacing.xxl,
+    marginBottom: EditorialSpacing.sectionGap,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
   },
   signOutButton: {
     borderRadius: Radius.lg,
@@ -813,7 +819,7 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: Typography.sizes.bodyLarge,
-    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.sansSemibold,
   },
 
   // App Info
@@ -854,8 +860,9 @@ const styles = StyleSheet.create({
   },
   guestTitle: {
     fontSize: Typography.sizes.headline,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
+    letterSpacing: Typography.letterSpacing.editorial,
     marginBottom: Spacing.md,
   },
   guestText: {

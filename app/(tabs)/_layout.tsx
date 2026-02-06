@@ -82,8 +82,9 @@ export default function TabLayout() {
         tabBarInactiveTintColor: palette.tabBarInactive,
         tabBarLabelStyle: {
           fontSize: Typography.sizes.micro,
-          fontWeight: Typography.weights.medium,
-          letterSpacing: Typography.letterSpacing.wide,
+          fontFamily: Typography.fonts.sansMedium,
+          letterSpacing: Typography.letterSpacing.wider,
+          textTransform: 'uppercase',
           marginTop: 2,
         },
         tabBarStyle: {

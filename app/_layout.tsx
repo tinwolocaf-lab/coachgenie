@@ -8,6 +8,7 @@ import * as Linking from 'expo-linking';
 import { isOnboardingComplete } from '@/store/onboarding';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
+import { usePremiumFonts } from '@/hooks/usePremiumFonts';
 
 // Conditionally import AuthProvider
 let AuthProvider: React.ComponentType<{
@@ -150,6 +151,7 @@ function ThemedAppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const { isProcessingDeepLink } = useDeepLinkHandler();
   const { palette } = useThemeSafe();
+  const { fontsLoaded } = usePremiumFonts();
 
   useEffect(() => {
     checkOnboarding();
@@ -165,7 +167,7 @@ function ThemedAppContent() {
     }
   };
 
-  if (isLoading || isProcessingDeepLink) {
+  if (isLoading || isProcessingDeepLink || !fontsLoaded) {
     return (
       <View style={[styles.loading, { backgroundColor: palette.background }]}>
         <ActivityIndicator size="large" color={palette.accent} />
@@ -179,6 +181,7 @@ function ThemedAppContent() {
         headerShown: false,
         contentStyle: { backgroundColor: palette.background },
         animation: 'fade',
+        animationDuration: 400,
       }}
     >
       <Stack.Screen
@@ -190,32 +193,37 @@ function ThemedAppContent() {
       <Stack.Screen
         name="(auth)"
         options={{
-          animation: 'slide_from_right',
+          animation: 'fade',
+          animationDuration: 500,
         }}
       />
       <Stack.Screen
         name="onboarding"
         options={{
           animation: 'fade',
+          animationDuration: 500,
         }}
       />
       <Stack.Screen
         name="(tabs)"
         options={{
           animation: 'fade',
+          animationDuration: 400,
         }}
       />
       <Stack.Screen
         name="chat/[coachId]"
         options={{
-          animation: 'slide_from_bottom',
+          animation: 'fade_from_bottom',
+          animationDuration: 500,
           presentation: 'modal',
         }}
       />
       <Stack.Screen
         name="coach/[id]"
         options={{
-          animation: 'slide_from_right',
+          animation: 'fade',
+          animationDuration: 400,
         }}
       />
       <Stack.Screen
@@ -228,12 +236,14 @@ function ThemedAppContent() {
         name="auth/verified"
         options={{
           animation: 'fade',
+          animationDuration: 500,
         }}
       />
       <Stack.Screen
         name="account"
         options={{
-          animation: 'slide_from_right',
+          animation: 'fade',
+          animationDuration: 400,
           presentation: 'card',
         }}
       />
@@ -241,6 +251,7 @@ function ThemedAppContent() {
         name="sanctuary"
         options={{
           animation: 'fade',
+          animationDuration: 600,
           presentation: 'fullScreenModal',
           gestureEnabled: true,
           gestureDirection: 'vertical',
@@ -250,6 +261,15 @@ function ThemedAppContent() {
         name="archive"
         options={{
           animation: 'fade',
+          animationDuration: 400,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="rituals"
+        options={{
+          animation: 'fade',
+          animationDuration: 400,
           presentation: 'card',
         }}
       />

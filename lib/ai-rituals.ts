@@ -38,6 +38,52 @@ export function getMorningPrompt(
   return MORNING_PROMPTS[Math.floor(Math.random() * MORNING_PROMPTS.length)];
 }
 
+// ============ DAILY MUSE - AI Coaching Prompt ============
+
+export async function generateDailyMuse(
+  intention: string,
+  userContext: ContextVault | null,
+  activeChapter: GrowthChapter | null
+): Promise<string> {
+  try {
+    const prompt = `You are a world-class executive coach and philosopher. A person has just set their morning intention for today. Based on their intention, generate a single "Daily Muse" — one elegant, thought-provoking sentence that serves as a coaching nudge for the day.
+
+THEIR MORNING INTENTION: "${intention}"
+
+${activeChapter ? `Their current growth focus: "${activeChapter.title}"` : ''}
+${userContext && userContext.values.length > 0 ? `Their core values: ${userContext.values.join(', ')}` : ''}
+
+Requirements:
+- ONE sentence only, maximum 20 words
+- It should feel like a handwritten note from a wise mentor
+- It should be deeply insightful, not generic or cliché
+- It should connect to their specific intention
+- Tone: warm yet provocative, like something you'd find written inside a Moleskine notebook
+- Do NOT use quotation marks or attribute it to anyone
+- Do NOT start with "Remember" or "Today"
+
+Examples of great Daily Muse sentences:
+- "The space between knowing and doing is where your real growth lives."
+- "What you resist this morning is exactly what deserves your attention."
+- "Mastery isn't about perfection — it's about returning to the work with fresh eyes."
+
+Write ONLY the one-sentence Daily Muse, nothing else.`;
+
+    const response = await generateText({ prompt });
+    return response.trim().replace(/^["']|["']$/g, ''); // Remove any wrapping quotes
+  } catch (error) {
+    console.error('Error generating Daily Muse:', error);
+    // Elegant fallback
+    const fallbacks = [
+      'The most powerful thing you can do today is begin.',
+      'Your intention is the compass — trust where it points.',
+      'What feels difficult today is building the person you need tomorrow.',
+      'Clarity comes not from thinking more, but from doing the next right thing.',
+    ];
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  }
+}
+
 // ============ EVENING AUDIT AI ANALYSIS ============
 
 export async function generateClosingThought(

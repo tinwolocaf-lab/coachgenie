@@ -23,8 +23,9 @@ import Animated, {
   withTiming,
   withSequence,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadows, Timing, EditorialSpacing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
+import { InkText } from '@/components/ui/InkText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressRing } from '@/components/ui/ProgressRing';
@@ -809,11 +810,11 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.section,
   },
 
-  // Hero Section
+  // Hero Section - Premium Editorial
   heroSection: {
-    paddingHorizontal: Spacing.xxl,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    paddingTop: EditorialSpacing.heroTopPadding,
+    paddingBottom: Spacing.xxl,
   },
   heroHeader: {
     flexDirection: 'row',
@@ -827,22 +828,24 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.light,
     color: Colors.midnightEmerald,
-    fontFamily: Typography.fonts.serif,
-    letterSpacing: Typography.letterSpacing.tight,
+    fontFamily: Typography.fonts.serifRegular,
+    letterSpacing: Typography.letterSpacing.editorial,
   },
   heroName: {
     fontSize: Typography.sizes.display,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.bold,
     color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
-    letterSpacing: Typography.letterSpacing.tight,
-    marginTop: -4,
+    letterSpacing: Typography.letterSpacing.editorial,
+    marginTop: -2,
   },
   heroDate: {
-    fontSize: Typography.sizes.body,
+    fontSize: Typography.sizes.caption,
+    fontFamily: Typography.fonts.sans,
     color: Colors.stoneGray,
-    marginTop: Spacing.sm,
-    letterSpacing: Typography.letterSpacing.wide,
+    marginTop: Spacing.md,
+    letterSpacing: Typography.letterSpacing.wider,
+    textTransform: 'uppercase',
   },
   avatarButton: {
     padding: 2,
@@ -856,10 +859,10 @@ const styles = StyleSheet.create({
     ...Shadows.gold,
   },
 
-  // Progress Section
+  // Progress Section - Premium Editorial
   progressSection: {
-    paddingHorizontal: Spacing.xxl,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: Spacing.xxl,
   },
   progressCard: {
     padding: Spacing.xl,
@@ -888,18 +891,20 @@ const styles = StyleSheet.create({
   },
   insightText: {
     fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.serifRegular,
     color: Colors.charcoal,
     fontStyle: 'italic',
     flex: 1,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
-  // Active Coach Card
+  // Active Coach Card - Floating
   activeCoachCard: {
-    marginHorizontal: Spacing.xxl,
-    marginBottom: Spacing.lg,
+    marginHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: Spacing.xxl,
     borderRadius: Radius.squircle,
     overflow: 'hidden',
-    ...Shadows.lg,
+    ...Shadows.floating,
   },
   coachGradient: {
     padding: Spacing.xl,
@@ -940,10 +945,10 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
   },
 
-  // Practice Section
+  // Practice Section - Premium Editorial
   practiceSection: {
-    paddingHorizontal: Spacing.xxl,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: Spacing.xxl,
   },
   practiceHeaderRow: {
     flexDirection: 'row',
@@ -964,9 +969,9 @@ const styles = StyleSheet.create({
   },
   practiceActionCard: {
     borderRadius: Radius.squircle,
-    padding: Spacing.lg,
+    padding: EditorialSpacing.cardPadding,
     marginBottom: Spacing.md,
-    ...Shadows.sm,
+    ...Shadows.md,
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
@@ -1104,44 +1109,47 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Quick Actions
+  // Quick Actions - Editorial spacing
   quickActionsContainer: {
-    paddingHorizontal: Spacing.xxl,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: Spacing.xxl,
   },
 
   // Flashback Section
   flashbackSection: {
-    paddingHorizontal: Spacing.xxl,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: Spacing.xxl,
   },
 
   // Featured Section
   featuredSection: {
-    paddingHorizontal: Spacing.xxl,
-    marginBottom: Spacing.xxl,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: EditorialSpacing.sectionGap,
   },
 
   // Focus Section
   focusSection: {
-    paddingHorizontal: Spacing.xxl,
-    marginBottom: Spacing.xxl,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: EditorialSpacing.sectionGap,
   },
 
-  // Section Headers
+  // Section Headers - Premium Editorial
   sectionHeader: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   sectionTitle: {
     fontSize: Typography.sizes.headline,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.bold,
     color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
+    letterSpacing: Typography.letterSpacing.editorial,
   },
   sectionSubtitle: {
     fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sansLight,
     color: Colors.stoneGray,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
+    letterSpacing: Typography.letterSpacing.wide,
   },
 
   // Priorities Card
@@ -1177,6 +1185,7 @@ const styles = StyleSheet.create({
   priorityText: {
     flex: 1,
     fontSize: Typography.sizes.bodyLarge,
+    fontFamily: Typography.fonts.sans,
     color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
   },
@@ -1206,7 +1215,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   sessionsScroll: {
-    paddingHorizontal: Spacing.xxl,
+    paddingHorizontal: EditorialSpacing.breathingMargin,
     gap: Spacing.md,
   },
   sessionCard: {
@@ -1225,7 +1234,7 @@ const styles = StyleSheet.create({
   },
   sessionTitle: {
     fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.medium,
+    fontFamily: Typography.fonts.sansMedium,
     color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },

@@ -1,5 +1,5 @@
-// Coachgenie Design System - Premium Editorial Aesthetic
-// Inspired by Masterclass, BetterUp, and luxury editorial apps
+// Coachgenie Design System - Premium Rebirth Editorial Aesthetic
+// High-end editorial magazine aesthetic with Digital Sanctuary layout
 
 export const Colors = {
   // Premium Editorial Palette
@@ -72,11 +72,23 @@ export const Spacing = {
 } as const;
 
 export const Typography = {
-  // Font Families
+  // Font Families - Premium Rebirth
+  // High-contrast serif for headlines (luxury fashion magazine)
+  // Clean sans-serif for body (spacious, breathing)
   fonts: {
-    serif: 'Georgia',           // Primary headings - editorial feel
-    serifItalic: 'Georgia',
-    sans: 'System',             // Body copy - clean, high-kerning
+    serif: 'PlayfairDisplay_700Bold',           // Primary headings - luxury editorial
+    serifRegular: 'PlayfairDisplay_400Regular',  // Elegant body serif
+    serifMedium: 'PlayfairDisplay_500Medium',    // Medium weight serif
+    serifItalic: 'PlayfairDisplay_400Regular_Italic', // Italic for quotes
+    serifBoldItalic: 'PlayfairDisplay_700Bold_Italic', // Bold italic
+    sans: 'Inter_400Regular',                    // Body copy - clean, spacious
+    sansMedium: 'Inter_500Medium',               // Medium sans
+    sansSemibold: 'Inter_600SemiBold',           // Semibold sans
+    sansBold: 'Inter_700Bold',                   // Bold sans
+    sansLight: 'Inter_300Light',                 // Light sans for breathing text
+    // Fallbacks for before fonts load
+    serifFallback: 'Georgia',
+    sansFallback: 'System',
   },
 
   // Font Weights
@@ -88,36 +100,39 @@ export const Typography = {
     bold: '700' as const,
   },
 
-  // Font Sizes - More editorial scale
+  // Font Sizes - More editorial scale with greater contrast
   sizes: {
     micro: 10,
     caption: 12,
     body: 15,
     bodyLarge: 17,
     subtitle: 19,
-    title: 22,
-    headline: 26,
-    display: 34,
-    hero: 42,
-    giant: 56,
+    title: 24,
+    headline: 28,
+    display: 36,
+    hero: 44,
+    giant: 60,
   },
 
-  // Line Heights
+  // Line Heights - Significantly increased for breathing effect
   lineHeights: {
-    tight: 1.2,
-    snug: 1.35,
-    normal: 1.5,
-    relaxed: 1.65,
-    loose: 1.8,
+    tight: 1.25,
+    snug: 1.4,
+    normal: 1.6,
+    relaxed: 1.75,
+    loose: 1.9,
+    editorial: 2.0,  // Premium editorial breathing
   },
 
   // Letter Spacing
   letterSpacing: {
     tight: -0.5,
+    editorial: -0.3,  // Subtle tightening for headlines
     normal: 0,
     wide: 0.5,
-    wider: 1,
-    widest: 2,
+    wider: 1.5,
+    widest: 2.5,
+    display: 3,  // For section labels
   },
 } as const;
 
@@ -143,49 +158,65 @@ export const Shadows = {
   },
   subtle: {
     shadowColor: '#1B3022',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 1,
   },
   sm: {
     shadowColor: '#1B3022',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
   },
   md: {
     shadowColor: '#1B3022',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: 16,
     elevation: 4,
   },
   lg: {
     shadowColor: '#1B3022',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
-    shadowRadius: 24,
+    shadowRadius: 28,
     elevation: 8,
   },
   xl: {
     shadowColor: '#1B3022',
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.12,
-    shadowRadius: 32,
+    shadowRadius: 40,
     elevation: 12,
+  },
+  // Deep diffused floating shadow - elements appear above physical surface
+  floating: {
+    shadowColor: '#1B3022',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.15,
+    shadowRadius: 50,
+    elevation: 16,
   },
   gold: {
     shadowColor: '#C5A059',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
     elevation: 6,
+  },
+  // Premium diffused gold glow for CTAs
+  goldFloat: {
+    shadowColor: '#C5A059',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    elevation: 10,
   },
 } as const;
 
-// Animation timings - Slower, more elegant
+// Animation timings - Premium Rebirth: slower, more intentional
 export const Timing = {
   instant: 100,
   fast: 200,
@@ -193,6 +224,8 @@ export const Timing = {
   slow: 500,
   elegant: 700,
   dramatic: 1000,
+  ritual: 1500,       // For the Morning Intention ink effect
+  liquidFade: 600,    // Liquid transition dissolve
   spring: {
     damping: 20,
     stiffness: 120,
@@ -208,6 +241,20 @@ export const Timing = {
     stiffness: 150,
     mass: 0.8,
   },
+  springElegant: {
+    damping: 30,
+    stiffness: 70,
+    mass: 1.5,
+  },
+} as const;
+
+// Editorial Spacing - Digital Sanctuary white space
+export const EditorialSpacing = {
+  sectionGap: 48,          // Between major sections
+  cardPadding: 28,         // Inside premium cards
+  breathingMargin: 32,     // Side margins for editorial feel
+  heroTopPadding: 24,      // Top of hero sections
+  paragraphGap: 20,        // Between text blocks
 } as const;
 
 // Glass card styles
