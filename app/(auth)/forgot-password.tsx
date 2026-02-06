@@ -44,8 +44,23 @@ function AuthenticatedForgotPassword() {
   const [resetSent, setResetSent] = useState(false);
 
   const isLoading = auth?.isLoading || false;
-  const error = auth?.error?.message || localError;
-  const pendingReset = auth?.pendingPasswordReset || resetSent;
+  const error = localError;
+  const pendingReset = resetSent;
+
+  const getErrorMessage = (err: unknown): string => {
+    if (!err) return 'Unable to send reset link. Please try again.';
+    if (typeof err === 'string') return err;
+    if (typeof err === 'object') {
+      const message = (err as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+    return 'Unable to send reset link. Please try again.';
+  };
+
+  const handleEmailChange = (value: string) => {
+    if (localError) setLocalError(null);
+    setEmail(value);
+  };
 
   const handleResetPassword = async () => {
     if (!email.trim()) {
@@ -61,15 +76,18 @@ function AuthenticatedForgotPassword() {
       setResetSent(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
+      setLocalError(getErrorMessage(err));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      console.error('Reset password error:', err);
+      if (__DEV__) {
+        console.warn('Reset password request failed:', err);
+      }
     }
   };
 
   return (
     <ForgotPasswordUI
       email={email}
-      setEmail={setEmail}
+      setEmail={handleEmailChange}
       isLoading={isLoading}
       error={error}
       pendingReset={pendingReset}
@@ -84,6 +102,11 @@ function GuestForgotPassword() {
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+
+  const handleEmailChange = (value: string) => {
+    if (localError) setLocalError(null);
+    setEmail(value);
+  };
 
   const handleResetPassword = async () => {
     if (!email.trim()) {
@@ -105,7 +128,7 @@ function GuestForgotPassword() {
   return (
     <ForgotPasswordUI
       email={email}
-      setEmail={setEmail}
+      setEmail={handleEmailChange}
       isLoading={isLoading}
       error={localError}
       pendingReset={resetSent}
