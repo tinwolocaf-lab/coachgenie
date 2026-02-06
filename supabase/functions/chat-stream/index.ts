@@ -10,6 +10,17 @@ interface ChatStreamBody {
   client_context?: Record<string, unknown>;
 }
 
+interface PostgrestLikeError {
+  code?: string;
+  message?: string;
+}
+
+function isMissingTableError(error: PostgrestLikeError | null, table: string): boolean {
+  return error?.code === 'PGRST205'
+    && typeof error.message === 'string'
+    && error.message.includes(`'public.${table}'`);
+}
+
 serve(async (request) => {
   const optionsResponse = handleOptions(request);
   if (optionsResponse) return optionsResponse;
@@ -40,34 +51,74 @@ serve(async (request) => {
   const { userClient, userId } = auth;
   const chatModel = Deno.env.get('OPENROUTER_CHAT_MODEL') ?? 'openai/gpt-4o-mini';
 
-  const { data: session, error: sessionError } = await userClient
+  let { data: session, error: sessionError } = await userClient
     .from('coaching_sessions')
     .select('id, coach_id')
     .eq('id', session_id)
     .eq('user_id', userId)
     .maybeSingle();
 
+  if (isMissingTableError(sessionError as PostgrestLikeError | null, 'coaching_sessions')) {
+    const legacySession = await userClient
+      .from('sessions')
+      .select('id, coach_id')
+      .eq('id', session_id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    session = legacySession.data;
+    sessionError = legacySession.error;
+  }
+
   if (sessionError || !session) {
     return new Response('Session not found', { status: 404, headers: corsHeaders });
   }
 
-  const { error: insertUserError } = await userClient
+  let { error: insertUserError } = await userClient
     .from('session_messages')
     .insert({
       session_id,
+      user_id: userId,
       role: 'user',
       content: user_message.trim(),
     });
+
+  if ((insertUserError as PostgrestLikeError | null)?.code === 'PGRST204') {
+    const retry = await userClient
+      .from('session_messages')
+      .insert({
+        session_id,
+        role: 'user',
+        content: user_message.trim(),
+      });
+    insertUserError = retry.error;
+  }
 
   if (insertUserError) {
     return new Response('Failed to save user message', { status: 500, headers: corsHeaders });
   }
 
-  const { data: coach } = await userClient
+  let { data: coach } = await userClient
     .from('coaches')
     .select('name, system_prompt, method')
     .eq('id', session.coach_id ?? '')
     .maybeSingle();
+
+  if (!coach) {
+    const legacyCoach = await userClient
+      .from('coaches')
+      .select('name, description')
+      .eq('id', session.coach_id ?? '')
+      .maybeSingle();
+
+    if (legacyCoach.data) {
+      coach = {
+        name: legacyCoach.data.name,
+        system_prompt: legacyCoach.data.description,
+        method: '',
+      };
+    }
+  }
 
   const { data: history } = await userClient
     .from('session_messages')
@@ -131,15 +182,29 @@ serve(async (request) => {
         }
       }
 
-      const { data: assistantRow } = await userClient
+      let { data: assistantRow } = await userClient
         .from('session_messages')
         .insert({
           session_id,
+          user_id: userId,
           role: 'assistant',
           content: assistantText || 'I am here to help. What would you like to focus on?',
         })
         .select('id')
         .single();
+
+      if (!assistantRow) {
+        const retryInsert = await userClient
+          .from('session_messages')
+          .insert({
+            session_id,
+            role: 'assistant',
+            content: assistantText || 'I am here to help. What would you like to focus on?',
+          })
+          .select('id')
+          .single();
+        assistantRow = retryInsert.data ?? null;
+      }
 
       controller.enqueue(
         encoder.encode(

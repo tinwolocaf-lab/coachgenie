@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { WisdomGrid } from '@/components/archive/WisdomGrid';
 import { Chronicle } from '@/components/archive/Chronicle';
 import { AskHistory } from '@/components/archive/AskHistory';
@@ -48,24 +48,9 @@ const TABS: { id: ArchiveTab; label: string; icon: keyof typeof Ionicons.glyphMa
   { id: 'ask', label: 'Ask', icon: 'search' },
 ];
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function ArchiveScreen() {
   const router = useRouter();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [activeTab, setActiveTab] = useState<ArchiveTab>('wisdom');
   const [refreshing, setRefreshing] = useState(false);

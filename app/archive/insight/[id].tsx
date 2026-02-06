@@ -23,6 +23,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { toggleInsightHighlight } from '@/lib/supabase-sanctuary';
 import { createRitualFromInsight, getRituals } from '@/lib/supabase-rituals';
 import { suggestRitualFromInsight } from '@/lib/apiClient';
@@ -31,25 +32,10 @@ import { getCoachById } from '@/data/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { Button } from '@/components/ui/Button';
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function InsightDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [loading, setLoading] = useState(true);
   const [insight, setInsight] = useState<KeyInsight | null>(null);

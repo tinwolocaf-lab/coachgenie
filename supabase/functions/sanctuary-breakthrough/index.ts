@@ -7,6 +7,17 @@ interface BreakthroughBody {
   session_id: string;
 }
 
+interface PostgrestLikeError {
+  code?: string;
+  message?: string;
+}
+
+function isMissingTableError(error: PostgrestLikeError | null, table: string): boolean {
+  return error?.code === 'PGRST205'
+    && typeof error.message === 'string'
+    && error.message.includes(`'public.${table}'`);
+}
+
 serve(async (request) => {
   const optionsResponse = handleOptions(request);
   if (optionsResponse) return optionsResponse;
@@ -38,12 +49,23 @@ serve(async (request) => {
     ?? Deno.env.get('OPENROUTER_CHAT_MODEL')
     ?? 'openai/gpt-4o-mini';
 
-  const { data: session, error: sessionError } = await userClient
+  let { data: session, error: sessionError } = await userClient
     .from('coaching_sessions')
     .select('id')
     .eq('id', payload.session_id)
     .eq('user_id', userId)
     .maybeSingle();
+
+  if (isMissingTableError(sessionError as PostgrestLikeError | null, 'coaching_sessions')) {
+    const legacySession = await userClient
+      .from('sessions')
+      .select('id')
+      .eq('id', payload.session_id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    session = legacySession.data;
+    sessionError = legacySession.error;
+  }
 
   if (sessionError || !session) {
     return new Response('Session not found', { status: 404, headers: corsHeaders });

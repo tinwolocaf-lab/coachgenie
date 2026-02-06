@@ -27,20 +27,8 @@ import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { AtmosphereGallery } from '@/components/settings/AtmosphereGallery';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-
-// Dynamic import for auth
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
 
 interface UserProfile {
   email: string;
@@ -51,9 +39,7 @@ interface UserProfile {
 export default function AccountScreen() {
   const router = useRouter();
   const { palette, isSovereignMember, setSovereignMember } = useThemeSafe();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [profile, setProfile] = useState<UserProfile>({
     email: '',

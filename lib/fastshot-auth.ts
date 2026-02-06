@@ -2,9 +2,14 @@ import type React from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface FastshotAuthUser {
-  id?: string;
+  id: string;
   email?: string;
-  user_metadata?: Record<string, unknown>;
+  user_metadata?: {
+    full_name?: string;
+    name?: string;
+    is_sovereign?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export interface FastshotAuthError {
@@ -74,10 +79,23 @@ interface FastshotAuthModule {
 type RuntimeRequire = (id: string) => unknown;
 
 function getRuntimeRequire(): RuntimeRequire | null {
-  const maybeRequire = (
+  const globalRequire = (
     globalThis as typeof globalThis & { require?: RuntimeRequire }
   ).require;
-  return typeof maybeRequire === 'function' ? maybeRequire : null;
+
+  if (typeof globalRequire === 'function') {
+    return globalRequire;
+  }
+
+  // Metro/Hermes may expose require outside globalThis.
+  try {
+    const maybeRequire = Function(
+      'return (typeof require === "function") ? require : null;'
+    )() as RuntimeRequire | null;
+    return typeof maybeRequire === 'function' ? maybeRequire : null;
+  } catch {
+    return null;
+  }
 }
 
 function loadFastshotAuthModule(): FastshotAuthModule | null {
@@ -91,12 +109,20 @@ function loadFastshotAuthModule(): FastshotAuthModule | null {
   }
 }
 
-let cachedModule: FastshotAuthModule | null | undefined;
+let cachedModule: FastshotAuthModule | null = null;
 
 export function getFastshotAuthModule(): FastshotAuthModule | null {
-  if (cachedModule !== undefined) return cachedModule;
-  cachedModule = loadFastshotAuthModule();
-  return cachedModule;
+  if (cachedModule) return cachedModule;
+
+  const loaded = loadFastshotAuthModule();
+  if (loaded) {
+    cachedModule = loaded;
+    return loaded;
+  }
+
+  // Do not cache failed resolution. In Metro/Hermes, require can be unavailable
+  // during early module evaluation and become available on a later pass.
+  return null;
 }
 
 export function getFastshotUseAuth(): FastshotUseAuth | null {

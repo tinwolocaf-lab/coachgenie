@@ -1,8 +1,9 @@
 // Conditional Auth Hook wrapper
 // Provides auth functionality only when Supabase is configured
-import { useState, useEffect } from 'react';
-import { getFastshotUseAuth, type FastshotUseAuthReturn } from '@/lib/fastshot-auth';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useState, useEffect, useCallback } from 'react';
+import * as Linking from 'expo-linking';
+import { type FastshotUseAuthReturn } from '@/lib/fastshot-auth';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 interface AuthState extends Pick<
   FastshotUseAuthReturn,
@@ -50,21 +51,6 @@ const defaultAuthActions: AuthActions = {
   clearError: () => {},
 };
 
-let cachedUseAuth: (() => UseAuthReturn) | null = null;
-
-function getUseAuth(): (() => UseAuthReturn) | null {
-  if (cachedUseAuth !== null) return cachedUseAuth;
-
-  if (isSupabaseConfigured) {
-    const useAuth = getFastshotUseAuth();
-    if (!useAuth) return null;
-
-    cachedUseAuth = useAuth as () => UseAuthReturn;
-    return cachedUseAuth;
-  }
-  return null;
-}
-
 export function useConditionalAuth(): UseAuthReturn {
   const [localState, setLocalState] = useState<AuthState>(defaultAuthState);
 
@@ -97,12 +83,188 @@ export function useConditionalAuth(): UseAuthReturn {
   };
 }
 
-const resolvedUseAuthHook = getUseAuth();
-const useAuthSafeImpl: () => UseAuthReturn =
-  isSupabaseConfigured && resolvedUseAuthHook
-    ? resolvedUseAuthHook
-    : useConditionalAuth;
+function useSupabaseFallbackAuth(): UseAuthReturn {
+  const [state, setState] = useState<AuthState>({
+    ...defaultAuthState,
+    isLoading: isSupabaseConfigured,
+  });
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setState(defaultAuthState);
+      return;
+    }
+
+    let isMounted = true;
+
+    const applySession = (session: FastshotUseAuthReturn['session']) => {
+      if (!isMounted) return;
+      setState((prev) => ({
+        ...prev,
+        isAuthenticated: !!session,
+        user: session?.user
+          ? {
+              id: session.user.id,
+              email: session.user.email,
+              user_metadata: session.user.user_metadata,
+            }
+          : null,
+        session: session
+          ? {
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              expires_at: session.expires_at,
+              user: session.user
+                ? {
+                    id: session.user.id,
+                    email: session.user.email,
+                    user_metadata: session.user.user_metadata,
+                  }
+                : undefined,
+            }
+          : null,
+        isLoading: false,
+      }));
+    };
+
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!isMounted) return;
+      if (error) {
+        setState((prev) => ({
+          ...prev,
+          error: { type: 'UNKNOWN_ERROR', message: error.message },
+          isLoading: false,
+        }));
+        return;
+      }
+      applySession(data.session as FastshotUseAuthReturn['session']);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySession(session as FastshotUseAuthReturn['session']);
+    });
+
+    return () => {
+      isMounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const clearError = useCallback(() => {
+    setState((prev) => ({ ...prev, error: null }));
+  }, []);
+
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    const normalizedEmail = email.trim();
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    const { error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
+    if (error) {
+      const authError = { type: 'UNKNOWN_ERROR', message: error.message };
+      setState((prev) => ({ ...prev, isLoading: false, error: authError }));
+      throw authError;
+    }
+    setState((prev) => ({ ...prev, isLoading: false }));
+  }, []);
+
+  const getRedirectTo = useCallback((): string => {
+    const explicitWebUrl = process.env.EXPO_PUBLIC_NEWELL_API_URL;
+    if (explicitWebUrl) {
+      return `${explicitWebUrl.replace(/\/$/, '')}/auth/callback`;
+    }
+    return Linking.createURL('auth/callback');
+  }, []);
+
+  const signUpWithEmail = useCallback(async (email: string, password: string) => {
+    const normalizedEmail = email.trim();
+    setState((prev) => ({ ...prev, isLoading: true, error: null, pendingEmailVerification: false }));
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: { emailRedirectTo: getRedirectTo() },
+    });
+    if (error) {
+      const authError = { type: 'UNKNOWN_ERROR', message: error.message };
+      setState((prev) => ({ ...prev, isLoading: false, error: authError }));
+      throw authError;
+    }
+
+    const emailConfirmationRequired = !data.session;
+    setState((prev) => ({
+      ...prev,
+      isLoading: false,
+      pendingEmailVerification: emailConfirmationRequired,
+      error: null,
+    }));
+
+    return { emailConfirmationRequired, email: normalizedEmail };
+  }, [getRedirectTo]);
+
+  const resetPassword = useCallback(async (email: string) => {
+    const normalizedEmail = email.trim();
+    setState((prev) => ({ ...prev, isLoading: true, error: null, pendingPasswordReset: false }));
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: getRedirectTo(),
+    });
+    if (error) {
+      const authError = { type: 'UNKNOWN_ERROR', message: error.message };
+      setState((prev) => ({ ...prev, isLoading: false, error: authError }));
+      throw authError;
+    }
+    setState((prev) => ({ ...prev, isLoading: false, pendingPasswordReset: true, error: null }));
+  }, [getRedirectTo]);
+
+  const signOut = useCallback(async () => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      const authError = { type: 'UNKNOWN_ERROR', message: error.message };
+      setState((prev) => ({ ...prev, isLoading: false, error: authError }));
+      throw authError;
+    }
+    setState({
+      ...defaultAuthState,
+      isLoading: false,
+    });
+  }, []);
+
+  const signInWithOAuth = useCallback(async (provider: 'google' | 'apple') => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: getRedirectTo() },
+    });
+    if (error) {
+      const authError = { type: 'UNKNOWN_ERROR', message: error.message };
+      setState((prev) => ({ ...prev, isLoading: false, error: authError }));
+      throw authError;
+    }
+    if (data?.url) {
+      await Linking.openURL(data.url);
+    }
+    setState((prev) => ({ ...prev, isLoading: false }));
+  }, [getRedirectTo]);
+
+  return {
+    ...state,
+    signInWithGoogle: async () => signInWithOAuth('google'),
+    signInWithApple: async () => signInWithOAuth('apple'),
+    signInWithEmail,
+    signUpWithEmail,
+    resetPassword,
+    signOut,
+    clearError,
+  };
+}
 
 export function useAuthSafe() {
-  return useAuthSafeImpl();
+  const conditionalAuth = useConditionalAuth();
+  const supabaseFallbackAuth = useSupabaseFallbackAuth();
+
+  if (!isSupabaseConfigured) return conditionalAuth;
+  // Always use direct Supabase-backed auth in app screens.
+  // This avoids silent no-op behavior when provider context is unstable.
+  return supabaseFallbackAuth;
 }

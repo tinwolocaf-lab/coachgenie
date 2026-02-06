@@ -23,7 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { createRitual, getGrowthChapters } from '@/lib/supabase-rituals';
 import { GrowthChapter } from '@/types';
 
@@ -44,25 +44,10 @@ const RITUAL_COLORS = [
   '#81B29A', // Sage Green
 ] as const;
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function NewRitualScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ chapterId?: string }>();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');

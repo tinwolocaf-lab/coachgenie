@@ -24,7 +24,7 @@ import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme'
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FluidProgressBar } from '@/components/rituals/FluidProgressBar';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getDailyReflection,
   saveDailyReflection,
@@ -35,24 +35,9 @@ import { generateClosingThought } from '@/lib/apiClient';
 import { getContextVault } from '@/store/app';
 import { DailyReflection, RitualWithStatus, ContextVault } from '@/types';
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function EveningAuditScreen() {
   const router = useRouter();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [existingReflection, setExistingReflection] = useState<DailyReflection | null>(null);
   const [morningIntention, setMorningIntention] = useState<string | null>(null);

@@ -10,9 +10,6 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { getFastshotAuthProvider } from '@/lib/fastshot-auth';
 import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
 
-// Conditionally import AuthProvider
-const AuthProvider = isSupabaseConfigured ? getFastshotAuthProvider() : null;
-
 /**
  * Parse authentication tokens from URL hash fragment
  * Handles URLs like: http://localhost:3000/#access_token=...&refresh_token=...&type=signup
@@ -257,6 +254,8 @@ function ThemedAppContentWithStatusBar() {
 }
 
 export default function RootLayout() {
+  const AuthProvider = isSupabaseConfigured ? getFastshotAuthProvider() : null;
+
   // Wrap with AuthProvider if available
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>

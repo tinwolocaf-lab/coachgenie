@@ -4,25 +4,11 @@ import { Redirect } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { isOnboardingComplete } from '@/store/onboarding';
 import { isSupabaseConfigured } from '@/lib/supabase';
-
-// Dynamic import for auth
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 
 // Authenticated index - uses useAuth hook
 function AuthenticatedIndex() {
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth ? useAuth() : null;
+  const auth = useAuthSafe();
   const isAuthenticated = auth?.isAuthenticated ?? false;
   const authLoading = auth?.isLoading ?? false;
 

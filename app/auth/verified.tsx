@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -146,24 +146,9 @@ function PulsingRing({ delay, size }: { delay: number; size: number }) {
   );
 }
 
-// Get user's first name or email
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function VerifiedScreen() {
   const router = useRouter();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth ? useAuth() : null;
+  const auth = useAuthSafe();
   const user = auth?.user;
 
   const [showContent, setShowContent] = useState(false);

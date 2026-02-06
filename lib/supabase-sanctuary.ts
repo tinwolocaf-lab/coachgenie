@@ -8,6 +8,77 @@ import {
   BreakthroughAction,
 } from '@/types';
 
+type SessionTableName = 'coaching_sessions' | 'sessions';
+
+let cachedSessionTableName: SessionTableName | null = null;
+
+interface PostgrestLikeError {
+  code?: string;
+  message?: string;
+}
+
+function isMissingTableError(error: unknown, table: string): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const record = error as PostgrestLikeError;
+  return record.code === 'PGRST205'
+    && typeof record.message === 'string'
+    && record.message.includes(`'public.${table}'`);
+}
+
+function normalizeSessionRow(
+  row: Record<string, unknown>,
+  table: SessionTableName
+): EnhancedSession {
+  const status = row.status === 'completed' ? 'completed' : 'active';
+  const title = typeof row.title === 'string' && row.title.length > 0 ? row.title : 'New Session';
+  const createdAt = typeof row.created_at === 'string' ? row.created_at : new Date().toISOString();
+  const completedAt = table === 'coaching_sessions'
+    ? (typeof row.completed_at === 'string' ? row.completed_at : undefined)
+    : (typeof row.ended_at === 'string' ? row.ended_at : undefined);
+  const summary = typeof row.summary === 'string' ? row.summary : undefined;
+  const breakthroughSummary = typeof row.breakthrough_summary === 'string'
+    ? row.breakthrough_summary
+    : undefined;
+
+  return {
+    id: String(row.id ?? ''),
+    user_id: String(row.user_id ?? ''),
+    coach_id: row.coach_id ? String(row.coach_id) : '',
+    title,
+    status,
+    summary,
+    breakthrough_summary: breakthroughSummary,
+    created_at: createdAt,
+    completed_at: completedAt,
+  };
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function getSessionTableName(): Promise<SessionTableName> {
+  if (cachedSessionTableName) return cachedSessionTableName;
+
+  const { error } = await supabase
+    .from('coaching_sessions')
+    .select('id')
+    .limit(1);
+
+  if (!error) {
+    cachedSessionTableName = 'coaching_sessions';
+    return cachedSessionTableName;
+  }
+
+  if (isMissingTableError(error, 'coaching_sessions')) {
+    cachedSessionTableName = 'sessions';
+    return cachedSessionTableName;
+  }
+
+  cachedSessionTableName = 'coaching_sessions';
+  return cachedSessionTableName;
+}
+
 // Sessions
 export async function createSession(
   userId: string,
@@ -16,19 +87,31 @@ export async function createSession(
 ): Promise<EnhancedSession | null> {
   if (!isSupabaseConfigured) return null;
   try {
+    const sessionTable = await getSessionTableName();
+    const coachIdForDb = isUuid(coachId) ? coachId : null;
+    const insertPayload = sessionTable === 'coaching_sessions'
+      ? {
+          user_id: userId,
+          coach_id: coachIdForDb,
+          title: title || 'New Session',
+          status: 'active' as const,
+        }
+      : {
+          user_id: userId,
+          coach_id: coachIdForDb,
+          title: title || 'New Session',
+          status: 'active' as const,
+        };
+
     const { data, error } = await supabase
-      .from('coaching_sessions')
-      .insert({
-        user_id: userId,
-        coach_id: coachId,
-        title: title || 'New Session',
-        status: 'active',
-      })
-      .select()
+      .from(sessionTable)
+      .insert(insertPayload)
+      .select('*')
       .single();
 
     if (error) throw error;
-    return data as EnhancedSession;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    return normalizeSessionRow(data as Record<string, unknown>, sessionTable);
   } catch (error) {
     console.error('Error creating session:', error);
     return null;
@@ -38,14 +121,16 @@ export async function createSession(
 export async function getSessionById(sessionId: string): Promise<EnhancedSession | null> {
   if (!isSupabaseConfigured) return null;
   try {
+    const sessionTable = await getSessionTableName();
     const { data, error } = await supabase
-      .from('coaching_sessions')
+      .from(sessionTable)
       .select('*')
       .eq('id', sessionId)
       .single();
 
     if (error) throw error;
-    return data as EnhancedSession;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    return normalizeSessionRow(data as Record<string, unknown>, sessionTable);
   } catch (error) {
     console.error('Error fetching session:', error);
     return null;
@@ -59,21 +144,24 @@ export async function getUserSessions(
 ): Promise<EnhancedSession[]> {
   if (!isSupabaseConfigured) return [];
   try {
+    const sessionTable = await getSessionTableName();
     let query = supabase
-      .from('coaching_sessions')
+      .from(sessionTable)
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (coachId) {
+    if (coachId && isUuid(coachId)) {
       query = query.eq('coach_id', coachId);
     }
 
     const { data, error } = await query;
 
     if (error) throw error;
-    return (data || []) as EnhancedSession[];
+    return (data || [])
+      .filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row))
+      .map((row) => normalizeSessionRow(row, sessionTable));
   } catch (error) {
     console.error('Error fetching sessions:', error);
     return [];
@@ -86,12 +174,26 @@ export async function updateSessionById(
 ): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
   try {
+    const sessionTable = await getSessionTableName();
+    const mappedUpdates = sessionTable === 'coaching_sessions'
+      ? {
+          ...updates,
+          updated_at: new Date().toISOString(),
+        }
+      : {
+          ...(typeof updates.title === 'string' ? { title: updates.title } : {}),
+          ...(typeof updates.status === 'string' ? { status: updates.status } : {}),
+          ...(typeof updates.coach_id === 'string' ? { coach_id: updates.coach_id } : {}),
+          ...(typeof updates.completed_at === 'string' ? { ended_at: updates.completed_at } : {}),
+        };
+
+    if (sessionTable === 'sessions' && Object.keys(mappedUpdates).length === 0) {
+      return true;
+    }
+
     const { error } = await supabase
-      .from('coaching_sessions')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
+      .from(sessionTable)
+      .update(mappedUpdates)
       .eq('id', sessionId);
 
     if (error) throw error;
@@ -418,9 +520,11 @@ export async function getActiveSession(
 ): Promise<{ session: EnhancedSession; messages: EnhancedMessage[] } | null> {
   if (!isSupabaseConfigured) return null;
   try {
+    if (!isUuid(coachId)) return null;
+    const sessionTable = await getSessionTableName();
     // Find most recent active or recent session with this coach
     const { data: session, error: sessionError } = await supabase
-      .from('coaching_sessions')
+      .from(sessionTable)
       .select('*')
       .eq('user_id', userId)
       .eq('coach_id', coachId)
@@ -430,7 +534,8 @@ export async function getActiveSession(
 
     if (sessionError && sessionError.code !== 'PGRST116') throw sessionError;
     if (!session) return null;
-    const typedSession = session as EnhancedSession;
+    if (typeof session !== 'object' || Array.isArray(session)) return null;
+    const typedSession = normalizeSessionRow(session as Record<string, unknown>, sessionTable);
 
     // Get messages for this session
     const messages = await getSessionMessages(typedSession.id);

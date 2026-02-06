@@ -23,7 +23,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getInsightsWithDetails,
   searchInsights,
@@ -42,24 +42,9 @@ const CATEGORIES: { id: FilterCategory; label: string; icon: keyof typeof Ionico
   { id: 'general', label: 'General', icon: 'ellipse-outline' },
 ];
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function InsightsGalleryScreen() {
   const router = useRouter();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [insights, setInsights] = useState<KeyInsight[]>([]);
   const [filteredInsights, setFilteredInsights] = useState<KeyInsight[]>([]);

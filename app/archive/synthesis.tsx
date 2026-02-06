@@ -13,30 +13,15 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { SynthesisReport } from '@/components/archive/SynthesisReport';
 import { getMonthlySynthesis, getAllMonthlySyntheses } from '@/lib/supabase-archive';
 import { generateMonthlySynthesis } from '@/lib/apiClient';
 import { MonthlySynthesis } from '@/types';
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function SynthesisScreen() {
   const router = useRouter();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [currentMonth, setCurrentMonth] = useState<string>(() => {
     const now = new Date();

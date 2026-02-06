@@ -23,25 +23,11 @@ import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme'
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { isSupabaseConfigured } from '@/lib/supabase';
-
-// Dynamic import for auth
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 
 // Wrapper component when auth is available
 function AuthenticatedSignUp() {
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

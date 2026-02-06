@@ -43,24 +43,11 @@ import {
   getDayPlan,
   getInstalledCoaches,
 } from '@/store/app';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getFlashbackInsights } from '@/lib/supabase-archive';
 import { getTodayPractice, getTimeOfDay } from '@/lib/supabase-rituals';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
 
 // Get greeting based on time of day
 const getGreeting = () => {
@@ -86,9 +73,7 @@ const getStreakDays = (): { day: string; completed: boolean; isToday: boolean }[
 export default function HomeScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [activeCoach, setActiveCoach] = useState<Coach | null>(null);
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
@@ -145,6 +130,7 @@ export default function HomeScreen() {
   // Get user name from auth and load flashback insights + practice data
   useEffect(() => {
     if (auth?.user) {
+      const userId = auth.user.id;
       const metadata = auth.user.user_metadata || {};
       const name = metadata.full_name || metadata.name || auth.user.email?.split('@')[0] || '';
       setUserName(name.split(' ')[0]); // First name only
@@ -152,7 +138,7 @@ export default function HomeScreen() {
       // Load flashback insights
       const loadFlashback = async () => {
         try {
-          const flashbacks = await getFlashbackInsights(auth.user.id);
+          const flashbacks = await getFlashbackInsights(userId);
           // Prefer year ago over month ago for more impact
           if (flashbacks.yearAgo) {
             setFlashbackInsight({ insight: flashbacks.yearAgo, type: 'yearAgo' });
@@ -168,7 +154,7 @@ export default function HomeScreen() {
       // Load today's practice data
       const loadPractice = async () => {
         try {
-          const practice = await getTodayPractice(auth.user.id);
+          const practice = await getTodayPractice(userId);
           setTodayPractice(practice);
           if (practice.streakDays > 0) {
             setCurrentStreak(practice.streakDays);
