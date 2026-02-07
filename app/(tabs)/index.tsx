@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,10 +22,12 @@ import Animated, {
   withDelay,
   withTiming,
   withSequence,
+  withRepeat,
+  Easing,
+  interpolate,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing, EditorialSpacing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing, EditorialSpacing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { InkText } from '@/components/ui/InkText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressRing } from '@/components/ui/ProgressRing';
@@ -35,8 +37,11 @@ import { FeaturedCard } from '@/components/ui/FeaturedCard';
 import { QuickActions } from '@/components/ui/QuickActions';
 import { StaggeredFadeIn } from '@/components/ui/AnimatedContainer';
 import { FlashbackCard } from '@/components/archive/FlashbackCard';
-import { FluidProgressBar } from '@/components/rituals/FluidProgressBar';
-import { Coach, Session, DayPlan, Priority, KeyInsight, TodayPractice, TimeOfDay } from '@/types';
+import { FloatingCard } from '@/components/ui/FloatingCard';
+import { ProgressNebula } from '@/components/ui/ProgressNebula';
+import { GoldenThread } from '@/components/ui/GoldenThread';
+import { RitualCompletionFlourish, RitualCompletionFlourishRef } from '@/components/ui/RitualCompletionFlourish';
+import { Coach, Session, DayPlan, Priority, KeyInsight, TodayPractice, TimeOfDay, RitualWithStatus } from '@/types';
 import { getCoachById, SAMPLE_COACHES } from '@/data/coaches';
 import {
   getActiveCoachId,
@@ -75,7 +80,7 @@ const getGreeting = () => {
 const getStreakDays = (): { day: string; completed: boolean; isToday: boolean }[] => {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const today = new Date().getDay();
-  const todayIndex = today === 0 ? 6 : today - 1; // Convert Sunday=0 to index 6
+  const todayIndex = today === 0 ? 6 : today - 1;
 
   return days.map((day, index) => ({
     day,
@@ -83,6 +88,77 @@ const getStreakDays = (): { day: string; completed: boolean; isToday: boolean }[
     isToday: index === todayIndex,
   }));
 };
+
+// Identify Featured Ritual based on time of day
+interface FeaturedRitual {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  gradient: [string, string];
+  action: () => void;
+  isCompleted: boolean;
+  timeLabel: string;
+}
+
+function getFeaturedRitual(
+  timeOfDay: TimeOfDay,
+  morningCompleted: boolean,
+  eveningCompleted: boolean,
+  onMorning: () => void,
+  onEvening: () => void,
+  onCheckIn: () => void,
+  palette: ReturnType<typeof useThemeSafe>['palette'],
+): FeaturedRitual {
+  switch (timeOfDay) {
+    case 'morning':
+      return {
+        id: 'morning-intention',
+        title: 'Morning Intention',
+        subtitle: 'Set your focus and align your energy for today',
+        icon: 'sunny',
+        gradient: [palette.accent, palette.accentLight],
+        action: onMorning,
+        isCompleted: morningCompleted,
+        timeLabel: 'MORNING RITUAL',
+      };
+    case 'afternoon':
+      return {
+        id: 'midday-checkin',
+        title: morningCompleted ? 'Afternoon Check-in' : 'Morning Intention',
+        subtitle: morningCompleted
+          ? 'Realign with your priorities and adjust course'
+          : 'Set your intention for the rest of the day',
+        icon: morningCompleted ? 'compass' : 'sunny',
+        gradient: [palette.gradientStart, palette.gradientEnd],
+        action: morningCompleted ? onCheckIn : onMorning,
+        isCompleted: false,
+        timeLabel: morningCompleted ? 'AFTERNOON FOCUS' : 'MORNING RITUAL',
+      };
+    case 'evening':
+      return {
+        id: 'evening-audit',
+        title: 'Evening Audit',
+        subtitle: 'Reflect on your day and capture what matters',
+        icon: 'moon',
+        gradient: [palette.gradientStart, palette.gradientEnd],
+        action: onEvening,
+        isCompleted: eveningCompleted,
+        timeLabel: 'EVENING RITUAL',
+      };
+    default:
+      return {
+        id: 'evening-audit',
+        title: 'Evening Audit',
+        subtitle: 'Close the day with intention',
+        icon: 'moon',
+        gradient: [palette.gradientStart, palette.gradientEnd],
+        action: onEvening,
+        isCompleted: eveningCompleted,
+        timeLabel: 'NIGHT RITUAL',
+      };
+  }
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -102,6 +178,8 @@ export default function HomeScreen() {
   const [todayPractice, setTodayPractice] = useState<TodayPractice | null>(null);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay());
 
+  const flourishRef = useRef<RitualCompletionFlourishRef>(null);
+
   const loadData = useCallback(async () => {
     try {
       const activeId = await getActiveCoachId();
@@ -117,11 +195,9 @@ export default function HomeScreen() {
       const plan = await getDayPlan(today);
       setTodayPlan(plan);
 
-      // Get installed coaches to find a featured one
       const installedCoaches = await getInstalledCoaches();
       const installedIds = installedCoaches.map(c => c.coach_id);
 
-      // Feature a coach that's not installed yet
       const uninstalledCoaches = SAMPLE_COACHES.filter(c => !installedIds.includes(c.id));
       if (uninstalledCoaches.length > 0) {
         setFeaturedCoach(uninstalledCoaches[0]);
@@ -129,11 +205,8 @@ export default function HomeScreen() {
         setFeaturedCoach(SAMPLE_COACHES[0]);
       }
 
-      // Set streak based on sessions
       const sessionCount = sessions.length;
       setCurrentStreak(Math.min(sessionCount + 1, 7));
-
-      // Note: Flashback loading happens in useEffect with auth
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -143,18 +216,15 @@ export default function HomeScreen() {
     loadData();
   }, [loadData]);
 
-  // Get user name from auth and load flashback insights + practice data
   useEffect(() => {
     if (auth?.user) {
       const metadata = auth.user.user_metadata || {};
       const name = metadata.full_name || metadata.name || auth.user.email?.split('@')[0] || '';
-      setUserName(name.split(' ')[0]); // First name only
+      setUserName(name.split(' ')[0]);
 
-      // Load flashback insights
       const loadFlashback = async () => {
         try {
           const flashbacks = await getFlashbackInsights(auth.user.id);
-          // Prefer year ago over month ago for more impact
           if (flashbacks.yearAgo) {
             setFlashbackInsight({ insight: flashbacks.yearAgo, type: 'yearAgo' });
           } else if (flashbacks.monthAgo) {
@@ -166,7 +236,6 @@ export default function HomeScreen() {
       };
       loadFlashback();
 
-      // Load today's practice data
       const loadPractice = async () => {
         try {
           const practice = await getTodayPractice(auth.user.id);
@@ -182,19 +251,26 @@ export default function HomeScreen() {
     }
   }, [auth?.user]);
 
-  // Update time of day periodically
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeOfDay(getTimeOfDay());
-    }, 60000); // Check every minute
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData();
+    if (auth?.user) {
+      try {
+        const practice = await getTodayPractice(auth.user.id);
+        setTodayPractice(practice);
+      } catch {
+        // Silently handle
+      }
+    }
     setRefreshing(false);
-  }, [loadData]);
+  }, [loadData, auth?.user]);
 
   const handleStartCheckIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -246,18 +322,19 @@ export default function HomeScreen() {
     router.push('/rituals');
   };
 
-  // Ritual toggle handler - used when tapping rituals directly from home
-  const _handleRitualToggle = async (ritualId: string, isCompleted: boolean) => {
+  // Ritual toggle handler with flourish animation
+  const handleRitualToggle = async (ritualId: string, isCompleted: boolean) => {
     if (!auth?.user) return;
 
     try {
       if (isCompleted) {
         await completeRitual(auth.user.id, ritualId);
+        // Trigger completion flourish
+        flourishRef.current?.trigger();
       } else {
         await uncompleteRitual(auth.user.id, ritualId);
       }
 
-      // Update local state
       if (todayPractice) {
         const updatedRituals = todayPractice.rituals.map(r =>
           r.id === ritualId ? { ...r, is_completed_today: isCompleted } : r
@@ -290,12 +367,26 @@ export default function HomeScreen() {
   const totalCount = priorities.length;
   const progressPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  // Overall ritual progress for nebula
+  const nebulaProgress = todayPractice?.overallProgress ?? progressPercentage;
+
   // Default priorities if no plan exists
   const displayPriorities = priorities.length > 0 ? priorities : [
     { id: '1', title: 'Start your first check-in', completed: false, order: 1 },
     { id: '2', title: 'Explore the Coach Library', completed: false, order: 2 },
     { id: '3', title: 'Review your Context Vault', completed: false, order: 3 },
   ];
+
+  // Featured ritual based on time of day
+  const featuredRitual = getFeaturedRitual(
+    timeOfDay,
+    !!todayPractice?.morningReflection,
+    !!todayPractice?.eveningReflection,
+    handleMorningPress,
+    handleEveningPress,
+    handleStartCheckIn,
+    palette,
+  );
 
   // Quick actions
   const quickActions = [
@@ -333,6 +424,12 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
+      {/* Progress Nebula - atmospheric glow behind everything */}
+      <ProgressNebula progress={nebulaProgress} />
+
+      {/* Ritual Completion Flourish overlay */}
+      <RitualCompletionFlourish ref={flourishRef} />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -344,10 +441,11 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* Editorial Hero Section */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* BREATHING HEADER - Generous white space sanctuary      */}
+        {/* ═══════════════════════════════════════════════════════ */}
         <StaggeredFadeIn index={0} baseDelay={0} staggerDelay={0}>
           <View style={styles.heroSection}>
-            {/* Header with greeting and avatar */}
             <View style={styles.heroHeader}>
               <View style={styles.greetingContainer}>
                 <Text style={[styles.heroGreeting, { color: palette.textPrimary }]}>
@@ -367,58 +465,148 @@ export default function HomeScreen() {
                   colors={[palette.accent, palette.accentLight]}
                   style={[styles.avatarGradient, { shadowColor: palette.accent }]}
                 >
-                  <Ionicons name="person" size={20} color={palette.textInverse} />
+                  <Ionicons name="person" size={18} color={palette.textInverse} />
                 </LinearGradient>
               </TouchableOpacity>
+            </View>
+
+            {/* Golden Thread accent line */}
+            <View style={styles.heroThreadWrapper}>
+              <GoldenThread width="40%" height={1.5} delay={600} />
             </View>
           </View>
         </StaggeredFadeIn>
 
-        {/* Progress Snapshot Section */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* FEATURED RITUAL - Dynamic Stack Hero Card              */}
+        {/* The primary ritual based on time-of-day, large format  */}
+        {/* ═══════════════════════════════════════════════════════ */}
         <StaggeredFadeIn index={1} baseDelay={100}>
-          <View style={styles.progressSection}>
-            <Card variant="elevated" style={styles.progressCard}>
-              <View style={styles.progressContent}>
-                {/* Progress Ring */}
-                <View style={styles.progressRingWrapper}>
-                  <ProgressRing
-                    progress={progressPercentage}
-                    size={140}
-                    strokeWidth={12}
-                    label="Alignment"
-                    sublabel="with daily goals"
-                  />
-                </View>
-
-                {/* Streak Timeline */}
-                <View style={styles.streakWrapper}>
-                  <StreakTimeline
-                    days={getStreakDays()}
-                    currentStreak={currentStreak}
-                  />
-                </View>
-              </View>
-
-              {/* Quick insight */}
-              <View style={[styles.insightCard, { backgroundColor: palette.accentMuted }]}>
-                <Ionicons name="sparkles" size={16} color={palette.accent} />
-                <Text style={[styles.insightText, { color: palette.textSecondary }]}>
-                  {progressPercentage === 100
-                    ? "Perfect alignment today. Well done."
-                    : progressPercentage > 50
-                    ? "Making great progress. Keep the momentum."
-                    : currentStreak > 3
-                    ? `${currentStreak} day streak! Consistency is key.`
-                    : "Start with one small action today."}
-                </Text>
-              </View>
-            </Card>
+          <View style={styles.featuredRitualSection}>
+            <Text style={[styles.ritualTimeLabel, { color: palette.textTertiary }]}>
+              {featuredRitual.timeLabel}
+            </Text>
+            <FeaturedRitualCard
+              ritual={featuredRitual}
+              palette={palette}
+            />
           </View>
         </StaggeredFadeIn>
 
-        {/* Active Coach Card */}
-        {activeCoach && (
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* SECONDARY RITUALS - Clean vertical editorial stack     */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {auth?.user && todayPractice && todayPractice.rituals.length > 0 && (
           <StaggeredFadeIn index={2} baseDelay={200}>
+            <View style={styles.secondaryRitualsSection}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Daily Rituals</Text>
+                <TouchableOpacity onPress={handlePracticePress} style={styles.viewAllButton}>
+                  <Text style={[styles.viewAllText, { color: palette.accent }]}>View All</Text>
+                  <Ionicons name="chevron-forward" size={14} color={palette.accent} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Progress bar with golden thread */}
+              <View style={styles.ritualProgressWrapper}>
+                <View style={styles.ritualProgressHeader}>
+                  <Text style={[styles.ritualProgressLabel, { color: palette.textSecondary }]}>
+                    {todayPractice.overallProgress}% complete
+                  </Text>
+                  {todayPractice.streakDays > 0 && (
+                    <View style={[styles.streakBadge, { backgroundColor: palette.accentMuted }]}>
+                      <Text style={[styles.streakBadgeText, { color: palette.textPrimary }]}>
+                        {todayPractice.streakDays}🔥
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <GoldenThread
+                  variant="progress"
+                  progress={todayPractice.overallProgress}
+                  height={4}
+                />
+              </View>
+
+              {/* Ritual items - clean editorial list */}
+              <View style={styles.ritualsList}>
+                {todayPractice.rituals.slice(0, 4).map((ritual, index) => (
+                  <SecondaryRitualItem
+                    key={ritual.id}
+                    ritual={ritual}
+                    index={index}
+                    palette={palette}
+                    onToggle={(completed) => handleRitualToggle(ritual.id, completed)}
+                  />
+                ))}
+                {todayPractice.rituals.length > 4 && (
+                  <TouchableOpacity
+                    style={styles.moreRitualsButton}
+                    onPress={handlePracticePress}
+                  >
+                    <Text style={[styles.moreRitualsText, { color: palette.accent }]}>
+                      +{todayPractice.rituals.length - 4} more rituals
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </StaggeredFadeIn>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* PROGRESS SNAPSHOT - Compact editorial metrics          */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        <StaggeredFadeIn index={3} baseDelay={250}>
+          <View style={styles.progressSection}>
+            <FloatingCard elevation="medium" style={{ backgroundColor: palette.cardBg }}>
+              <View style={styles.progressCardInner}>
+                <View style={styles.progressContent}>
+                  <View style={styles.progressRingWrapper}>
+                    <ProgressRing
+                      progress={progressPercentage}
+                      size={120}
+                      strokeWidth={10}
+                      label="Alignment"
+                      sublabel="with daily goals"
+                    />
+                  </View>
+                  <View style={styles.streakWrapper}>
+                    <StreakTimeline
+                      days={getStreakDays()}
+                      currentStreak={currentStreak}
+                    />
+                  </View>
+                </View>
+
+                {/* Golden Thread divider */}
+                <View style={styles.progressDivider}>
+                  <GoldenThread height={1} delay={400} />
+                </View>
+
+                {/* Quick insight */}
+                <View style={[styles.insightCard, { backgroundColor: palette.accentMuted }]}>
+                  <Ionicons name="sparkles" size={14} color={palette.accent} />
+                  <Text style={[styles.insightText, { color: palette.textSecondary }]}>
+                    {progressPercentage === 100
+                      ? 'Perfect alignment today. Well done.'
+                      : progressPercentage > 50
+                      ? 'Making great progress. Keep the momentum.'
+                      : currentStreak > 3
+                      ? `${currentStreak} day streak! Consistency is key.`
+                      : 'Start with one small action today.'}
+                  </Text>
+                </View>
+              </View>
+            </FloatingCard>
+          </View>
+        </StaggeredFadeIn>
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* ACTIVE COACH - Floating editorial card                 */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {activeCoach && (
+          <StaggeredFadeIn index={4} baseDelay={300}>
             <TouchableOpacity
               style={[styles.activeCoachCard, { shadowColor: palette.shadowColor }]}
               onPress={handleOpenChat}
@@ -448,99 +636,20 @@ export default function HomeScreen() {
           </StaggeredFadeIn>
         )}
 
-        {/* Today's Practice - Time-Sensitive Action Cards */}
-        {auth?.user && (
-          <StaggeredFadeIn index={3} baseDelay={250}>
-            <View style={styles.practiceSection}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.practiceHeaderRow}>
-                  <Text style={styles.sectionTitle}>Today&apos;s Practice</Text>
-                  <TouchableOpacity onPress={handlePracticePress} style={styles.practiceViewAll}>
-                    <Text style={styles.viewAllText}>View All</Text>
-                    <Ionicons name="chevron-forward" size={14} color={Colors.burnishedGold} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Time-Sensitive Action Card */}
-              <PracticeActionCard
-                timeOfDay={timeOfDay}
-                morningCompleted={!!todayPractice?.morningReflection}
-                eveningCompleted={!!todayPractice?.eveningReflection}
-                onMorningPress={handleMorningPress}
-                onEveningPress={handleEveningPress}
-              />
-
-              {/* Mini Rituals Progress */}
-              {todayPractice && todayPractice.rituals.length > 0 && (
-                <TouchableOpacity
-                  style={styles.miniRitualsCard}
-                  onPress={handlePracticePress}
-                  activeOpacity={0.95}
-                >
-                  <View style={styles.miniRitualsHeader}>
-                    <View style={styles.miniRitualsLabel}>
-                      <Ionicons name="leaf" size={16} color={Colors.midnightEmerald} />
-                      <Text style={styles.miniRitualsTitle}>Daily Rituals</Text>
-                    </View>
-                    <View style={styles.miniRitualsProgress}>
-                      <Text style={styles.miniRitualsPercent}>{todayPractice.overallProgress}%</Text>
-                      {todayPractice.streakDays > 0 && (
-                        <View style={styles.miniStreakBadge}>
-                          <Text style={styles.miniStreakText}>{todayPractice.streakDays}</Text>
-                          <Text style={styles.miniFireEmoji}>🔥</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.miniProgressBarWrapper}>
-                    <FluidProgressBar
-                      progress={todayPractice.overallProgress}
-                      height={8}
-                      color={Colors.midnightEmerald}
-                    />
-                  </View>
-                  <View style={styles.miniRitualsList}>
-                    {todayPractice.rituals.slice(0, 3).map((ritual) => (
-                      <View key={ritual.id} style={styles.miniRitualItem}>
-                        <View style={[
-                          styles.miniRitualCheck,
-                          ritual.is_completed_today && styles.miniRitualCheckDone
-                        ]}>
-                          {ritual.is_completed_today && (
-                            <Ionicons name="checkmark" size={10} color={Colors.white} />
-                          )}
-                        </View>
-                        <Text style={[
-                          styles.miniRitualText,
-                          ritual.is_completed_today && styles.miniRitualTextDone
-                        ]} numberOfLines={1}>
-                          {ritual.title}
-                        </Text>
-                      </View>
-                    ))}
-                    {todayPractice.rituals.length > 3 && (
-                      <Text style={styles.miniRitualMore}>
-                        +{todayPractice.rituals.length - 3} more
-                      </Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              )}
-            </View>
-          </StaggeredFadeIn>
-        )}
-
-        {/* Quick Actions */}
-        <StaggeredFadeIn index={4} baseDelay={350}>
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* QUICK ACTIONS - Editorial grid                         */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        <StaggeredFadeIn index={5} baseDelay={350}>
           <View style={styles.quickActionsContainer}>
             <QuickActions actions={quickActions} baseDelay={400} />
           </View>
         </StaggeredFadeIn>
 
-        {/* Flashback - From Your Archive */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* FLASHBACK - From Your Archive                          */}
+        {/* ═══════════════════════════════════════════════════════ */}
         {flashbackInsight && (
-          <StaggeredFadeIn index={5} baseDelay={450}>
+          <StaggeredFadeIn index={6} baseDelay={400}>
             <View style={styles.flashbackSection}>
               <FlashbackCard
                 insight={flashbackInsight.insight}
@@ -551,12 +660,14 @@ export default function HomeScreen() {
           </StaggeredFadeIn>
         )}
 
-        {/* Featured Card - Editorial Magazine Style */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* FEATURED COACH - Editorial magazine card                */}
+        {/* ═══════════════════════════════════════════════════════ */}
         {featuredCoach && (
-          <StaggeredFadeIn index={6} baseDelay={500}>
+          <StaggeredFadeIn index={7} baseDelay={450}>
             <View style={styles.featuredSection}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Featured</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Featured</Text>
               </View>
               <FeaturedCard
                 type="coach"
@@ -573,12 +684,14 @@ export default function HomeScreen() {
           </StaggeredFadeIn>
         )}
 
-        {/* Today's Focus */}
-        <StaggeredFadeIn index={7} baseDelay={550}>
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* TODAY'S FOCUS - Top 3 priorities                       */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        <StaggeredFadeIn index={8} baseDelay={500}>
           <View style={styles.focusSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Today&apos;s Focus</Text>
-              <Text style={styles.sectionSubtitle}>Top 3 Priorities</Text>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Today&apos;s Focus</Text>
+              <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>Top 3 Priorities</Text>
             </View>
 
             <Card variant="elevated" style={styles.prioritiesCard}>
@@ -588,7 +701,8 @@ export default function HomeScreen() {
                     key={priority.id}
                     priority={priority}
                     index={index + 1}
-                    delay={600 + index * 100}
+                    delay={550 + index * 100}
+                    palette={palette}
                   />
                 ))}
               </View>
@@ -605,12 +719,14 @@ export default function HomeScreen() {
           </View>
         </StaggeredFadeIn>
 
-        {/* Recent Sessions */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* RECENT SESSIONS - Horizontal editorial scroll          */}
+        {/* ═══════════════════════════════════════════════════════ */}
         {recentSessions.length > 0 && (
-          <StaggeredFadeIn index={8} baseDelay={650}>
+          <StaggeredFadeIn index={9} baseDelay={600}>
             <View style={styles.sessionsSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Sessions</Text>
+              <View style={[styles.sectionHeader, { paddingHorizontal: EditorialSpacing.breathingMargin }]}>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Recent Sessions</Text>
               </View>
               <ScrollView
                 horizontal
@@ -618,28 +734,223 @@ export default function HomeScreen() {
                 contentContainerStyle={styles.sessionsScroll}
               >
                 {recentSessions.map((session, index) => (
-                  <SessionCard key={session.id} session={session} index={index} />
+                  <SessionCard key={session.id} session={session} index={index} palette={palette} />
                 ))}
               </ScrollView>
             </View>
           </StaggeredFadeIn>
         )}
 
-        {/* Spacer for tab bar */}
+        {/* Spacer for floating dock */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// FEATURED RITUAL CARD - Large, textured, time-of-day hero card
+// ═══════════════════════════════════════════════════════════════════
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function FeaturedRitualCard({
+  ritual,
+  palette,
+}: {
+  ritual: FeaturedRitual;
+  palette: ReturnType<typeof useThemeSafe>['palette'];
+}) {
+  const scale = useSharedValue(1);
+  const shimmerPhase = useSharedValue(0);
+
+  useEffect(() => {
+    // Gentle shimmer cycling
+    shimmerPhase.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 3000, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1,
+      false
+    );
+  }, [shimmerPhase]);
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    scale.value = withSequence(
+      withTiming(0.97, { duration: 100 }),
+      withSpring(1, Timing.springBouncy)
+    );
+    ritual.action();
+  };
+
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const shimmerOverlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shimmerPhase.value, [0, 1], [0, 0.08]),
+  }));
+
+  return (
+    <AnimatedPressable onPress={handlePress} style={cardAnimStyle}>
+      <View style={[styles.featuredCard, { shadowColor: palette.shadowColor }]}>
+        <LinearGradient
+          colors={ritual.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.featuredCardGradient}
+        >
+          {/* Shimmer overlay */}
+          <Animated.View style={[styles.featuredShimmer, shimmerOverlayStyle]} />
+
+          <View style={styles.featuredCardContent}>
+            {/* Icon */}
+            <View style={[styles.featuredIconContainer, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+              <Ionicons name={ritual.icon} size={32} color={palette.textInverse} />
+            </View>
+
+            {/* Text */}
+            <View style={styles.featuredTextContainer}>
+              <Text style={[styles.featuredTitle, { color: palette.textInverse }]}>
+                {ritual.title}
+              </Text>
+              <Text style={[styles.featuredSubtitle, { color: `${palette.textInverse}BB` }]}>
+                {ritual.subtitle}
+              </Text>
+            </View>
+
+            {/* Status / Action */}
+            {ritual.isCompleted ? (
+              <View style={styles.featuredCompletedBadge}>
+                <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
+                <Text style={styles.featuredCompletedText}>Complete</Text>
+              </View>
+            ) : (
+              <View style={styles.featuredActionRow}>
+                <View style={styles.featuredActionButton}>
+                  <Text style={styles.featuredActionText}>Begin</Text>
+                  <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.9)" />
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Golden Thread accent at bottom */}
+          <View style={styles.featuredThreadWrapper}>
+            <LinearGradient
+              colors={['transparent', 'rgba(255,255,255,0.2)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.featuredThread}
+            />
+          </View>
+        </LinearGradient>
+      </View>
+    </AnimatedPressable>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SECONDARY RITUAL ITEM - Clean editorial list item
+// ═══════════════════════════════════════════════════════════════════
+
+function SecondaryRitualItem({
+  ritual,
+  index,
+  palette,
+  onToggle,
+}: {
+  ritual: RitualWithStatus;
+  index: number;
+  palette: ReturnType<typeof useThemeSafe>['palette'];
+  onToggle: (completed: boolean) => void;
+}) {
+  const scale = useSharedValue(1);
+  const checkScale = useSharedValue(ritual.is_completed_today ? 1 : 0);
+  const textOpacity = useSharedValue(ritual.is_completed_today ? 0.5 : 1);
+
+  useEffect(() => {
+    checkScale.value = withSpring(ritual.is_completed_today ? 1 : 0, Timing.springBouncy);
+    textOpacity.value = withTiming(ritual.is_completed_today ? 0.5 : 1, { duration: 300 });
+  }, [ritual.is_completed_today, checkScale, textOpacity]);
+
+  const handleToggle = () => {
+    const newState = !ritual.is_completed_today;
+    Haptics.impactAsync(
+      newState ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
+    );
+    scale.value = withSequence(
+      withTiming(0.97, { duration: 80 }),
+      withSpring(1, Timing.springBouncy)
+    );
+    onToggle(newState);
+  };
+
+  const itemStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    opacity: textOpacity.value,
+  }));
+
+  const checkAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+  }));
+
+  return (
+    <AnimatedPressable onPress={handleToggle} style={[styles.secondaryRitualItem, itemStyle]}>
+      <View
+        style={[
+          styles.ritualCheckbox,
+          {
+            borderColor: ritual.is_completed_today ? palette.success : palette.border,
+            backgroundColor: ritual.is_completed_today ? palette.success : 'transparent',
+          },
+        ]}
+      >
+        {ritual.is_completed_today && (
+          <Animated.View style={checkAnimStyle}>
+            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+          </Animated.View>
+        )}
+      </View>
+      <Animated.Text
+        style={[
+          styles.ritualItemTitle,
+          { color: palette.textPrimary },
+          ritual.is_completed_today && styles.ritualItemTitleDone,
+          textStyle,
+        ]}
+        numberOfLines={1}
+      >
+        {ritual.title}
+      </Animated.Text>
+      {(ritual.streak_count ?? 0) > 0 && (
+        <Text style={[styles.ritualStreakMini, { color: palette.textTertiary }]}>
+          {ritual.streak_count}d
+        </Text>
+      )}
+    </AnimatedPressable>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PRIORITY ITEM - Animated numbered item
+// ═══════════════════════════════════════════════════════════════════
+
 function PriorityItem({
   priority,
   index,
   delay,
+  palette,
 }: {
   priority: Priority;
   index: number;
   delay: number;
+  palette: ReturnType<typeof useThemeSafe>['palette'];
 }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0);
@@ -666,16 +977,17 @@ function PriorityItem({
   return (
     <Animated.View style={animatedStyle}>
       <TouchableOpacity
-        style={styles.priorityItem}
+        style={[styles.priorityItem, { borderBottomColor: palette.borderLight }]}
         onPress={handlePress}
         activeOpacity={0.9}
       >
-        <View style={styles.priorityNumber}>
-          <Text style={styles.priorityNumberText}>{index}</Text>
+        <View style={[styles.priorityNumber, { backgroundColor: palette.accentMuted }]}>
+          <Text style={[styles.priorityNumberText, { color: palette.accent }]}>{index}</Text>
         </View>
         <Text
           style={[
             styles.priorityText,
+            { color: palette.textSecondary },
             priority.completed && styles.priorityTextCompleted,
           ]}
         >
@@ -684,11 +996,12 @@ function PriorityItem({
         <View
           style={[
             styles.priorityCheckbox,
-            priority.completed && styles.priorityCheckboxCompleted,
+            { borderColor: palette.border },
+            priority.completed && { backgroundColor: palette.success, borderColor: palette.success },
           ]}
         >
           {priority.completed && (
-            <Ionicons name="checkmark" size={14} color={Colors.white} />
+            <Ionicons name="checkmark" size={14} color="#FFFFFF" />
           )}
         </View>
       </TouchableOpacity>
@@ -696,20 +1009,32 @@ function PriorityItem({
   );
 }
 
-function SessionCard({ session, index }: { session: Session; index: number }) {
+// ═══════════════════════════════════════════════════════════════════
+// SESSION CARD - Horizontal scroll card
+// ═══════════════════════════════════════════════════════════════════
+
+function SessionCard({
+  session,
+  index,
+  palette,
+}: {
+  session: Session;
+  index: number;
+  palette: ReturnType<typeof useThemeSafe>['palette'];
+}) {
   const formattedDate = new Date(session.created_at).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
   });
 
   return (
-    <Animated.View entering={FadeInUp.duration(500).delay(800 + index * 100)}>
-      <Card style={styles.sessionCard} variant="glass">
+    <Animated.View entering={FadeInUp.duration(500).delay(700 + index * 100)}>
+      <Card style={[styles.sessionCard, { borderColor: palette.borderLight }]} variant="glass">
         <View style={styles.sessionMeta}>
-          <Ionicons name="chatbubble-outline" size={14} color={Colors.stoneGray} />
-          <Text style={styles.sessionDate}>{formattedDate}</Text>
+          <Ionicons name="chatbubble-outline" size={14} color={palette.textTertiary} />
+          <Text style={[styles.sessionDate, { color: palette.textTertiary }]}>{formattedDate}</Text>
         </View>
-        <Text style={styles.sessionTitle} numberOfLines={2}>
+        <Text style={[styles.sessionTitle, { color: palette.textSecondary }]} numberOfLines={2}>
           {session.title}
         </Text>
       </Card>
@@ -717,104 +1042,23 @@ function SessionCard({ session, index }: { session: Session; index: number }) {
   );
 }
 
-// Time-Sensitive Practice Action Card
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-function PracticeActionCard({
-  timeOfDay,
-  morningCompleted,
-  eveningCompleted,
-  onMorningPress,
-  onEveningPress,
-}: {
-  timeOfDay: TimeOfDay;
-  morningCompleted: boolean;
-  eveningCompleted: boolean;
-  onMorningPress: () => void;
-  onEveningPress: () => void;
-}) {
-  const scale = useSharedValue(1);
-
-  // Determine which card to show based on time of day
-  const showMorning = timeOfDay === 'morning' || timeOfDay === 'afternoon';
-  // Evening shows when not morning (evening or night)
-  const _showEvening = !showMorning;
-
-  const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    scale.value = withSequence(
-      withTiming(0.98, { duration: 100 }),
-      withSpring(1, Timing.springBouncy)
-    );
-    if (showMorning) {
-      onMorningPress();
-    } else {
-      onEveningPress();
-    }
-  };
-
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const isMorning = showMorning;
-  const isCompleted = isMorning ? morningCompleted : eveningCompleted;
-  const gradientColors: [string, string] = isMorning
-    ? [Colors.goldMuted, Colors.warmOatmealDark]
-    : [Colors.midnightEmerald + '20', Colors.warmOatmealDark];
-
-  const iconName = isMorning ? 'sunny' : 'moon';
-  const iconColor = isMorning ? Colors.burnishedGold : Colors.midnightEmerald;
-  const title = isMorning ? 'Morning Intention' : 'Evening Audit';
-  const subtitle = isMorning
-    ? 'Set your focus for today'
-    : 'Reflect on your day';
-
-  return (
-    <AnimatedPressable onPress={handlePress} style={cardStyle}>
-      <LinearGradient
-        colors={gradientColors}
-        style={[styles.practiceActionCard, isCompleted && styles.practiceActionCompleted]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.practiceActionContent}>
-          <View style={[styles.practiceActionIcon, { backgroundColor: iconColor + '20' }]}>
-            <Ionicons name={iconName} size={24} color={iconColor} />
-          </View>
-          <View style={styles.practiceActionText}>
-            <Text style={styles.practiceActionTitle}>{title}</Text>
-            <Text style={styles.practiceActionSubtitle}>{subtitle}</Text>
-          </View>
-          {isCompleted ? (
-            <View style={styles.practiceCompletedBadge}>
-              <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
-            </View>
-          ) : (
-            <View style={styles.practiceActionArrow}>
-              <Ionicons name="arrow-forward" size={18} color={iconColor} />
-            </View>
-          )}
-        </View>
-      </LinearGradient>
-    </AnimatedPressable>
-  );
-}
+// ═══════════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════════
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   scrollContent: {
     paddingBottom: Spacing.section,
   },
 
-  // Hero Section - Premium Editorial
+  // ── HERO / BREATHING HEADER ──
   heroSection: {
     paddingHorizontal: EditorialSpacing.breathingMargin,
-    paddingTop: EditorialSpacing.heroTopPadding,
-    paddingBottom: Spacing.xxl,
+    paddingTop: EditorialSpacing.heroTopPadding + 8,
+    paddingBottom: Spacing.xl,
   },
   heroHeader: {
     flexDirection: 'row',
@@ -827,14 +1071,12 @@ const styles = StyleSheet.create({
   heroGreeting: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serifRegular,
     letterSpacing: Typography.letterSpacing.editorial,
   },
   heroName: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.bold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     letterSpacing: Typography.letterSpacing.editorial,
     marginTop: -2,
@@ -842,7 +1084,6 @@ const styles = StyleSheet.create({
   heroDate: {
     fontSize: Typography.sizes.caption,
     fontFamily: Typography.fonts.sans,
-    color: Colors.stoneGray,
     marginTop: Spacing.md,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
@@ -851,20 +1092,205 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   avatarGradient: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.gold,
   },
+  heroThreadWrapper: {
+    marginTop: Spacing.xxl,
+  },
 
-  // Progress Section - Premium Editorial
+  // ── FEATURED RITUAL ──
+  featuredRitualSection: {
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: EditorialSpacing.sectionGap,
+  },
+  ritualTimeLabel: {
+    fontSize: Typography.sizes.caption,
+    fontFamily: Typography.fonts.sansMedium,
+    letterSpacing: Typography.letterSpacing.display,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.md,
+  },
+  featuredCard: {
+    borderRadius: Radius.squircle,
+    overflow: 'hidden',
+    ...Shadows.floating,
+  },
+  featuredCardGradient: {
+    padding: EditorialSpacing.cardPadding,
+    minHeight: 200,
+    justifyContent: 'space-between',
+    position: 'relative',
+  },
+  featuredShimmer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,1)',
+  },
+  featuredCardContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  featuredIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xl,
+  },
+  featuredTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    marginBottom: Spacing.xl,
+  },
+  featuredTitle: {
+    fontSize: Typography.sizes.headline,
+    fontFamily: Typography.fonts.serif,
+    fontWeight: Typography.weights.bold,
+    letterSpacing: Typography.letterSpacing.editorial,
+    marginBottom: Spacing.sm,
+  },
+  featuredSubtitle: {
+    fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sansLight,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
+  },
+  featuredCompletedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  featuredCompletedText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sansMedium,
+  },
+  featuredActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  featuredActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.pill,
+  },
+  featuredActionText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sansMedium,
+    letterSpacing: Typography.letterSpacing.wide,
+  },
+  featuredThreadWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: EditorialSpacing.cardPadding,
+    right: EditorialSpacing.cardPadding,
+    height: 1,
+  },
+  featuredThread: {
+    flex: 1,
+  },
+
+  // ── SECONDARY RITUALS ──
+  secondaryRitualsSection: {
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: EditorialSpacing.sectionGap,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  viewAllText: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.medium,
+    letterSpacing: Typography.letterSpacing.wide,
+    textTransform: 'uppercase',
+  },
+  ritualProgressWrapper: {
+    marginBottom: Spacing.xl,
+  },
+  ritualProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  ritualProgressLabel: {
+    fontSize: Typography.sizes.caption,
+    fontFamily: Typography.fonts.sans,
+    letterSpacing: Typography.letterSpacing.wide,
+  },
+  streakBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: Radius.pill,
+  },
+  streakBadgeText: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.bold,
+  },
+  ritualsList: {
+    gap: 2,
+  },
+  secondaryRitualItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md + 2,
+    gap: Spacing.md,
+  },
+  ritualCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ritualItemTitle: {
+    flex: 1,
+    fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sans,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.normal,
+  },
+  ritualItemTitleDone: {
+    textDecorationLine: 'line-through',
+  },
+  ritualStreakMini: {
+    fontSize: Typography.sizes.caption,
+    fontFamily: Typography.fonts.sans,
+  },
+  moreRitualsButton: {
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  moreRitualsText: {
+    fontSize: Typography.sizes.caption,
+    fontFamily: Typography.fonts.sansMedium,
+    letterSpacing: Typography.letterSpacing.wide,
+  },
+
+  // ── PROGRESS SECTION ──
   progressSection: {
     paddingHorizontal: EditorialSpacing.breathingMargin,
-    marginBottom: Spacing.xxl,
+    marginBottom: EditorialSpacing.sectionGap,
   },
-  progressCard: {
+  progressCardInner: {
     padding: Spacing.xl,
   },
   progressContent: {
@@ -878,12 +1304,12 @@ const styles = StyleSheet.create({
   streakWrapper: {
     flex: 1,
   },
-
-  // Insight Card
+  progressDivider: {
+    marginBottom: Spacing.lg,
+  },
   insightCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.goldMuted,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.xl,
@@ -892,16 +1318,15 @@ const styles = StyleSheet.create({
   insightText: {
     fontSize: Typography.sizes.body,
     fontFamily: Typography.fonts.serifRegular,
-    color: Colors.charcoal,
     fontStyle: 'italic',
     flex: 1,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
-  // Active Coach Card - Floating
+  // ── ACTIVE COACH ──
   activeCoachCard: {
     marginHorizontal: EditorialSpacing.breathingMargin,
-    marginBottom: Spacing.xxl,
+    marginBottom: EditorialSpacing.sectionGap,
     borderRadius: Radius.squircle,
     overflow: 'hidden',
     ...Shadows.floating,
@@ -919,7 +1344,6 @@ const styles = StyleSheet.create({
   },
   coachLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.goldLight,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
     marginBottom: Spacing.xs,
@@ -927,7 +1351,6 @@ const styles = StyleSheet.create({
   coachName: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
   },
   resumeButton: {
@@ -941,218 +1364,51 @@ const styles = StyleSheet.create({
   },
   resumeText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.burnishedGold,
     fontWeight: Typography.weights.medium,
   },
 
-  // Practice Section - Premium Editorial
-  practiceSection: {
-    paddingHorizontal: EditorialSpacing.breathingMargin,
-    marginBottom: Spacing.xxl,
-  },
-  practiceHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  practiceViewAll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  viewAllText: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.burnishedGold,
-    fontWeight: Typography.weights.medium,
-    letterSpacing: Typography.letterSpacing.wide,
-    textTransform: 'uppercase',
-  },
-  practiceActionCard: {
-    borderRadius: Radius.squircle,
-    padding: EditorialSpacing.cardPadding,
-    marginBottom: Spacing.md,
-    ...Shadows.md,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  practiceActionCompleted: {
-    opacity: 0.8,
-  },
-  practiceActionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  practiceActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  practiceActionText: {
-    flex: 1,
-  },
-  practiceActionTitle: {
-    fontSize: Typography.sizes.bodyLarge,
-    fontWeight: Typography.weights.semibold,
-    fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
-    marginBottom: 2,
-  },
-  practiceActionSubtitle: {
-    fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
-  },
-  practiceCompletedBadge: {
-    backgroundColor: Colors.successLight,
-    borderRadius: 16,
-    padding: 4,
-  },
-  practiceActionArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.warmOatmealDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniRitualsCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: Radius.squircle,
-    padding: Spacing.lg,
-    ...Shadows.subtle,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  miniRitualsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  miniRitualsLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  miniRitualsTitle: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
-  },
-  miniRitualsProgress: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  miniRitualsPercent: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.bold,
-    color: Colors.midnightEmerald,
-    fontFamily: Typography.fonts.serif,
-  },
-  miniStreakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.goldMuted,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: Radius.pill,
-  },
-  miniStreakText: {
-    fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.bold,
-    color: Colors.charcoal,
-  },
-  miniFireEmoji: {
-    fontSize: 10,
-    marginLeft: 2,
-  },
-  miniProgressBarWrapper: {
-    marginBottom: Spacing.md,
-  },
-  miniRitualsList: {
-    gap: Spacing.sm,
-  },
-  miniRitualItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  miniRitualCheck: {
-    width: 16,
-    height: 16,
-    borderRadius: 5,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniRitualCheckDone: {
-    backgroundColor: Colors.success,
-    borderColor: Colors.success,
-  },
-  miniRitualText: {
-    flex: 1,
-    fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
-  },
-  miniRitualTextDone: {
-    color: Colors.stoneGray,
-    textDecorationLine: 'line-through',
-  },
-  miniRitualMore: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
-    marginLeft: 24,
-    fontStyle: 'italic',
-  },
-
-  // Quick Actions - Editorial spacing
+  // ── QUICK ACTIONS ──
   quickActionsContainer: {
     paddingHorizontal: EditorialSpacing.breathingMargin,
-    marginBottom: Spacing.xxl,
+    marginBottom: EditorialSpacing.sectionGap,
   },
 
-  // Flashback Section
+  // ── FLASHBACK ──
   flashbackSection: {
     paddingHorizontal: EditorialSpacing.breathingMargin,
-    marginBottom: Spacing.xxl,
+    marginBottom: EditorialSpacing.sectionGap,
   },
 
-  // Featured Section
+  // ── FEATURED ──
   featuredSection: {
     paddingHorizontal: EditorialSpacing.breathingMargin,
     marginBottom: EditorialSpacing.sectionGap,
   },
 
-  // Focus Section
+  // ── FOCUS ──
   focusSection: {
     paddingHorizontal: EditorialSpacing.breathingMargin,
     marginBottom: EditorialSpacing.sectionGap,
   },
 
-  // Section Headers - Premium Editorial
+  // ── SECTION HEADERS ──
   sectionHeader: {
     marginBottom: Spacing.xl,
   },
   sectionTitle: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     letterSpacing: Typography.letterSpacing.editorial,
   },
   sectionSubtitle: {
     fontSize: Typography.sizes.body,
     fontFamily: Typography.fonts.sansLight,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
     letterSpacing: Typography.letterSpacing.wide,
   },
 
-  // Priorities Card
+  // ── PRIORITIES ──
   prioritiesCard: {
     padding: Spacing.xl,
   },
@@ -1165,13 +1421,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   priorityNumber: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -1179,38 +1433,30 @@ const styles = StyleSheet.create({
   priorityNumberText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     fontFamily: Typography.fonts.serif,
   },
   priorityText: {
     flex: 1,
     fontSize: Typography.sizes.bodyLarge,
     fontFamily: Typography.fonts.sans,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
   },
   priorityTextCompleted: {
     textDecorationLine: 'line-through',
-    color: Colors.stoneGray,
   },
   priorityCheckbox: {
     width: 24,
     height: 24,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  priorityCheckboxCompleted: {
-    backgroundColor: Colors.success,
-    borderColor: Colors.success,
   },
   checkInButton: {
     marginTop: Spacing.sm,
   },
 
-  // Sessions
+  // ── SESSIONS ──
   sessionsSection: {
     marginBottom: Spacing.lg,
   },
@@ -1230,16 +1476,15 @@ const styles = StyleSheet.create({
   },
   sessionDate: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   sessionTitle: {
     fontSize: Typography.sizes.body,
     fontFamily: Typography.fonts.sansMedium,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
+  // ── SPACER ──
   bottomSpacer: {
-    height: 100,
+    height: 120, // Extra space for floating dock
   },
 });

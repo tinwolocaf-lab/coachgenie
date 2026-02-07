@@ -8,6 +8,7 @@ import * as Linking from 'expo-linking';
 import { isOnboardingComplete } from '@/store/onboarding';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
+import { FocusModeProvider } from '@/contexts/FocusModeContext';
 import { usePremiumFonts } from '@/hooks/usePremiumFonts';
 
 // Conditionally import AuthProvider
@@ -280,7 +281,9 @@ function ThemedAppContent() {
 function AppContent() {
   return (
     <ThemeProvider>
-      <ThemedAppContentWithStatusBar />
+      <FocusModeProvider>
+        <ThemedAppContentWithStatusBar />
+      </FocusModeProvider>
     </ThemeProvider>
   );
 }
