@@ -391,16 +391,19 @@ export default function HomeScreen() {
   // Quick actions
   const quickActions = [
     {
+      id: 'oracle',
+      label: 'The Oracle',
+      icon: 'eye-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        router.push('/oracle');
+      },
+    },
+    {
       id: 'practice',
       label: 'The Practice',
       icon: 'leaf-outline' as keyof typeof Ionicons.glyphMap,
       onPress: handlePracticePress,
-    },
-    {
-      id: 'checkin',
-      label: 'Daily Check-in',
-      icon: 'sunny-outline' as keyof typeof Ionicons.glyphMap,
-      onPress: handleStartCheckIn,
     },
     {
       id: 'archive',

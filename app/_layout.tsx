@@ -274,6 +274,16 @@ function ThemedAppContent() {
           presentation: 'card',
         }}
       />
+      <Stack.Screen
+        name="oracle"
+        options={{
+          animation: 'fade',
+          animationDuration: 600,
+          presentation: 'fullScreenModal',
+          gestureEnabled: true,
+          gestureDirection: 'vertical',
+        }}
+      />
     </Stack>
   );
 }
