@@ -42,6 +42,8 @@ import { ProgressNebula } from '@/components/ui/ProgressNebula';
 import { GoldenThread } from '@/components/ui/GoldenThread';
 import { RitualCompletionFlourish, RitualCompletionFlourishRef } from '@/components/ui/RitualCompletionFlourish';
 import { Coach, Session, DayPlan, Priority, KeyInsight, TodayPractice, TimeOfDay, RitualWithStatus } from '@/types';
+import { PaywallBanner } from '@/components/PaywallBanner';
+import { CalendarPreview } from '@/components/home/CalendarPreview';
 import { getCoachById, SAMPLE_COACHES } from '@/data/coaches';
 import {
   getActiveCoachId,
@@ -162,8 +164,9 @@ function getFeaturedRitual(
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { palette } = useThemeSafe();
+  const { palette, subscriptionTier } = useThemeSafe();
   const useAuth = getAuthHook();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
 
@@ -485,6 +488,28 @@ export default function HomeScreen() {
             </View>
           </View>
         </StaggeredFadeIn>
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* PAYWALL BANNER - For free tier users                   */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {subscriptionTier === 'free' && !bannerDismissed && (
+          <StaggeredFadeIn index={0} baseDelay={50}>
+            <View style={styles.paywallBannerSection}>
+              <PaywallBanner onDismiss={() => setBannerDismissed(true)} />
+            </View>
+          </StaggeredFadeIn>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* CALENDAR PREVIEW - When Google Calendar connected      */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        {subscriptionTier !== 'free' && (
+          <StaggeredFadeIn index={1} baseDelay={80}>
+            <View style={styles.calendarPreviewSection}>
+              <CalendarPreview />
+            </View>
+          </StaggeredFadeIn>
+        )}
 
         {/* ═══════════════════════════════════════════════════════ */}
         {/* FEATURED RITUAL - Dynamic Stack Hero Card              */}
@@ -1126,6 +1151,18 @@ const styles = StyleSheet.create({
   },
   heroThreadWrapper: {
     marginTop: Spacing.xxl,
+  },
+
+  // ── PAYWALL BANNER ──
+  paywallBannerSection: {
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: Spacing.xl,
+  },
+
+  // ── CALENDAR PREVIEW ──
+  calendarPreviewSection: {
+    paddingHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: Spacing.xl,
   },
 
   // ── FEATURED RITUAL ──

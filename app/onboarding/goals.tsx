@@ -251,9 +251,9 @@ function GoalCard({
       entering={FadeInUp.duration(400).delay(index * 100)}
       exiting={FadeOut.duration(200)}
       layout={Layout.springify()}
-      style={animatedStyle}
     >
-      <TouchableOpacity
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
         style={[
           styles.goalCard,
           { backgroundColor: palette.cardBg },
@@ -292,6 +292,7 @@ function GoalCard({
           <Ionicons name="close" size={18} color={palette.textTertiary} />
         </TouchableOpacity>
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }

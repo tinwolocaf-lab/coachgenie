@@ -87,6 +87,21 @@ function useDeepLinkHandler() {
 
     console.log('[DeepLink] Received URL:', url);
 
+    // Check if this is an integrations callback
+    if (url.includes('integrations/callback')) {
+      console.log('[DeepLink] Integration callback detected');
+      const urlObj = new URL(url);
+      const code = urlObj.searchParams.get('code');
+      const provider = urlObj.searchParams.get('state') || urlObj.searchParams.get('provider');
+      const error = urlObj.searchParams.get('error');
+      if (error) {
+        router.replace(`/integrations/callback?error=${encodeURIComponent(error)}`);
+      } else if (code) {
+        router.replace(`/integrations/callback?code=${encodeURIComponent(code)}${provider ? `&provider=${provider}` : ''}`);
+      }
+      return;
+    }
+
     // Check if this is an auth callback with tokens in hash
     const tokens = parseAuthTokensFromUrl(url);
 
@@ -284,6 +299,38 @@ function ThemedAppContent() {
           presentation: 'fullScreenModal',
           gestureEnabled: true,
           gestureDirection: 'vertical',
+        }}
+      />
+      <Stack.Screen
+        name="paywall"
+        options={{
+          animation: 'fade_from_bottom',
+          animationDuration: 500,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="integrations"
+        options={{
+          animation: 'fade',
+          animationDuration: 400,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="coach/create"
+        options={{
+          animation: 'fade_from_bottom',
+          animationDuration: 500,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="insights-dashboard"
+        options={{
+          animation: 'fade',
+          animationDuration: 400,
+          presentation: 'card',
         }}
       />
     </Stack>

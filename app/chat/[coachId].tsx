@@ -47,10 +47,11 @@ import {
 } from '@/store/app';
 import { createSession, updateSessionById } from '@/lib/supabase-sanctuary';
 import { streamChat, generateArtifacts } from '@/lib/apiClient';
+import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach } from '@/lib/feature-gates';
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { palette } = useThemeSafe();
+  const { palette, subscriptionTier } = useThemeSafe();
   const insets = useSafeAreaInsets();
   const { coachId, context } = useLocalSearchParams<{
     coachId: string;
@@ -95,6 +96,33 @@ export default function ChatScreen() {
     const coachData = getCoachById(coachId);
     setCoach(coachData || null);
 
+    // Check feature gates
+    const tier = await getUserTier();
+    if (!canAccessCoach(tier, coachId)) {
+      Alert.alert(
+        'Upgrade Required',
+        'This coach requires a Sovereign or Oracle subscription.',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
+          { text: 'View Plans', onPress: () => { router.back(); router.push('/paywall'); } },
+        ]
+      );
+      return;
+    }
+
+    const remaining = await getRemainingSessionsToday(tier);
+    if (remaining <= 0) {
+      Alert.alert(
+        'Session Limit Reached',
+        'You\'ve used all 3 free sessions today. Upgrade for unlimited sessions.',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
+          { text: 'Upgrade', onPress: () => { router.back(); router.push('/paywall'); } },
+        ]
+      );
+      return;
+    }
+
     const vault = await getContextVault();
     setUserContext(vault);
 
@@ -106,6 +134,7 @@ export default function ChatScreen() {
       return;
     }
 
+    await incrementSessionCount();
     const dbSession = await createSession(authUser.id, coachId, 'New Session');
     if (!dbSession) {
       Alert.alert('Error', 'Could not start a session. Please try again.');
@@ -138,7 +167,7 @@ export default function ChatScreen() {
 
     const initialMessage: Message = {
       id: Date.now().toString(),
-      session_id: newSessionId,
+      session_id: dbSession.id,
       role: 'assistant',
       content: greeting,
       created_at: new Date().toISOString(),

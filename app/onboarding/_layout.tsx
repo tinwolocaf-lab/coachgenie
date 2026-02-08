@@ -20,6 +20,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="constraints" />
       <Stack.Screen name="preferences" />
       <Stack.Screen name="coach-selection" />
+      <Stack.Screen name="trial" />
     </Stack>
   );
 }

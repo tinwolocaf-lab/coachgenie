@@ -5,8 +5,11 @@ import Purchases, {
   PurchasesOffering,
 } from 'react-native-purchases';
 
+import type { SubscriptionTier } from '@/lib/feature-gates';
+
 const REVENUECAT_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || '';
 const SOVEREIGN_ENTITLEMENT_ID = 'sovereign';
+const ORACLE_ENTITLEMENT_ID = 'oracle';
 
 let isConfigured = false;
 
@@ -73,4 +76,45 @@ export function addCustomerInfoUpdateListener(
 
 export function hasSovereignEntitlement(customerInfo: CustomerInfo): boolean {
   return customerInfo.entitlements.active[SOVEREIGN_ENTITLEMENT_ID] !== undefined;
+}
+
+export function hasOracleEntitlement(customerInfo: CustomerInfo): boolean {
+  return customerInfo.entitlements.active[ORACLE_ENTITLEMENT_ID] !== undefined;
+}
+
+export async function checkOracleEntitlement(): Promise<boolean> {
+  if (!isConfigured) return false;
+  try {
+    const customerInfo = await Purchases.getCustomerInfo();
+    return customerInfo.entitlements.active[ORACLE_ENTITLEMENT_ID] !== undefined;
+  } catch (error) {
+    console.warn('[RevenueCat] Could not check oracle entitlement:', (error as any)?.code);
+    return false;
+  }
+}
+
+export async function getUserSubscriptionTier(): Promise<SubscriptionTier> {
+  if (!isConfigured) return 'free';
+  try {
+    const customerInfo = await Purchases.getCustomerInfo();
+    if (customerInfo.entitlements.active[ORACLE_ENTITLEMENT_ID] !== undefined) {
+      return 'oracle';
+    }
+    if (customerInfo.entitlements.active[SOVEREIGN_ENTITLEMENT_ID] !== undefined) {
+      return 'sovereign';
+    }
+    return 'free';
+  } catch {
+    return 'free';
+  }
+}
+
+export function getTierFromCustomerInfo(customerInfo: CustomerInfo): SubscriptionTier {
+  if (customerInfo.entitlements.active[ORACLE_ENTITLEMENT_ID] !== undefined) {
+    return 'oracle';
+  }
+  if (customerInfo.entitlements.active[SOVEREIGN_ENTITLEMENT_ID] !== undefined) {
+    return 'sovereign';
+  }
+  return 'free';
 }

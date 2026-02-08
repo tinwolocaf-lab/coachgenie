@@ -3,12 +3,20 @@ import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
 import { encodeSseEvent } from '../_shared/sse.ts';
 import { openRouterChat, parseOpenRouterSseChunk } from '../_shared/openrouter.ts';
+import { buildEnrichedSystemPrompt } from '../_shared/context-builder.ts';
 
 interface ChatStreamBody {
   session_id: string;
   user_message: string;
   client_context?: Record<string, unknown>;
+  subscription_tier?: 'free' | 'sovereign' | 'oracle';
 }
+
+const TIER_MODELS: Record<string, string> = {
+  free: 'google/gemini-2.5-flash-lite',
+  sovereign: 'openai/gpt-4o-mini',
+  oracle: 'anthropic/claude-sonnet-4-5-20250929',
+};
 
 serve(async (request) => {
   const optionsResponse = handleOptions(request);
@@ -38,7 +46,9 @@ serve(async (request) => {
   }
 
   const { userClient, userId } = auth;
-  const chatModel = Deno.env.get('OPENROUTER_CHAT_MODEL') ?? 'openai/gpt-4o-mini';
+  const tier = payload.subscription_tier || 'free';
+  const tierModel = TIER_MODELS[tier];
+  const chatModel = tierModel || Deno.env.get('OPENROUTER_CHAT_MODEL') || 'openai/gpt-4o-mini';
 
   const { data: session, error: sessionError } = await userClient
     .from('coaching_sessions')
@@ -76,9 +86,11 @@ serve(async (request) => {
     .order('created_at', { ascending: true })
     .limit(12);
 
-  const systemPrompt = coach?.system_prompt
+  const basePrompt = coach?.system_prompt
     ? `${coach.system_prompt}\n\nCOACHING METHOD: ${coach?.method ?? ''}`
     : 'You are a helpful coaching assistant. Be concise and actionable.';
+
+  const systemPrompt = await buildEnrichedSystemPrompt(userId, basePrompt, userClient);
 
   const messages = [
     { role: 'system', content: systemPrompt },

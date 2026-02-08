@@ -30,7 +30,7 @@ import { AtmosphereGallery } from '@/components/settings/AtmosphereGallery';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import RevenueCatUI from 'react-native-purchases-ui';
-import { checkSovereignEntitlement, restorePurchases } from '@/lib/revenuecat';
+import { checkSovereignEntitlement, restorePurchases, getUserSubscriptionTier } from '@/lib/revenuecat';
 
 // Dynamic import for auth
 const getAuthHook = () => {
@@ -53,7 +53,7 @@ interface UserProfile {
 
 export default function AccountScreen() {
   const router = useRouter();
-  const { palette, isSovereignMember, setSovereignMember } = useThemeSafe();
+  const { palette, isSovereignMember, setSovereignMember, subscriptionTier, setSubscriptionTier } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -176,8 +176,9 @@ export default function AccountScreen() {
     try {
       await RevenueCatUI.presentPaywall();
       // After paywall closes, check if purchase was made
-      const isSovereign = await checkSovereignEntitlement();
-      setSovereignMember(isSovereign);
+      const tier = await getUserSubscriptionTier();
+      setSubscriptionTier(tier);
+      setSovereignMember(tier !== 'free');
     } catch (error) {
       console.error('[Paywall] Error presenting paywall:', error);
     }
@@ -472,7 +473,7 @@ export default function AccountScreen() {
                   </View>
                   <View style={styles.subscriptionInfo}>
                     <Text style={[styles.subscriptionTitle, { color: palette.textSecondary }]}>
-                      {isSovereignMember ? 'Sovereign Plan' : 'Premium Plan'}
+                      {subscriptionTier === 'oracle' ? 'Oracle Plan' : subscriptionTier === 'sovereign' ? 'Sovereign Plan' : 'Free Plan'}
                     </Text>
                     <Text style={[styles.subscriptionStatus, { color: palette.success }]}>Active</Text>
                   </View>
@@ -505,6 +506,34 @@ export default function AccountScreen() {
                   <Ionicons name="arrow-forward" size={14} color={palette.accent} />
                 </TouchableOpacity>
               </LinearGradient>
+            </View>
+          </Animated.View>
+
+          {/* Connections Section */}
+          <Animated.View entering={FadeInUp.duration(500).delay(350)}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Connections</Text>
+            </View>
+
+            <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+              <TouchableOpacity
+                style={styles.settingItemClickable}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/integrations');
+                }}
+              >
+                <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                  <Ionicons name="apps-outline" size={20} color={palette.accent} />
+                </View>
+                <View style={styles.settingContent}>
+                  <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Integrations</Text>
+                  <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>
+                    Connect Calendar, Notion, GitHub and more
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
+              </TouchableOpacity>
             </View>
           </Animated.View>
 

@@ -239,17 +239,15 @@ function TimeOption({
   };
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(400).delay(200 + index * 80)}
-      style={animatedStyle}
-    >
-      <TouchableOpacity
-        style={[styles.timeOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
-      >
+    <Animated.View entering={FadeIn.duration(400).delay(200 + index * 80)}>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          style={[styles.timeOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          activeOpacity={1}
+        >
         <Text style={[styles.timeLabel, { color: palette.textSecondary }, selected && { color: palette.accent }]}>
           {option.label}
         </Text>
@@ -262,6 +260,7 @@ function TimeOption({
           </View>
         )}
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -293,12 +292,10 @@ function EnergyOption({
   };
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(400).delay(400 + index * 100)}
-      style={animatedStyle}
-    >
-      <TouchableOpacity
-        style={[styles.energyOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
+    <Animated.View entering={FadeIn.duration(400).delay(400 + index * 100)}>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          style={[styles.energyOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -323,6 +320,7 @@ function EnergyOption({
           </View>
         )}
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -354,11 +352,9 @@ function FocusTimeOption({
   };
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(400).delay(600 + index * 100)}
-      style={[{ flex: 1 }, animatedStyle]}
-    >
-      <TouchableOpacity
+    <Animated.View entering={FadeIn.duration(400).delay(600 + index * 100)} style={{ flex: 1 }}>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
         style={[styles.focusOption, selected && styles.focusOptionSelected]}
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -382,6 +378,7 @@ function FocusTimeOption({
           </View>
         )}
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }

@@ -26,15 +26,8 @@ import { CoachIcon } from '@/components/ui/CoachIcon';
 import { SAMPLE_COACHES } from '@/data/coaches';
 import { Coach } from '@/types';
 import {
-  completeOnboarding,
   setSelectedCoach,
-  getOnboardingState,
 } from '@/store/onboarding';
-import {
-  installCoach,
-  setActiveCoachId,
-  saveContextVault,
-} from '@/store/app';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -56,40 +49,9 @@ export default function CoachSelectionScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // Save selected coach
       await setSelectedCoach(selectedCoachId);
-
-      // Install the coach
-      await installCoach({
-        id: Date.now().toString(),
-        user_id: 'local-user',
-        coach_id: selectedCoachId,
-        is_active: true,
-        installed_at: new Date().toISOString(),
-      });
-
-      // Set as active coach
-      await setActiveCoachId(selectedCoachId);
-
-      // Create context vault from onboarding data
-      const onboardingState = await getOnboardingState();
-      await saveContextVault({
-        id: Date.now().toString(),
-        user_id: 'local-user',
-        values: onboardingState.values,
-        goals: onboardingState.goals,
-        constraints: onboardingState.constraints,
-        preferences: onboardingState.preferences,
-        updated_at: new Date().toISOString(),
-      });
-
-      // Complete onboarding
-      await completeOnboarding();
-
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      // Navigate to main app
-      router.replace('/(tabs)');
+      router.push('/onboarding/trial');
     } catch (error) {
       console.error('Error completing onboarding:', error);
     } finally {
@@ -100,31 +62,9 @@ export default function CoachSelectionScreen() {
   const handleSkip = async () => {
     setIsLoading(true);
     try {
-      // Install default coach (Daily Clarity)
       const defaultCoachId = 'coach-daily-clarity';
-      await installCoach({
-        id: Date.now().toString(),
-        user_id: 'local-user',
-        coach_id: defaultCoachId,
-        is_active: true,
-        installed_at: new Date().toISOString(),
-      });
-      await setActiveCoachId(defaultCoachId);
-
-      // Create context vault from onboarding data
-      const onboardingState = await getOnboardingState();
-      await saveContextVault({
-        id: Date.now().toString(),
-        user_id: 'local-user',
-        values: onboardingState.values,
-        goals: onboardingState.goals,
-        constraints: onboardingState.constraints,
-        preferences: onboardingState.preferences,
-        updated_at: new Date().toISOString(),
-      });
-
-      await completeOnboarding();
-      router.replace('/(tabs)');
+      await setSelectedCoach(defaultCoachId);
+      router.push('/onboarding/trial');
     } catch (error) {
       console.error('Error:', error);
     } finally {

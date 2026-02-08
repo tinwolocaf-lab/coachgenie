@@ -195,18 +195,16 @@ function VisionCard({
   };
 
   return (
-    <Animated.View
-      entering={FadeInUp.duration(500).delay(200 + index * 50)}
-      style={animatedStyle}
-    >
-      <TouchableOpacity
-        style={[
-          styles.visionCard,
-          selected && [styles.visionCardSelected, { borderColor: palette.accent }],
-        ]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+    <Animated.View entering={FadeInUp.duration(500).delay(200 + index * 50)}>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          style={[
+            styles.visionCard,
+            selected && [styles.visionCardSelected, { borderColor: palette.accent }],
+          ]}
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
         activeOpacity={1}
         disabled={disabled}
       >
@@ -235,6 +233,7 @@ function VisionCard({
           )}
         </LinearGradient>
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }

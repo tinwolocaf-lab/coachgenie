@@ -7,7 +7,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
-import { checkSovereignEntitlement, addCustomerInfoUpdateListener, hasSovereignEntitlement } from '@/lib/revenuecat';
+import { getUserSubscriptionTier, addCustomerInfoUpdateListener, getTierFromCustomerInfo } from '@/lib/revenuecat';
+import type { SubscriptionTier } from '@/lib/feature-gates';
 
 // Theme IDs
 export type AtmosphereId = 'original' | 'midnight-gallery' | 'botanist' | 'architect' | 'desert-solstice' | 'paper' | 'graphite' | 'sunset-cove' | 'tropicana';
@@ -679,6 +680,8 @@ interface ThemeContextType {
   isTransitioning: boolean;
   isSovereignMember: boolean;
   setSovereignMember: (value: boolean) => void;
+  subscriptionTier: SubscriptionTier;
+  setSubscriptionTier: (tier: SubscriptionTier) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -693,6 +696,7 @@ export function ThemeProvider({ children, initialAtmosphere = 'original' }: Them
   const [currentAtmosphere, setCurrentAtmosphere] = useState<Atmosphere>(getAtmosphere(initialAtmosphere));
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isSovereignMember, setIsSovereignMember] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
   const fadeOpacity = useSharedValue(1);
 
   const loadSavedTheme = useCallback(async () => {
@@ -714,9 +718,14 @@ export function ThemeProvider({ children, initialAtmosphere = 'original' }: Them
 
   // Check RevenueCat entitlement and listen for updates
   useEffect(() => {
-    checkSovereignEntitlement().then(setIsSovereignMember);
+    getUserSubscriptionTier().then((tier) => {
+      setSubscriptionTier(tier);
+      setIsSovereignMember(tier !== 'free');
+    });
     const unsubscribe = addCustomerInfoUpdateListener((info) => {
-      setIsSovereignMember(hasSovereignEntitlement(info));
+      const tier = getTierFromCustomerInfo(info);
+      setSubscriptionTier(tier);
+      setIsSovereignMember(tier !== 'free');
     });
     return unsubscribe;
   }, []);
@@ -777,7 +786,9 @@ export function ThemeProvider({ children, initialAtmosphere = 'original' }: Them
     isTransitioning,
     isSovereignMember,
     setSovereignMember: setIsSovereignMember,
-  }), [currentAtmosphere, setAtmosphere, isTransitioning, isSovereignMember]);
+    subscriptionTier,
+    setSubscriptionTier,
+  }), [currentAtmosphere, setAtmosphere, isTransitioning, isSovereignMember, subscriptionTier]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: fadeOpacity.value,
@@ -813,6 +824,8 @@ export function useThemeSafe() {
       isTransitioning: false,
       isSovereignMember: false,
       setSovereignMember: () => {},
+      subscriptionTier: 'free' as SubscriptionTier,
+      setSubscriptionTier: () => {},
     };
   }
   return context;

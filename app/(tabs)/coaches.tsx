@@ -31,6 +31,8 @@ import { StaggeredFadeIn } from '@/components/ui/AnimatedContainer';
 import { Coach, InstalledCoach } from '@/types';
 import { SAMPLE_COACHES, getCoachById } from '@/data/coaches';
 import { getInstalledCoaches, getActiveCoachId } from '@/store/app';
+import { canAccessCoach } from '@/lib/feature-gates';
+import type { SubscriptionTier } from '@/lib/feature-gates';
 
 // Coach categories for filtering
 const COACH_CATEGORIES = [
@@ -51,7 +53,7 @@ const COACH_CATEGORY_MAP: Record<string, string> = {
 
 export default function CoachesScreen() {
   const router = useRouter();
-  const { palette } = useThemeSafe();
+  const { palette, subscriptionTier } = useThemeSafe();
   const scrollRef = useRef<ScrollView>(null);
 
   const [installedCoaches, setInstalledCoaches] = useState<InstalledCoach[]>([]);
@@ -84,6 +86,10 @@ export default function CoachesScreen() {
 
   const handleCoachPress = (coachId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!canAccessCoach(subscriptionTier, coachId)) {
+      router.push('/paywall');
+      return;
+    }
     router.push(`/coach/${coachId}`);
   };
 
@@ -232,6 +238,7 @@ export default function CoachesScreen() {
                   onPress={() => handleCoachPress(coach.id)}
                   index={index}
                   scrollOffset={scrollOffset}
+                  isLocked={!canAccessCoach(subscriptionTier, coach.id)}
                 />
               ))
             ) : (
@@ -354,11 +361,13 @@ function MasterclassCoachCard({
   onPress,
   index,
   scrollOffset,
+  isLocked = false,
 }: {
   coach: Coach;
   onPress: () => void;
   index: number;
   scrollOffset: number;
+  isLocked?: boolean;
 }) {
   const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
@@ -444,10 +453,17 @@ function MasterclassCoachCard({
               {COACH_CATEGORY_MAP[coach.id]?.charAt(0).toUpperCase() +
                COACH_CATEGORY_MAP[coach.id]?.slice(1) || 'Coaching'}
             </Text>
-            <View style={styles.exploreButton}>
-              <Text style={[styles.exploreText, { color: coach.color }]}>Explore</Text>
-              <Ionicons name="arrow-forward" size={14} color={coach.color} />
-            </View>
+            {isLocked ? (
+              <View style={styles.exploreButton}>
+                <Ionicons name="lock-closed" size={14} color={palette.textTertiary} />
+                <Text style={[styles.exploreText, { color: palette.textTertiary }]}>Upgrade</Text>
+              </View>
+            ) : (
+              <View style={styles.exploreButton}>
+                <Text style={[styles.exploreText, { color: coach.color }]}>Explore</Text>
+                <Ionicons name="arrow-forward" size={14} color={coach.color} />
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>

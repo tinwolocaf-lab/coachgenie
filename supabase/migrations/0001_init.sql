@@ -2,8 +2,7 @@
 -- Migration: 0001_init
 -- Description: Initial database schema with all core tables and RLS policies
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- gen_random_uuid() is built-in to PostgreSQL 13+, no extension needed
 
 -- ============================================
 -- USER PROFILES
@@ -38,7 +37,7 @@ CREATE POLICY "Users can insert own profile"
 -- CONTEXT VAULT
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.context_vaults (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   values TEXT[] DEFAULT '{}',
   constraints JSONB DEFAULT '{"available_hours_per_day": 4, "energy_level": "medium", "best_time_for_focus": "morning"}',
@@ -67,7 +66,7 @@ CREATE POLICY "Users can insert own vault"
 -- GOALS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.goals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
@@ -93,7 +92,7 @@ CREATE POLICY "Users can manage own goals"
 -- COACHES
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.coaches (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   tagline TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -119,7 +118,7 @@ CREATE POLICY "Anyone can view public coaches"
 -- INSTALLED COACHES (User-Coach relationship)
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.installed_coaches (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   coach_id UUID NOT NULL REFERENCES public.coaches(id) ON DELETE CASCADE,
   is_active BOOLEAN DEFAULT FALSE,
@@ -142,7 +141,7 @@ CREATE POLICY "Users can manage own installed coaches"
 -- SESSIONS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   coach_id UUID NOT NULL REFERENCES public.coaches(id) ON DELETE CASCADE,
   title TEXT NOT NULL DEFAULT 'New Session',
@@ -167,7 +166,7 @@ CREATE POLICY "Users can manage own sessions"
 -- MESSAGES
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
@@ -202,7 +201,7 @@ CREATE POLICY "Users can insert messages to own sessions"
 -- DAY PLANS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.day_plans (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -225,7 +224,7 @@ CREATE POLICY "Users can manage own day plans"
 -- PRIORITIES
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.priorities (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   day_plan_id UUID NOT NULL REFERENCES public.day_plans(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
@@ -260,7 +259,7 @@ CREATE POLICY "Users can manage priorities in own plans"
 -- TIME BLOCKS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.time_blocks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   day_plan_id UUID NOT NULL REFERENCES public.day_plans(id) ON DELETE CASCADE,
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
@@ -296,7 +295,7 @@ CREATE POLICY "Users can manage time blocks in own plans"
 -- ACTIONS (Next actions from sessions)
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.actions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   session_id UUID REFERENCES public.sessions(id) ON DELETE SET NULL,
   title TEXT NOT NULL,

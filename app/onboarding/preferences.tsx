@@ -262,12 +262,10 @@ function StyleGridCell({
   const col = index % 3;
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(300).delay(200 + row * 100 + col * 50)}
-      style={[styles.gridCellWrapper, animatedStyle]}
-    >
-      <TouchableOpacity
-        style={[styles.gridCell, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
+    <Animated.View entering={FadeIn.duration(300).delay(200 + row * 100 + col * 50)} style={styles.gridCellWrapper}>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          style={[styles.gridCell, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -286,6 +284,7 @@ function StyleGridCell({
           </View>
         )}
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -317,12 +316,10 @@ function LengthOption({
   };
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(400).delay(400 + index * 100)}
-      style={[{ flex: 1 }, animatedStyle]}
-    >
-      <TouchableOpacity
-        style={[styles.lengthOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
+    <Animated.View entering={FadeIn.duration(400).delay(400 + index * 100)} style={{ flex: 1 }}>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          style={[styles.lengthOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -340,6 +337,7 @@ function LengthOption({
         </Text>
         <Text style={[styles.lengthDescription, { color: palette.textTertiary }]}>{option.description}</Text>
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }

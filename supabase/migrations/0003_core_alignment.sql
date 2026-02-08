@@ -6,7 +6,7 @@
 -- COACHING SESSIONS (canonical)
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.coaching_sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   coach_id UUID REFERENCES public.coaches(id) ON DELETE SET NULL,
   title TEXT NOT NULL DEFAULT 'New Session',
@@ -37,7 +37,7 @@ CREATE TRIGGER update_coaching_sessions_updated_at
 -- SESSION MESSAGES (canonical)
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.session_messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.coaching_sessions(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
@@ -72,7 +72,7 @@ CREATE POLICY "Users can insert messages to own coaching sessions"
 -- SESSION ARTIFACTS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.session_artifacts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.coaching_sessions(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   type TEXT NOT NULL CHECK (type IN ('summary', 'next_actions', 'seven_day_plan', 'note')),
@@ -95,7 +95,7 @@ CREATE POLICY "Users can insert own session artifacts"
 -- KEY INSIGHTS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.key_insights (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   session_id UUID REFERENCES public.coaching_sessions(id) ON DELETE SET NULL,
   coach_id UUID REFERENCES public.coaches(id) ON DELETE SET NULL,
@@ -121,7 +121,7 @@ CREATE POLICY "Users can manage own insights"
 -- BREAKTHROUGHS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.breakthroughs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   session_id UUID REFERENCES public.coaching_sessions(id) ON DELETE SET NULL,
   coach_id UUID REFERENCES public.coaches(id) ON DELETE SET NULL,
@@ -148,7 +148,7 @@ CREATE POLICY "Users can manage own breakthroughs"
 -- INSIGHT COLLECTIONS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.insight_collections (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
@@ -177,7 +177,7 @@ CREATE TRIGGER update_insight_collections_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.insight_collection_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   collection_id UUID NOT NULL REFERENCES public.insight_collections(id) ON DELETE CASCADE,
   insight_id UUID NOT NULL REFERENCES public.key_insights(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -232,7 +232,7 @@ $$;
 -- MONTHLY SYNTHESIS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.monthly_synthesis (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   month_year TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -263,7 +263,7 @@ CREATE POLICY "Users can manage own monthly synthesis"
 -- HISTORY QUERIES
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.history_queries (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   query TEXT NOT NULL,
   response TEXT NOT NULL,
@@ -286,7 +286,7 @@ CREATE POLICY "Users can manage own history queries"
 -- GROWTH CHAPTERS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.growth_chapters (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   vision TEXT,
@@ -317,7 +317,7 @@ CREATE TRIGGER update_growth_chapters_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.chapter_milestones (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   chapter_id UUID NOT NULL REFERENCES public.growth_chapters(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -349,7 +349,7 @@ CREATE TRIGGER update_chapter_milestones_updated_at
 -- RITUALS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.rituals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
@@ -381,7 +381,7 @@ CREATE TRIGGER update_rituals_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS public.ritual_completions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ritual_id UUID NOT NULL REFERENCES public.rituals(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   completed_date DATE NOT NULL,
@@ -402,7 +402,7 @@ CREATE POLICY "Users can manage own ritual completions"
   WITH CHECK (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS public.ritual_streaks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   ritual_id UUID NOT NULL REFERENCES public.rituals(id) ON DELETE CASCADE,
   current_streak INTEGER NOT NULL DEFAULT 0,
@@ -434,7 +434,7 @@ CREATE TRIGGER update_ritual_streaks_updated_at
 -- DAILY REFLECTIONS
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.daily_reflections (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   reflection_type TEXT NOT NULL CHECK (reflection_type IN ('morning', 'evening')),
@@ -469,7 +469,7 @@ CREATE TRIGGER update_daily_reflections_updated_at
 -- EDITORIAL NUDGES
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.editorial_nudges (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   nudge_type TEXT NOT NULL CHECK (nudge_type IN ('alignment', 'encouragement', 'reflection', 'milestone')),
   title TEXT NOT NULL,

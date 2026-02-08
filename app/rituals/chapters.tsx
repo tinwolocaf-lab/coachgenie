@@ -445,12 +445,10 @@ function ChapterCard({
   }));
 
   return (
-    <Animated.View
-      entering={FadeInUp.duration(400).delay(100 + index * 80)}
-      style={animatedStyle}
-    >
-      <TouchableOpacity
-        style={styles.chapterCard}
+    <Animated.View entering={FadeInUp.duration(400).delay(100 + index * 80)}>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          style={styles.chapterCard}
         onPress={onPress}
         onLongPress={onLongPress}
         onPressIn={handlePressIn}
@@ -493,6 +491,7 @@ function ChapterCard({
           </View>
         </LinearGradient>
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }

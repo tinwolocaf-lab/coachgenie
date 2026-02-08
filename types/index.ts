@@ -430,6 +430,47 @@ export interface TodayPractice {
 // Time period for UI
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
 
+// ============ INTEGRATIONS ============
+
+export type IntegrationProvider = 'google_calendar' | 'notion' | 'github' | 'todoist' | 'linear';
+export type IntegrationStatus = 'active' | 'expired' | 'revoked' | 'error';
+export type IntegrationDataType = 'calendar_event' | 'notion_page' | 'github_activity' | 'task';
+
+export interface UserIntegration {
+  id: string;
+  user_id: string;
+  provider: IntegrationProvider;
+  status: IntegrationStatus;
+  provider_email?: string;
+  scopes?: string[];
+  metadata?: Record<string, unknown>;
+  last_synced_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntegrationData {
+  id: string;
+  user_id: string;
+  integration_id: string;
+  data_type: IntegrationDataType;
+  external_id?: string;
+  title?: string;
+  content?: Record<string, unknown>;
+  starts_at?: string;
+  ends_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntegrationProviderConfig {
+  provider: IntegrationProvider;
+  name: string;
+  icon: string;
+  description: string;
+  scopes: string[];
+}
+
 // Morning Intention prompts
 export const MORNING_PROMPTS = [
   "What is the one thing that would make today a success?",
