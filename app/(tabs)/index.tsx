@@ -1297,15 +1297,15 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   progressContent: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     marginBottom: Spacing.lg,
   },
   progressRingWrapper: {
-    marginRight: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   streakWrapper: {
-    flex: 1,
+    width: '100%',
   },
   progressDivider: {
     marginBottom: Spacing.lg,

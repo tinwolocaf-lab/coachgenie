@@ -4,13 +4,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   withSpring,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { Typography, Shadows, Timing, Radius } from '@/constants/theme';
+import { Typography, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useFocusModeSafe } from '@/contexts/FocusModeContext';
 import { useEffect } from 'react';
@@ -24,16 +25,16 @@ interface TabIconProps {
 }
 
 function TabIcon({ name, nameOutline, focused, color, accentColor }: TabIconProps) {
-  const scale = useSharedValue(focused ? 1 : 0.85);
-  const opacity = useSharedValue(focused ? 1 : 0.5);
-  const glowOpacity = useSharedValue(focused ? 0.25 : 0);
-  const glowScale = useSharedValue(focused ? 1.6 : 1.2);
+  const scale = useSharedValue(focused ? 1 : 0.88);
+  const opacity = useSharedValue(focused ? 1 : 0.45);
+  const glowOpacity = useSharedValue(focused ? 0.2 : 0);
+  const glowScale = useSharedValue(focused ? 1.5 : 1.2);
 
   useEffect(() => {
-    scale.value = withSpring(focused ? 1 : 0.85, Timing.springGentle);
-    opacity.value = withTiming(focused ? 1 : 0.5, { duration: 250 });
-    glowOpacity.value = withTiming(focused ? 0.25 : 0, { duration: 350 });
-    glowScale.value = withSpring(focused ? 1.6 : 1.2, Timing.springGentle);
+    scale.value = withSpring(focused ? 1 : 0.88, Timing.springGentle);
+    opacity.value = withTiming(focused ? 1 : 0.45, { duration: 250 });
+    glowOpacity.value = withTiming(focused ? 0.2 : 0, { duration: 350 });
+    glowScale.value = withSpring(focused ? 1.5 : 1.2, Timing.springGentle);
 
     if (focused) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -52,7 +53,7 @@ function TabIcon({ name, nameOutline, focused, color, accentColor }: TabIconProp
 
   return (
     <Animated.View style={[styles.iconContainer, containerStyle]}>
-      {/* Glow effect - larger and softer */}
+      {/* Glow effect */}
       <Animated.View
         style={[
           styles.glowEffect,
@@ -67,13 +68,6 @@ function TabIcon({ name, nameOutline, focused, color, accentColor }: TabIconProp
         size={21}
         color={color}
       />
-
-      {/* Active indicator dot */}
-      {focused && (
-        <Animated.View
-          style={[styles.activeIndicator, { backgroundColor: accentColor }]}
-        />
-      )}
     </Animated.View>
   );
 }
@@ -83,19 +77,18 @@ export default function TabLayout() {
   const { palette, atmosphere } = useThemeSafe();
   const { dockOpacity, dockTranslateY } = useFocusModeSafe();
 
-  // Determine blur tint based on theme
-  const blurTint = atmosphere.id === 'midnight-gallery' ? 'dark' : 'light';
   const isDark = atmosphere.id === 'midnight-gallery';
+  const blurTint = isDark ? 'dark' : 'light';
 
-  // Floating dock animated style
   const dockAnimatedStyle = useAnimatedStyle(() => ({
     opacity: dockOpacity.value,
     transform: [{ translateY: dockTranslateY.value }],
   }));
 
-  const DOCK_HEIGHT = 62;
-  const DOCK_BOTTOM_MARGIN = insets.bottom > 0 ? insets.bottom + 4 : 16;
-  const DOCK_HORIZONTAL_MARGIN = 24;
+  const DOCK_HEIGHT = 64;
+  const DOCK_BOTTOM_MARGIN = insets.bottom > 0 ? insets.bottom + 6 : 20;
+  const DOCK_HORIZONTAL_MARGIN = 32;
+  const DOCK_BORDER_RADIUS = 32;
 
   return (
     <Tabs
@@ -109,7 +102,7 @@ export default function TabLayout() {
           fontFamily: Typography.fonts.sansMedium,
           letterSpacing: Typography.letterSpacing.wider,
           textTransform: 'uppercase',
-          marginTop: 1,
+          marginTop: 2,
         },
         tabBarStyle: {
           position: 'absolute',
@@ -117,40 +110,80 @@ export default function TabLayout() {
           left: DOCK_HORIZONTAL_MARGIN,
           right: DOCK_HORIZONTAL_MARGIN,
           height: DOCK_HEIGHT,
-          borderRadius: Radius.squircle,
+          borderRadius: DOCK_BORDER_RADIUS,
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           paddingTop: 8,
           paddingBottom: 8,
-          borderWidth: 1,
-          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+          paddingHorizontal: 8,
+          borderWidth: isDark ? 1 : 1.5,
+          borderColor: isDark
+            ? 'rgba(255,255,255,0.22)'
+            : 'rgba(255,255,255,0.7)',
           ...Shadows.floating,
-          shadowColor: palette.shadowColor,
-          shadowOpacity: 0.12,
-          elevation: 20,
+          shadowColor: isDark ? '#000' : 'rgba(0,0,0,0.3)',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: isDark ? 0.4 : 0.2,
+          shadowRadius: 24,
+          elevation: 24,
         },
         tabBarBackground: () => (
           <Animated.View style={[StyleSheet.absoluteFill, dockAnimatedStyle]}>
+            {/* Blur layer — the core of Liquid Glass */}
             <BlurView
-              intensity={isDark ? 50 : 80}
+              intensity={isDark ? 80 : 100}
               tint={blurTint}
               style={[
                 StyleSheet.absoluteFill,
                 {
-                  borderRadius: Radius.squircle,
+                  borderRadius: DOCK_BORDER_RADIUS,
                   overflow: 'hidden',
                 },
               ]}
             />
-            {/* Frosted glass overlay */}
+
+            {/* Semi-transparent tint — much lighter than before so blur shows through */}
             <View
               style={[
                 StyleSheet.absoluteFill,
                 {
-                  borderRadius: Radius.squircle,
+                  borderRadius: DOCK_BORDER_RADIUS,
                   backgroundColor: isDark
-                    ? 'rgba(26, 29, 36, 0.75)'
-                    : `${palette.background}CC`,
+                    ? 'rgba(15, 17, 22, 0.82)'
+                    : 'rgba(255, 255, 255, 0.45)',
+                },
+              ]}
+            />
+
+            {/* Specular highlight — top edge light refraction */}
+            <LinearGradient
+              colors={
+                isDark
+                  ? ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.02)', 'transparent']
+                  : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.15)', 'transparent']
+              }
+              locations={[0, 0.3, 1]}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: DOCK_HEIGHT * 0.5,
+                borderTopLeftRadius: DOCK_BORDER_RADIUS,
+                borderTopRightRadius: DOCK_BORDER_RADIUS,
+              }}
+            />
+
+            {/* Inner border highlight for glass edge effect */}
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  borderRadius: DOCK_BORDER_RADIUS,
+                  borderWidth: 1,
+                  borderColor: isDark
+                    ? 'rgba(255,255,255,0.06)'
+                    : 'rgba(255,255,255,0.5)',
                 },
               ]}
             />
@@ -255,12 +288,5 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-  },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: -5,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
   },
 });

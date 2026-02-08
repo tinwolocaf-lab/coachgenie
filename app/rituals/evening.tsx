@@ -188,7 +188,7 @@ export default function EveningAuditScreen() {
   const handleGenerateClosingThought = async () => {
     if (!auth?.user?.id) return;
 
-    setIsGeneratingThought(true);
+    setIsGeneratingResonance(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
@@ -204,13 +204,13 @@ export default function EveningAuditScreen() {
         goals: userContext?.goals.map(goal => goal.title) ?? [],
       });
 
-      setClosingThought(thought);
+      setResonanceLetter(thought);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Error generating closing thought:', error);
-      setClosingThought("Rest well—every effort today was a step forward.");
+      setResonanceLetter("Rest well—every effort today was a step forward.");
     } finally {
-      setIsGeneratingThought(false);
+      setIsGeneratingResonance(false);
     }
   };
 
@@ -225,8 +225,9 @@ export default function EveningAuditScreen() {
       const filteredLessons = lessons.filter(l => l.trim());
 
       // Generate closing thought if not already generated
-      let finalThought = closingThought;
+      let finalThought = resonanceLetter;
       if (!finalThought && (filteredWins.length > 0 || filteredLessons.length > 0)) {
+        setIsGeneratingResonance(true);
         finalThought = await generateClosingThought({
           wins: filteredWins,
           lessons: filteredLessons,
@@ -235,8 +236,9 @@ export default function EveningAuditScreen() {
           values: userContext?.values ?? [],
           goals: userContext?.goals.map(goal => goal.title) ?? [],
         });
+        setResonanceLetter(finalThought);
+        setIsGeneratingResonance(false);
       }
-      setIsGeneratingResonance(false);
 
       // Save reflection
       const reflection = await saveDailyReflection(auth.user.id, {
@@ -244,7 +246,7 @@ export default function EveningAuditScreen() {
         reflection_type: 'evening',
         wins: filteredWins,
         lessons: filteredLessons,
-        ai_closing_thought: letter,
+        ai_closing_thought: finalThought,
       });
 
       if (reflection) {

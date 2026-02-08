@@ -482,8 +482,6 @@ const styles = StyleSheet.create({
   },
   timeOptionSelected: {
     borderColor: Colors.burnishedGold,
-    backgroundColor: Colors.goldMuted,
-    ...Shadows.gold,
   },
   timeLabel: {
     fontSize: Typography.sizes.title,
@@ -531,7 +529,6 @@ const styles = StyleSheet.create({
   },
   energyOptionSelected: {
     borderColor: Colors.burnishedGold,
-    backgroundColor: Colors.goldMuted,
   },
   energyIconContainer: {
     width: 48,

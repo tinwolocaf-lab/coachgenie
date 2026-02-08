@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Modal,
   KeyboardAvoidingView,
   Platform,
   Linking,
@@ -28,6 +29,8 @@ import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { AtmosphereGallery } from '@/components/settings/AtmosphereGallery';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { useThemeSafe } from '@/contexts/ThemeContext';
+import RevenueCatUI from 'react-native-purchases-ui';
+import { checkSovereignEntitlement, restorePurchases } from '@/lib/revenuecat';
 
 // Dynamic import for auth
 const getAuthHook = () => {
@@ -64,6 +67,8 @@ export default function AccountScreen() {
   const [editedName, setEditedName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
 
   // Animation values
   const headerScale = useSharedValue(1);
@@ -81,12 +86,9 @@ export default function AccountScreen() {
       });
       setEditedName(name);
 
-      // Check if user has sovereign membership (you would typically check this from your subscription service)
-      // For now, we'll check a user metadata flag
-      const hasSovereign = metadata.is_sovereign === true;
-      setSovereignMember(hasSovereign);
+      // Sovereign membership is now checked via RevenueCat in ThemeContext
     }
-  }, [auth?.user, setSovereignMember]);
+  }, [auth?.user]);
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -169,23 +171,39 @@ export default function AccountScreen() {
     );
   };
 
-  const handlePremiumRequired = () => {
-    // Navigate to subscription/paywall screen
+  const handlePremiumRequired = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert(
-      'Sovereign Membership Required',
-      'Unlock premium atmospheres and exclusive features with Sovereign membership.',
-      [
-        { text: 'Maybe Later', style: 'cancel' },
-        {
-          text: 'Learn More',
-          onPress: () => {
-            // Navigate to subscription screen when available
-            console.log('Navigate to subscription');
-          }
-        },
-      ]
-    );
+    try {
+      await RevenueCatUI.presentPaywall();
+      // After paywall closes, check if purchase was made
+      const isSovereign = await checkSovereignEntitlement();
+      setSovereignMember(isSovereign);
+    } catch (error) {
+      console.error('[Paywall] Error presenting paywall:', error);
+    }
+  };
+
+  const handleChangePassword = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setNewPassword('');
+    setShowPasswordModal(true);
+  };
+
+  const handleSubmitPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters.');
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setShowPasswordModal(false);
+      setNewPassword('');
+      Alert.alert('Success', 'Your password has been updated.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update password.';
+      Alert.alert('Error', message);
+    }
   };
 
   const handleManageSubscription = async () => {
@@ -308,7 +326,7 @@ export default function AccountScreen() {
     );
   }
 
-  return (
+  return (<>
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -445,7 +463,7 @@ export default function AccountScreen() {
 
             <View style={[styles.subscriptionCard, { borderColor: palette.borderAccent }]}>
               <LinearGradient
-                colors={[palette.accentMuted, `${palette.accent}08`]}
+                colors={[`${palette.accent}06`, `${palette.accent}03`]}
                 style={styles.subscriptionGradient}
               >
                 <View style={styles.subscriptionHeader}>
@@ -497,7 +515,7 @@ export default function AccountScreen() {
             </View>
 
             <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
-              <TouchableOpacity style={styles.settingItemClickable}>
+              <TouchableOpacity style={styles.settingItemClickable} onPress={handleChangePassword}>
                 <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
                   <Ionicons name="lock-closed-outline" size={20} color={palette.accent} />
                 </View>
@@ -535,6 +553,47 @@ export default function AccountScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+
+    {/* Password Change Modal */}
+    <Modal
+      visible={showPasswordModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowPasswordModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: palette.cardBg }]}>
+          <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>Change Password</Text>
+          <Text style={[styles.modalSubtitle, { color: palette.textTertiary }]}>
+            Enter your new password (minimum 6 characters)
+          </Text>
+          <TextInput
+            style={[styles.modalInput, { color: palette.textPrimary, borderColor: palette.border }]}
+            placeholder="New password"
+            placeholderTextColor={palette.textTertiary}
+            secureTextEntry
+            value={newPassword}
+            onChangeText={setNewPassword}
+            autoFocus
+          />
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => { setShowPasswordModal(false); setNewPassword(''); }}
+            >
+              <Text style={[styles.modalCancelText, { color: palette.textTertiary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, { backgroundColor: palette.accent }]}
+              onPress={handleSubmitPassword}
+            >
+              <Text style={styles.modalSubmitText}>Update</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  </>
   );
 }
 
@@ -886,5 +945,60 @@ const styles = StyleSheet.create({
   // Bottom Spacer
   bottomSpacer: {
     height: 40,
+  },
+
+  // Password Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: Radius.lg,
+    padding: Spacing.xl,
+  },
+  modalTitle: {
+    fontSize: Typography.sizes.title,
+    fontFamily: Typography.fonts.serif,
+    fontWeight: Typography.weights.bold,
+    marginBottom: Spacing.sm,
+  },
+  modalSubtitle: {
+    fontSize: Typography.sizes.body,
+    marginBottom: Spacing.lg,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    fontSize: Typography.sizes.body,
+    marginBottom: Spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
+  },
+  modalCancelBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+  },
+  modalCancelText: {
+    fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sansMedium,
+  },
+  modalSubmitBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.md,
+  },
+  modalSubmitText: {
+    fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sansMedium,
+    color: '#FFFFFF',
   },
 });

@@ -581,7 +581,6 @@ const styles = StyleSheet.create({
   },
   lengthOptionSelected: {
     borderColor: Colors.burnishedGold,
-    backgroundColor: Colors.goldMuted,
   },
   lengthIcon: {
     width: 40,

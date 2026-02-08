@@ -10,6 +10,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
 import { FocusModeProvider } from '@/contexts/FocusModeContext';
 import { usePremiumFonts } from '@/hooks/usePremiumFonts';
+import { initRevenueCat, identifyUser, logOutUser } from '@/lib/revenuecat';
 
 // Conditionally import AuthProvider
 let AuthProvider: React.ComponentType<{
@@ -155,6 +156,7 @@ function ThemedAppContent() {
   const { fontsLoaded } = usePremiumFonts();
 
   useEffect(() => {
+    initRevenueCat();
     checkOnboarding();
   }, []);
 
@@ -275,7 +277,7 @@ function ThemedAppContent() {
         }}
       />
       <Stack.Screen
-        name="oracle"
+        name="oracle/index"
         options={{
           animation: 'fade',
           animationDuration: 600,
@@ -326,11 +328,16 @@ export default function RootLayout() {
           login: '/(auth)/login',
           afterLogin: '/(tabs)',
         }}
-        onSignIn={(user) => {
+        onSignIn={async (user) => {
           console.log('[Auth] User signed in:', user.email);
+          if (user.email) {
+            const { data } = await supabase.auth.getUser();
+            if (data.user) await identifyUser(data.user.id);
+          }
         }}
-        onSignOut={() => {
+        onSignOut={async () => {
           console.log('[Auth] User signed out');
+          await logOutUser();
         }}
         onError={(error) => {
           console.log('[Auth] Error:', error.type, error.message);

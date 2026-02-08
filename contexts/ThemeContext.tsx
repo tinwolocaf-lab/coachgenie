@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { checkSovereignEntitlement, addCustomerInfoUpdateListener, hasSovereignEntitlement } from '@/lib/revenuecat';
 
 // Theme IDs
 export type AtmosphereId = 'original' | 'midnight-gallery' | 'botanist' | 'architect' | 'desert-solstice';
@@ -420,6 +421,15 @@ export function ThemeProvider({ children, initialAtmosphere = 'original' }: Them
       console.error('Error loading saved theme:', error);
     }
   }, [isSovereignMember]);
+
+  // Check RevenueCat entitlement and listen for updates
+  useEffect(() => {
+    checkSovereignEntitlement().then(setIsSovereignMember);
+    const unsubscribe = addCustomerInfoUpdateListener((info) => {
+      setIsSovereignMember(hasSovereignEntitlement(info));
+    });
+    return unsubscribe;
+  }, []);
 
   // Load saved theme on mount
   useEffect(() => {

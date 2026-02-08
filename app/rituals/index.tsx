@@ -152,7 +152,9 @@ export default function RitualsHubScreen() {
 
   const handleNudgePress = (nudge: EditorialNudge) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Could navigate to related chapter or ritual
+    if (nudge.related_chapter_id) {
+      router.push('/rituals/chapters');
+    }
   };
 
   const handleBackPress = () => {
@@ -377,7 +379,7 @@ export default function RitualsHubScreen() {
                   <RitualCard
                     ritual={ritual}
                     onToggle={handleRitualToggle}
-                    onPress={() => {}}
+                    onPress={(id) => handleRitualToggle(id, !ritual.is_completed_today)}
                     showStreak
                     showLinkedInsight
                   />

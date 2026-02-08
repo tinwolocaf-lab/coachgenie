@@ -1,7 +1,55 @@
 // AI Oracle Service - Phase 3: The Oracle & AI Resonance
 // Socratic coaching conversations and personalized AI letters
-import { generateText } from '@fastshot/ai';
+import { supabase } from '@/lib/supabase';
 import { ContextVault, Message } from '@/types';
+
+async function generateText({ prompt }: { prompt: string }): Promise<string> {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL');
+
+  const baseUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1`;
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Missing Supabase access token');
+
+  const response = await fetch(`${baseUrl}/chat-stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      session_id: `oracle-${Date.now()}`,
+      user_message: prompt,
+      client_context: { screen: 'oracle' },
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || 'Failed to generate text');
+  }
+
+  // Parse SSE response to extract full text
+  const body = await response.text();
+  let fullText = '';
+  const blocks = body.split('\n\n').filter(Boolean);
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    let event = 'message';
+    let eventData = '';
+    for (const line of lines) {
+      if (line.startsWith('event:')) event = line.replace('event:', '').trim();
+      else if (line.startsWith('data:')) eventData += line.replace('data:', '').trim();
+    }
+    if (event === 'token' && eventData) {
+      try { fullText += JSON.parse(eventData).t || ''; } catch {}
+    } else if (event === 'done' && eventData) {
+      try { fullText = JSON.parse(eventData).text || fullText; } catch {}
+    }
+  }
+  return fullText;
+}
 
 // Build the Oracle's Socratic coaching prompt
 export function buildOraclePrompt(
