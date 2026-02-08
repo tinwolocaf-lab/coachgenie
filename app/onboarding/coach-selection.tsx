@@ -19,7 +19,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { SAMPLE_COACHES } from '@/data/coaches';
@@ -39,6 +40,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function CoachSelectionScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const [selectedCoachId, setSelectedCoachId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -138,13 +140,13 @@ export default function CoachSelectionScreen() {
   const displayedCoaches = SAMPLE_COACHES.slice(0, 3);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       {/* Progress indicator */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <Animated.View style={[styles.progressFill, { width: '80%' }]} />
+        <View style={[styles.progressBar, { backgroundColor: palette.border }]}>
+          <Animated.View style={[styles.progressFill, { width: '80%', backgroundColor: palette.accent }]} />
         </View>
-        <Text style={styles.progressText}>4 of 5</Text>
+        <Text style={[styles.progressText, { color: palette.textTertiary }]}>4 of 5</Text>
       </View>
 
       <ScrollView
@@ -155,18 +157,18 @@ export default function CoachSelectionScreen() {
         {/* Completion Badge */}
         <Animated.View entering={FadeInUp.duration(600)} style={styles.completionBadge}>
           <LinearGradient
-            colors={[Colors.burnishedGold, Colors.goldLight]}
+            colors={[palette.accent, palette.accentLight]}
             style={styles.badgeGradient}
           >
-            <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
-            <Text style={styles.badgeText}>Profile Complete</Text>
+            <Ionicons name="checkmark-circle" size={20} color={palette.textInverse} />
+            <Text style={[styles.badgeText, { color: palette.textInverse }]}>Profile Complete</Text>
           </LinearGradient>
         </Animated.View>
 
         {/* Header */}
         <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.headerSection}>
-          <Text style={styles.title}>Choose your guide</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>Choose your guide</Text>
+          <Text style={[styles.subtitle, { color: palette.textTertiary }]}>
             Your Context Vault is ready. Select a coach to begin your personalized journey.
           </Text>
         </Animated.View>
@@ -190,8 +192,8 @@ export default function CoachSelectionScreen() {
         {/* Skip Option */}
         <Animated.View entering={FadeIn.duration(400).delay(800)}>
           <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-            <Text style={styles.skipText}>Continue with default coach</Text>
-            <Ionicons name="arrow-forward" size={16} color={Colors.stoneGray} />
+            <Text style={[styles.skipText, { color: palette.textTertiary }]}>Continue with default coach</Text>
+            <Ionicons name="arrow-forward" size={16} color={palette.textTertiary} />
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
@@ -226,6 +228,7 @@ function PremiumCoachCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -243,7 +246,7 @@ function PremiumCoachCard({
   return (
     <Animated.View style={animatedStyle}>
       <TouchableOpacity
-        style={[styles.coachCard, selected && styles.coachCardSelected]}
+        style={[styles.coachCard, { backgroundColor: palette.textInverse }, selected && { borderColor: palette.accent, ...Shadows.gold }]}
         onPress={onSelect}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -256,20 +259,20 @@ function PremiumCoachCard({
           >
             {/* Selection Badge */}
             <View style={styles.selectionBadge}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
-              <Text style={styles.selectionBadgeText}>Selected</Text>
+              <Ionicons name="checkmark-circle" size={20} color={palette.textInverse} />
+              <Text style={[styles.selectionBadgeText, { color: palette.textInverse }]}>Selected</Text>
             </View>
 
             {/* Coach Info */}
             <View style={styles.selectedCoachContent}>
               <CoachIcon
                 iconName={coach.icon_name}
-                color={Colors.white}
+                color={palette.textInverse}
                 size="xl"
                 variant="solid"
                 style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
               />
-              <Text style={styles.selectedCoachName}>{coach.name}</Text>
+              <Text style={[styles.selectedCoachName, { color: palette.textInverse }]}>{coach.name}</Text>
               <Text style={styles.selectedCoachTagline}>{coach.tagline}</Text>
             </View>
 
@@ -290,15 +293,15 @@ function PremiumCoachCard({
                 variant="default"
               />
               <View style={styles.coachInfo}>
-                <Text style={styles.coachName}>{coach.name}</Text>
-                <Text style={styles.coachTagline}>{coach.tagline}</Text>
+                <Text style={[styles.coachName, { color: palette.textPrimary }]}>{coach.name}</Text>
+                <Text style={[styles.coachTagline, { color: palette.textTertiary }]}>{coach.tagline}</Text>
               </View>
             </View>
 
             {/* Method Preview */}
-            <View style={styles.methodSection}>
+            <View style={[styles.methodSection, { backgroundColor: palette.backgroundSecondary }]}>
               <View style={[styles.methodAccent, { backgroundColor: coach.color }]} />
-              <Text style={styles.methodText} numberOfLines={2}>
+              <Text style={[styles.methodText, { color: palette.textTertiary }]} numberOfLines={2}>
                 {coach.method}
               </Text>
             </View>
@@ -320,7 +323,6 @@ function PremiumCoachCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Progress
@@ -334,18 +336,15 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: Colors.border,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.burnishedGold,
     borderRadius: 2,
   },
   progressText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontWeight: Typography.weights.medium,
   },
 
@@ -375,7 +374,6 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wide,
   },
@@ -387,13 +385,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.md,
   },
   subtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -405,14 +401,9 @@ const styles = StyleSheet.create({
   coachCard: {
     borderRadius: Radius.squircle,
     overflow: 'hidden',
-    backgroundColor: Colors.white,
     borderWidth: 2,
     borderColor: 'transparent',
     ...Shadows.md,
-  },
-  coachCardSelected: {
-    borderColor: Colors.burnishedGold,
-    ...Shadows.gold,
   },
   cardContent: {
     padding: Spacing.xl,
@@ -436,7 +427,6 @@ const styles = StyleSheet.create({
   selectionBadgeText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
   },
   selectedCoachContent: {
     alignItems: 'center',
@@ -445,7 +435,6 @@ const styles = StyleSheet.create({
   selectedCoachName: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
     marginTop: Spacing.lg,
     textAlign: 'center',
@@ -485,18 +474,15 @@ const styles = StyleSheet.create({
   coachName: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   coachTagline: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.xs,
   },
   methodSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.warmOatmealDark,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.lg,
@@ -511,7 +497,6 @@ const styles = StyleSheet.create({
   methodText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.slate,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
   selectButton: {
@@ -536,7 +521,6 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
   },
 
   // Footer

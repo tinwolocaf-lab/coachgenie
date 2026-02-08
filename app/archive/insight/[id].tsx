@@ -21,7 +21,8 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { toggleInsightHighlight } from '@/lib/supabase-sanctuary';
 import { createRitualFromInsight, getRituals } from '@/lib/supabase-rituals';
@@ -47,6 +48,7 @@ const getAuthHook = () => {
 export default function InsightDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -200,9 +202,9 @@ export default function InsightDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.burnishedGold} />
+          <ActivityIndicator size="large" color={palette.accent} />
         </View>
       </SafeAreaView>
     );
@@ -210,12 +212,12 @@ export default function InsightDetailScreen() {
 
   if (!insight) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={Colors.stoneGray} />
-          <Text style={styles.errorText}>Insight not found</Text>
-          <TouchableOpacity style={styles.backButtonError} onPress={handleBackPress}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+          <Ionicons name="alert-circle-outline" size={48} color={palette.textTertiary} />
+          <Text style={[styles.errorText, { color: palette.textSecondary }]}>Insight not found</Text>
+          <TouchableOpacity style={[styles.backButtonError, { backgroundColor: palette.accent }]} onPress={handleBackPress}>
+            <Text style={[styles.backButtonText, { color: palette.textInverse }]}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -236,26 +238,26 @@ export default function InsightDetailScreen() {
     strategy: ['#2C1E1B', '#4A3632'],
     productivity: ['#1A2A3A', '#2B3D50'],
     systems: ['#2A2A1A', '#454530'],
-    general: [Colors.midnightEmerald, '#243D2E'],
+    general: [palette.gradientStart, palette.gradientEnd],
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { borderBottomColor: palette.borderLight }]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Ionicons name="chevron-back" size={24} color={Colors.midnightEmerald} />
+          <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.actionButton} onPress={handleToggleHighlight}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: palette.cardBg }]} onPress={handleToggleHighlight}>
             <Ionicons
               name={isHighlighted ? 'star' : 'star-outline'}
               size={22}
-              color={isHighlighted ? Colors.burnishedGold : Colors.stoneGray}
+              color={isHighlighted ? palette.accent : palette.textTertiary}
             />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={22} color={Colors.stoneGray} />
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: palette.cardBg }]} onPress={handleShare}>
+            <Ionicons name="share-outline" size={22} color={palette.textTertiary} />
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -271,13 +273,13 @@ export default function InsightDetailScreen() {
             colors={categoryColors[insight.category] || categoryColors.general}
             style={styles.categoryGradient}
           >
-            <Text style={styles.categoryLabel}>
+            <Text style={[styles.categoryLabel, { color: palette.textInverse }]}>
               {insight.category.charAt(0).toUpperCase() + insight.category.slice(1)}
             </Text>
             {isHighlighted && (
               <View style={styles.highlightBadge}>
-                <Ionicons name="star" size={12} color={Colors.burnishedGold} />
-                <Text style={styles.highlightText}>Highlighted</Text>
+                <Ionicons name="star" size={12} color={palette.accent} />
+                <Text style={[styles.highlightText, { color: palette.accentLight }]}>Highlighted</Text>
               </View>
             )}
           </LinearGradient>
@@ -285,13 +287,13 @@ export default function InsightDetailScreen() {
 
         {/* Date */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.dateContainer}>
-          <Text style={styles.dateText}>{formattedDate}</Text>
+          <Text style={[styles.dateText, { color: palette.textTertiary }]}>{formattedDate}</Text>
         </Animated.View>
 
         {/* Title */}
         <Animated.Text
           entering={FadeInDown.duration(500).delay(200)}
-          style={styles.insightTitle}
+          style={[styles.insightTitle, { color: palette.textPrimary }]}
         >
           {insight.title}
         </Animated.Text>
@@ -301,15 +303,15 @@ export default function InsightDetailScreen() {
           entering={FadeInDown.duration(500).delay(300)}
           style={styles.decorativeLine}
         >
-          <View style={styles.lineSegment} />
-          <Ionicons name="sparkles" size={16} color={Colors.burnishedGold} />
-          <View style={styles.lineSegment} />
+          <View style={[styles.lineSegment, { backgroundColor: palette.borderLight }]} />
+          <Ionicons name="sparkles" size={16} color={palette.accent} />
+          <View style={[styles.lineSegment, { backgroundColor: palette.borderLight }]} />
         </Animated.View>
 
         {/* Content */}
         <Animated.Text
           entering={FadeInDown.duration(500).delay(400)}
-          style={styles.insightContent}
+          style={[styles.insightContent, { color: palette.textSecondary }]}
         >
           {insight.content}
         </Animated.Text>
@@ -317,16 +319,16 @@ export default function InsightDetailScreen() {
         {/* Coach Attribution */}
         <Animated.View
           entering={FadeInDown.duration(500).delay(500)}
-          style={styles.coachAttribution}
+          style={[styles.coachAttribution, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
         >
           <CoachIcon
             iconName={coach?.icon_name || 'person'}
-            color={coach?.color || Colors.burnishedGold}
+            color={coach?.color || palette.accent}
             size="sm"
           />
           <View style={styles.coachInfo}>
-            <Text style={styles.coachLabel}>Insight from</Text>
-            <Text style={styles.coachName}>{coach?.name || 'Coach'}</Text>
+            <Text style={[styles.coachLabel, { color: palette.textTertiary }]}>Insight from</Text>
+            <Text style={[styles.coachName, { color: palette.textSecondary }]}>{coach?.name || 'Coach'}</Text>
           </View>
         </Animated.View>
 
@@ -334,15 +336,15 @@ export default function InsightDetailScreen() {
         {insight.session_id && (
           <Animated.View entering={FadeInDown.duration(500).delay(600)}>
             <TouchableOpacity
-              style={styles.sessionLink}
+              style={[styles.sessionLink, { backgroundColor: palette.accentMuted, borderColor: palette.borderAccent }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(`/archive/session/${insight.session_id}`);
               }}
             >
-              <Ionicons name="chatbubbles-outline" size={18} color={Colors.burnishedGold} />
-              <Text style={styles.sessionLinkText}>View Full Session</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.stoneGray} />
+              <Ionicons name="chatbubbles-outline" size={18} color={palette.accent} />
+              <Text style={[styles.sessionLinkText, { color: palette.textSecondary }]}>View Full Session</Text>
+              <Ionicons name="chevron-forward" size={16} color={palette.textTertiary} />
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -351,9 +353,9 @@ export default function InsightDetailScreen() {
         {auth?.user && (
           <Animated.View entering={FadeInDown.duration(500).delay(700)} style={styles.actionSection}>
             <View style={styles.actionDivider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Turn insight into action</Text>
-              <View style={styles.dividerLine} />
+              <View style={[styles.dividerLine, { backgroundColor: palette.borderLight }]} />
+              <Text style={[styles.dividerText, { color: palette.textTertiary }]}>Turn insight into action</Text>
+              <View style={[styles.dividerLine, { backgroundColor: palette.borderLight }]} />
             </View>
 
             <TouchableOpacity
@@ -362,17 +364,17 @@ export default function InsightDetailScreen() {
               activeOpacity={0.9}
             >
               <LinearGradient
-                colors={[Colors.midnightEmerald, '#2D4A38']}
+                colors={[palette.textPrimary, '#2D4A38']}
                 style={styles.createRitualGradient}
               >
                 <View style={styles.createRitualIcon}>
-                  <Ionicons name="leaf" size={24} color={Colors.burnishedGold} />
+                  <Ionicons name="leaf" size={24} color={palette.accent} />
                 </View>
                 <View style={styles.createRitualContent}>
-                  <Text style={styles.createRitualTitle}>Create a Daily Ritual</Text>
-                  <Text style={styles.createRitualSubtitle}>Transform this insight into a habit</Text>
+                  <Text style={[styles.createRitualTitle, { color: palette.textInverse }]}>Create a Daily Ritual</Text>
+                  <Text style={[styles.createRitualSubtitle, { color: palette.accentLight }]}>Transform this insight into a habit</Text>
                 </View>
-                <Ionicons name="add-circle" size={28} color={Colors.burnishedGold} />
+                <Ionicons name="add-circle" size={28} color={palette.accent} />
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -388,62 +390,62 @@ export default function InsightDetailScreen() {
         presentationStyle="pageSheet"
         onRequestClose={handleCloseRitualModal}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: palette.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: palette.borderLight }]}>
             <TouchableOpacity onPress={handleCloseRitualModal} style={styles.modalClose}>
-              <Ionicons name="close" size={24} color={Colors.charcoal} />
+              <Ionicons name="close" size={24} color={palette.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>New Daily Ritual</Text>
+            <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>New Daily Ritual</Text>
             <View style={styles.modalClose} />
           </View>
 
           {ritualCreated ? (
             <Animated.View entering={FadeInUp.duration(500)} style={styles.successContainer}>
               <View style={styles.successIcon}>
-                <Ionicons name="checkmark-circle" size={64} color={Colors.success} />
+                <Ionicons name="checkmark-circle" size={64} color={palette.success} />
               </View>
-              <Text style={styles.successTitle}>Ritual Created!</Text>
-              <Text style={styles.successSubtitle}>
+              <Text style={[styles.successTitle, { color: palette.textPrimary }]}>Ritual Created!</Text>
+              <Text style={[styles.successSubtitle, { color: palette.textTertiary }]}>
                 Your new daily ritual has been added to The Practice
               </Text>
             </Animated.View>
           ) : (
             <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
               {/* Source Insight */}
-              <View style={styles.sourceInsight}>
-                <Text style={styles.sourceLabel}>Based on insight:</Text>
-                <Text style={styles.sourceTitle} numberOfLines={2}>{insight?.title}</Text>
+              <View style={[styles.sourceInsight, { backgroundColor: palette.accentMuted, borderColor: palette.borderAccent }]}>
+                <Text style={[styles.sourceLabel, { color: palette.textTertiary }]}>Based on insight:</Text>
+                <Text style={[styles.sourceTitle, { color: palette.textSecondary }]} numberOfLines={2}>{insight?.title}</Text>
               </View>
 
               {isSuggestingRitual ? (
                 <View style={styles.suggestingContainer}>
-                  <ActivityIndicator size="large" color={Colors.burnishedGold} />
-                  <Text style={styles.suggestingText}>AI is crafting a ritual suggestion...</Text>
+                  <ActivityIndicator size="large" color={palette.accent} />
+                  <Text style={[styles.suggestingText, { color: palette.textTertiary }]}>AI is crafting a ritual suggestion...</Text>
                 </View>
               ) : (
                 <>
                   {/* Ritual Name Input */}
                   <View style={styles.inputSection}>
-                    <Text style={styles.inputLabel}>Ritual Name</Text>
+                    <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Ritual Name</Text>
                     <TextInput
-                      style={styles.textInput}
+                      style={[styles.textInput, { backgroundColor: palette.cardBg, borderColor: palette.border, color: palette.textSecondary }]}
                       value={ritualTitle}
                       onChangeText={setRitualTitle}
                       placeholder="e.g., Morning Gratitude Practice"
-                      placeholderTextColor={Colors.stoneGray}
+                      placeholderTextColor={palette.textTertiary}
                       maxLength={50}
                     />
                   </View>
 
                   {/* Description Input */}
                   <View style={styles.inputSection}>
-                    <Text style={styles.inputLabel}>Description (optional)</Text>
+                    <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Description (optional)</Text>
                     <TextInput
-                      style={[styles.textInput, styles.textInputMultiline]}
+                      style={[styles.textInput, styles.textInputMultiline, { backgroundColor: palette.cardBg, borderColor: palette.border, color: palette.textSecondary }]}
                       value={ritualDescription}
                       onChangeText={setRitualDescription}
                       placeholder="What does this ritual involve?"
-                      placeholderTextColor={Colors.stoneGray}
+                      placeholderTextColor={palette.textTertiary}
                       multiline
                       numberOfLines={3}
                       maxLength={200}
@@ -451,9 +453,9 @@ export default function InsightDetailScreen() {
                   </View>
 
                   {/* Info Note */}
-                  <View style={styles.infoNote}>
-                    <Ionicons name="information-circle" size={18} color={Colors.burnishedGold} />
-                    <Text style={styles.infoNoteText}>
+                  <View style={[styles.infoNote, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="information-circle" size={18} color={palette.accent} />
+                    <Text style={[styles.infoNoteText, { color: palette.textSecondary }]}>
                       This ritual will be linked to this insight and appear in your daily Practice.
                     </Text>
                   </View>
@@ -482,7 +484,6 @@ export default function InsightDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   loadingContainer: {
     flex: 1,
@@ -499,20 +500,17 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
     marginTop: Spacing.lg,
   },
   backButtonError: {
     marginTop: Spacing.xl,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.burnishedGold,
     borderRadius: Radius.pill,
   },
   backButtonText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
   },
   header: {
     flexDirection: 'row',
@@ -521,7 +519,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   backButton: {
     width: 40,
@@ -537,7 +534,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.cream,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -563,7 +559,6 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
   },
@@ -578,7 +573,6 @@ const styles = StyleSheet.create({
   },
   highlightText: {
     fontSize: Typography.sizes.micro,
-    color: Colors.goldLight,
     fontWeight: Typography.weights.medium,
   },
   dateContainer: {
@@ -586,13 +580,11 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   insightTitle: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     lineHeight: Typography.sizes.display * Typography.lineHeights.tight,
     marginBottom: Spacing.xl,
   },
@@ -605,11 +597,9 @@ const styles = StyleSheet.create({
   lineSegment: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.borderLight,
   },
   insightContent: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.loose,
     marginBottom: Spacing.xxl,
   },
@@ -617,42 +607,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: Colors.cream,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     marginBottom: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   coachInfo: {
     flex: 1,
   },
   coachLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: 2,
   },
   coachName: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
   },
   sessionLink: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.goldMuted,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.borderGold,
   },
   sessionLinkText: {
     flex: 1,
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
   },
 
   // Action Section - Insight to Action
@@ -668,11 +651,9 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.borderLight,
   },
   dividerText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
     letterSpacing: Typography.letterSpacing.wide,
   },
@@ -702,18 +683,15 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.white,
     marginBottom: 2,
   },
   createRitualSubtitle: {
     fontSize: Typography.sizes.caption,
-    color: Colors.goldLight,
   },
 
   // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -722,7 +700,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   modalClose: {
     width: 40,
@@ -734,7 +711,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   modalContent: {
     flex: 1,
@@ -742,22 +718,18 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl,
   },
   sourceInsight: {
-    backgroundColor: Colors.goldMuted,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     marginBottom: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.borderGold,
   },
   sourceLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: Spacing.xs,
   },
   sourceTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
     fontStyle: 'italic',
   },
   suggestingContainer: {
@@ -768,7 +740,6 @@ const styles = StyleSheet.create({
   },
   suggestingText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
   },
   inputSection: {
@@ -777,20 +748,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
     marginBottom: Spacing.sm,
   },
   textInput: {
-    backgroundColor: Colors.cardBg,
     borderWidth: 1,
-    borderColor: Colors.border,
     borderRadius: Radius.lg,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
   },
   textInputMultiline: {
     height: 100,
@@ -800,7 +767,6 @@ const styles = StyleSheet.create({
   infoNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.goldMuted,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     marginBottom: Spacing.xl,
@@ -809,7 +775,6 @@ const styles = StyleSheet.create({
   infoNoteText: {
     flex: 1,
     fontSize: Typography.sizes.caption,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.caption * Typography.lineHeights.relaxed,
   },
   successContainer: {
@@ -825,12 +790,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.sm,
   },
   successSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
   },
   modalSpacer: {

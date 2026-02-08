@@ -9,7 +9,8 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface QuickAction {
   id: string;
@@ -25,6 +26,7 @@ interface QuickActionsProps {
 }
 
 function QuickActionButton({ action, index, baseDelay }: { action: QuickAction; index: number; baseDelay: number }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
@@ -63,26 +65,34 @@ function QuickActionButton({ action, index, baseDelay }: { action: QuickAction; 
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={1}
-        style={styles.actionButton}
+        style={[
+          styles.actionButton,
+          {
+            backgroundColor: palette.cardBg,
+            borderColor: palette.borderLight,
+          },
+        ]}
       >
-        <View style={styles.iconContainer}>
-          <Ionicons name={action.icon} size={22} color={Colors.midnightEmerald} />
+        <View style={[styles.iconContainer, { backgroundColor: palette.accentMuted }]}>
+          <Ionicons name={action.icon} size={22} color={palette.textPrimary} />
           {action.badge !== undefined && action.badge > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{action.badge > 9 ? '9+' : action.badge}</Text>
+            <View style={[styles.badge, { backgroundColor: palette.error, borderColor: palette.cardBg }]}>
+              <Text style={[styles.badgeText, { color: palette.textInverse }]}>{action.badge > 9 ? '9+' : action.badge}</Text>
             </View>
           )}
         </View>
-        <Text style={styles.actionLabel}>{action.label}</Text>
+        <Text style={[styles.actionLabel, { color: palette.textSecondary }]}>{action.label}</Text>
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
 export function QuickActions({ actions, baseDelay = 400 }: QuickActionsProps) {
+  const { palette } = useThemeSafe();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionLabel}>Quick Actions</Text>
+      <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>Quick Actions</Text>
       <View style={styles.actionsGrid}>
         {actions.map((action, index) => (
           <QuickActionButton
@@ -104,7 +114,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.stoneGray,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
     marginBottom: Spacing.lg,
@@ -120,19 +129,16 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     gap: Spacing.md,
     ...Shadows.subtle,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   iconContainer: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -141,25 +147,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: Colors.error,
     width: 18,
     height: 18,
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: Colors.cardBg,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: Typography.weights.bold,
-    color: Colors.white,
   },
   actionLabel: {
     flex: 1,
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.snug,
   },
 });

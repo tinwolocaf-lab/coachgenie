@@ -10,7 +10,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { checkSovereignEntitlement, addCustomerInfoUpdateListener, hasSovereignEntitlement } from '@/lib/revenuecat';
 
 // Theme IDs
-export type AtmosphereId = 'original' | 'midnight-gallery' | 'botanist' | 'architect' | 'desert-solstice';
+export type AtmosphereId = 'original' | 'midnight-gallery' | 'botanist' | 'architect' | 'desert-solstice' | 'paper' | 'graphite' | 'sunset-cove' | 'tropicana';
 
 // Define the complete color palette structure
 export interface AtmospherePalette {
@@ -74,6 +74,14 @@ export interface AtmospherePalette {
 
   // Glow intensity (0-1) for accent elements
   glowIntensity: number;
+
+  // Structural properties
+  useGradients: boolean;
+  shadowIntensity: number;
+  borderWeight: 'thin' | 'normal' | 'thick';
+  cardRadius: number;
+  glassIntensity: number;
+  spacingScale: number;
 }
 
 export interface Atmosphere {
@@ -132,6 +140,12 @@ const originalPalette: AtmospherePalette = {
 
   shadowColor: '#1B3022',
   glowIntensity: 0.25,
+  useGradients: true,
+  shadowIntensity: 1.0,
+  borderWeight: 'normal',
+  cardRadius: 28,
+  glassIntensity: 1.0,
+  spacingScale: 1.0,
 };
 
 // Midnight Gallery - Sophisticated dark mode
@@ -182,6 +196,12 @@ const midnightGalleryPalette: AtmospherePalette = {
 
   shadowColor: '#000000',
   glowIntensity: 0.2,
+  useGradients: true,
+  shadowIntensity: 1.0,
+  borderWeight: 'normal',
+  cardRadius: 28,
+  glassIntensity: 1.0,
+  spacingScale: 1.0,
 };
 
 // The Botanist - Nature-inspired with sage and bronze
@@ -232,6 +252,12 @@ const botanistPalette: AtmospherePalette = {
 
   shadowColor: '#2C3530',
   glowIntensity: 0.2,
+  useGradients: true,
+  shadowIntensity: 1.0,
+  borderWeight: 'normal',
+  cardRadius: 28,
+  glassIntensity: 1.0,
+  spacingScale: 1.0,
 };
 
 // Architect - Ultra-minimalist bone white with chrome
@@ -282,6 +308,12 @@ const architectPalette: AtmospherePalette = {
 
   shadowColor: '#0A0A0A',
   glowIntensity: 0.08,
+  useGradients: true,
+  shadowIntensity: 0.6,
+  borderWeight: 'thin',
+  cardRadius: 28,
+  glassIntensity: 0.8,
+  spacingScale: 1.0,
 };
 
 // Desert Solstice - Warm terracotta and sun-bleached clay
@@ -332,6 +364,236 @@ const desertSolsticePalette: AtmospherePalette = {
 
   shadowColor: '#3A2E28',
   glowIntensity: 0.22,
+  useGradients: true,
+  shadowIntensity: 1.0,
+  borderWeight: 'normal',
+  cardRadius: 28,
+  glassIntensity: 1.0,
+  spacingScale: 1.0,
+};
+
+// Paper - Pure white minimalism, like a premium notebook
+const paperPalette: AtmospherePalette = {
+  background: '#FFFFFF',
+  backgroundSecondary: '#FAFAFA',
+  cardBg: '#FFFFFF',
+
+  textPrimary: '#2C2C2C',
+  textSecondary: '#5A5A5A',
+  textTertiary: '#999999',
+  textInverse: '#FFFFFF',
+
+  accent: '#2C2C2C',
+  accentLight: '#5A5A5A',
+  accentMuted: 'rgba(44, 44, 44, 0.08)',
+  accentShimmer: 'rgba(44, 44, 44, 0.12)',
+
+  success: '#4A7A5C',
+  successLight: 'rgba(74, 122, 92, 0.08)',
+  warning: '#B8860B',
+  warningLight: 'rgba(184, 134, 11, 0.08)',
+  error: '#C44D4D',
+  errorLight: 'rgba(196, 77, 77, 0.08)',
+
+  border: 'rgba(0, 0, 0, 0.06)',
+  borderAccent: 'rgba(0, 0, 0, 0.12)',
+  borderLight: 'rgba(0, 0, 0, 0.03)',
+
+  glassBg: 'rgba(255, 255, 255, 0.95)',
+  glassBlur: 'rgba(255, 255, 255, 0.9)',
+  glassBorder: 'rgba(0, 0, 0, 0.04)',
+
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  overlayLight: 'rgba(0, 0, 0, 0.2)',
+
+  userMessage: '#2C2C2C',
+  aiMessage: 'rgba(250, 250, 250, 0.95)',
+
+  gradientStart: '#2C2C2C',
+  gradientEnd: '#3A3A3A',
+
+  statusBarStyle: 'dark',
+
+  tabBarBg: 'rgba(255, 255, 255, 0.98)',
+  tabBarActive: '#2C2C2C',
+  tabBarInactive: '#BBBBBB',
+
+  shadowColor: '#000000',
+  glowIntensity: 0.0,
+  useGradients: false,
+  shadowIntensity: 0.15,
+  borderWeight: 'thin',
+  cardRadius: 12,
+  glassIntensity: 0.3,
+  spacingScale: 1.1,
+};
+
+// Graphite - Monochrome dark mode, flat design
+const graphitePalette: AtmospherePalette = {
+  background: '#1A1A1A',
+  backgroundSecondary: '#222222',
+  cardBg: '#2A2A2A',
+
+  textPrimary: '#E8E8E8',
+  textSecondary: '#B0B0B0',
+  textTertiary: '#707070',
+  textInverse: '#1A1A1A',
+
+  accent: '#E0E0E0',
+  accentLight: '#F0F0F0',
+  accentMuted: 'rgba(224, 224, 224, 0.1)',
+  accentShimmer: 'rgba(224, 224, 224, 0.15)',
+
+  success: '#6BBF6B',
+  successLight: 'rgba(107, 191, 107, 0.12)',
+  warning: '#D4A857',
+  warningLight: 'rgba(212, 168, 87, 0.12)',
+  error: '#E06060',
+  errorLight: 'rgba(224, 96, 96, 0.12)',
+
+  border: 'rgba(255, 255, 255, 0.06)',
+  borderAccent: 'rgba(255, 255, 255, 0.15)',
+  borderLight: 'rgba(255, 255, 255, 0.03)',
+
+  glassBg: 'rgba(26, 26, 26, 0.95)',
+  glassBlur: 'rgba(42, 42, 42, 0.8)',
+  glassBorder: 'rgba(255, 255, 255, 0.06)',
+
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  overlayLight: 'rgba(0, 0, 0, 0.4)',
+
+  userMessage: '#2A2A2A',
+  aiMessage: 'rgba(34, 34, 34, 0.95)',
+
+  gradientStart: '#333333',
+  gradientEnd: '#2A2A2A',
+
+  statusBarStyle: 'light',
+
+  tabBarBg: 'rgba(26, 26, 26, 0.98)',
+  tabBarActive: '#E0E0E0',
+  tabBarInactive: '#555555',
+
+  shadowColor: '#000000',
+  glowIntensity: 0.0,
+  useGradients: false,
+  shadowIntensity: 0.1,
+  borderWeight: 'thin',
+  cardRadius: 8,
+  glassIntensity: 0.2,
+  spacingScale: 1.0,
+};
+
+// Sunset Cove - Warm coral and deep teal
+const sunsetCovePalette: AtmospherePalette = {
+  background: '#FFF8F5',
+  backgroundSecondary: '#FFF0EB',
+  cardBg: '#FFFAF8',
+
+  textPrimary: '#1A3B3B',
+  textSecondary: '#2D5454',
+  textTertiary: '#8A9E9E',
+  textInverse: '#FFFAF8',
+
+  accent: '#FF6B4A',
+  accentLight: '#FF8A70',
+  accentMuted: 'rgba(255, 107, 74, 0.12)',
+  accentShimmer: 'rgba(255, 107, 74, 0.25)',
+
+  success: '#2A9D8F',
+  successLight: 'rgba(42, 157, 143, 0.12)',
+  warning: '#E9A84C',
+  warningLight: 'rgba(233, 168, 76, 0.12)',
+  error: '#D94040',
+  errorLight: 'rgba(217, 64, 64, 0.12)',
+
+  border: 'rgba(26, 59, 59, 0.08)',
+  borderAccent: 'rgba(255, 107, 74, 0.3)',
+  borderLight: 'rgba(26, 59, 59, 0.04)',
+
+  glassBg: 'rgba(255, 248, 245, 0.9)',
+  glassBlur: 'rgba(255, 250, 248, 0.7)',
+  glassBorder: 'rgba(255, 107, 74, 0.15)',
+
+  overlay: 'rgba(26, 59, 59, 0.6)',
+  overlayLight: 'rgba(26, 59, 59, 0.3)',
+
+  userMessage: '#1A3B3B',
+  aiMessage: 'rgba(255, 248, 245, 0.9)',
+
+  gradientStart: '#FF6B4A',
+  gradientEnd: '#E85535',
+
+  statusBarStyle: 'dark',
+
+  tabBarBg: 'rgba(255, 248, 245, 0.95)',
+  tabBarActive: '#FF6B4A',
+  tabBarInactive: '#8A9E9E',
+
+  shadowColor: '#1A3B3B',
+  glowIntensity: 0.3,
+  useGradients: true,
+  shadowIntensity: 1.1,
+  borderWeight: 'normal',
+  cardRadius: 24,
+  glassIntensity: 1.0,
+  spacingScale: 1.0,
+};
+
+// Tropicana - Teal ocean and burnt orange
+const tropicanaPalette: AtmospherePalette = {
+  background: '#F0FAFA',
+  backgroundSecondary: '#E0F4F4',
+  cardBg: '#F8FDFD',
+
+  textPrimary: '#1A2F2F',
+  textSecondary: '#3A5252',
+  textTertiary: '#7A9494',
+  textInverse: '#F8FDFD',
+
+  accent: '#2A9D8F',
+  accentLight: '#4DB8AC',
+  accentMuted: 'rgba(42, 157, 143, 0.12)',
+  accentShimmer: 'rgba(42, 157, 143, 0.25)',
+
+  success: '#2A9D8F',
+  successLight: 'rgba(42, 157, 143, 0.12)',
+  warning: '#E76F51',
+  warningLight: 'rgba(231, 111, 81, 0.12)',
+  error: '#C44040',
+  errorLight: 'rgba(196, 64, 64, 0.12)',
+
+  border: 'rgba(26, 47, 47, 0.08)',
+  borderAccent: 'rgba(42, 157, 143, 0.3)',
+  borderLight: 'rgba(26, 47, 47, 0.04)',
+
+  glassBg: 'rgba(240, 250, 250, 0.9)',
+  glassBlur: 'rgba(248, 253, 253, 0.7)',
+  glassBorder: 'rgba(42, 157, 143, 0.15)',
+
+  overlay: 'rgba(26, 47, 47, 0.6)',
+  overlayLight: 'rgba(26, 47, 47, 0.3)',
+
+  userMessage: '#1A2F2F',
+  aiMessage: 'rgba(240, 250, 250, 0.9)',
+
+  gradientStart: '#2A9D8F',
+  gradientEnd: '#1E8578',
+
+  statusBarStyle: 'dark',
+
+  tabBarBg: 'rgba(240, 250, 250, 0.95)',
+  tabBarActive: '#2A9D8F',
+  tabBarInactive: '#7A9494',
+
+  shadowColor: '#1A2F2F',
+  glowIntensity: 0.3,
+  useGradients: true,
+  shadowIntensity: 1.1,
+  borderWeight: 'normal',
+  cardRadius: 24,
+  glassIntensity: 1.0,
+  spacingScale: 1.0,
 };
 
 // All atmospheres
@@ -370,6 +632,34 @@ export const ATMOSPHERES: Atmosphere[] = [
     description: 'Warm terracotta and sun-bleached clay - earthy warmth',
     isPremium: true,
     palette: desertSolsticePalette,
+  },
+  {
+    id: 'paper',
+    name: 'Paper',
+    description: 'Pure white minimalism - like a premium notebook',
+    isPremium: false,
+    palette: paperPalette,
+  },
+  {
+    id: 'graphite',
+    name: 'Graphite',
+    description: 'Monochrome dark mode - crisp contrast, zero distractions',
+    isPremium: false,
+    palette: graphitePalette,
+  },
+  {
+    id: 'sunset-cove',
+    name: 'Sunset Cove',
+    description: 'Warm coral and deep teal - tropical warmth at golden hour',
+    isPremium: false,
+    palette: sunsetCovePalette,
+  },
+  {
+    id: 'tropicana',
+    name: 'Tropicana',
+    description: 'Teal ocean and burnt orange - bold tropical energy',
+    isPremium: false,
+    palette: tropicanaPalette,
   },
 ];
 

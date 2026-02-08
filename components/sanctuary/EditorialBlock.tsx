@@ -18,7 +18,8 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { EnhancedMessage } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -42,6 +43,7 @@ export function EditorialBlock({
   onInsightPress,
   isStreaming = false,
 }: EditorialBlockProps) {
+  const { palette } = useThemeSafe();
   const isUser = message.role === 'user';
   const isInsight = message.is_insight;
   const blockRef = useRef<View>(null);
@@ -91,7 +93,7 @@ export function EditorialBlock({
       const parts = content.split('💡 INSIGHT:');
       return (
         <>
-          <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
+          <Text style={[styles.messageText, { color: palette.textSecondary }, isUser && styles.messageTextUser]}>
             {parts[0].trim()}
           </Text>
           {parts[1] && (
@@ -100,11 +102,11 @@ export function EditorialBlock({
               onPress={() => onInsightPress?.(message)}
             >
               <LinearGradient
-                colors={[Colors.goldMuted, 'rgba(197, 160, 89, 0.25)']}
+                colors={[palette.accentMuted, 'rgba(197, 160, 89, 0.25)']}
                 style={styles.inlineInsightGradient}
               >
-                <Ionicons name="bulb" size={16} color={Colors.burnishedGold} />
-                <Text style={styles.inlineInsightText}>
+                <Ionicons name="bulb" size={16} color={palette.accent} />
+                <Text style={[styles.inlineInsightText, { color: palette.textPrimary }]}>
                   {parts[1].trim()}
                 </Text>
               </LinearGradient>
@@ -115,7 +117,7 @@ export function EditorialBlock({
     }
 
     return (
-      <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
+      <Text style={[styles.messageText, { color: palette.textSecondary }, isUser && styles.messageTextUser]}>
         {content}
       </Text>
     );
@@ -135,22 +137,27 @@ export function EditorialBlock({
       >
         {/* Speaker attribution */}
         <View style={styles.attribution}>
-          <View style={[styles.speakerIndicator, { backgroundColor: isUser ? Colors.midnightEmerald : coachColor }]} />
-          <Text style={[styles.speakerName, isUser && styles.speakerNameUser]}>
+          <View style={[styles.speakerIndicator, { backgroundColor: isUser ? palette.textPrimary : coachColor }]} />
+          <Text style={[styles.speakerName, { color: palette.accent }, isUser && { color: palette.textPrimary }]}>
             {isUser ? 'You' : coachName}
           </Text>
-          <Text style={styles.timestamp}>{formatTime(message.created_at)}</Text>
+          <Text style={[styles.timestamp, { color: palette.textTertiary }]}>{formatTime(message.created_at)}</Text>
           {isInsight && (
             <View style={styles.insightBadge}>
-              <Ionicons name="bookmark" size={12} color={Colors.burnishedGold} />
+              <Ionicons name="bookmark" size={12} color={palette.accent} />
             </View>
           )}
         </View>
 
         {/* Message card */}
-        <View style={[styles.messageCard, isUser ? styles.messageCardUser : styles.messageCardCoach]}>
+        <View style={[
+          styles.messageCard,
+          isUser
+            ? { backgroundColor: palette.backgroundSecondary }
+            : { backgroundColor: palette.cardBg, borderWidth: 1, borderColor: palette.borderLight },
+        ]}>
           {/* Highlight overlay for long press */}
-          <Animated.View style={[styles.highlightOverlay, highlightStyle]} />
+          <Animated.View style={[styles.highlightOverlay, { backgroundColor: palette.accentMuted }, highlightStyle]} />
 
           {/* Gold accent border for coach messages */}
           {!isUser && (
@@ -163,7 +170,7 @@ export function EditorialBlock({
 
             {/* Streaming cursor */}
             {isStreaming && (
-              <Animated.View style={styles.cursor} />
+              <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }]} />
             )}
           </View>
         </View>
@@ -188,19 +195,21 @@ export function KeyInsightCard({
   onSaveToJournal,
   onDismiss,
 }: KeyInsightCardProps) {
+  const { palette } = useThemeSafe();
+
   return (
     <Animated.View
       entering={FadeInUp.duration(500).springify()}
       style={styles.insightCardContainer}
     >
       <LinearGradient
-        colors={[Colors.warmOatmeal, Colors.cream]}
+        colors={[palette.background, palette.cardBg]}
         style={styles.insightCard}
       >
         {/* Gold border accent */}
         <View style={styles.insightCardBorder}>
           <LinearGradient
-            colors={[Colors.burnishedGold, Colors.goldLight, Colors.burnishedGold]}
+            colors={[palette.accent, palette.accentLight, palette.accent]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.insightCardBorderGradient}
@@ -209,24 +218,24 @@ export function KeyInsightCard({
 
         {/* Header */}
         <View style={styles.insightCardHeader}>
-          <View style={styles.insightCardIcon}>
-            <Ionicons name="bulb" size={24} color={Colors.burnishedGold} />
+          <View style={[styles.insightCardIcon, { backgroundColor: palette.accentMuted }]}>
+            <Ionicons name="bulb" size={24} color={palette.accent} />
           </View>
-          <Text style={styles.insightCardTitle}>Key Insight</Text>
+          <Text style={[styles.insightCardTitle, { color: palette.textPrimary }]}>Key Insight</Text>
           <TouchableOpacity onPress={onDismiss} style={styles.insightCardClose}>
-            <Ionicons name="close" size={20} color={Colors.stoneGray} />
+            <Ionicons name="close" size={20} color={palette.textTertiary} />
           </TouchableOpacity>
         </View>
 
         {/* Content */}
-        <Text style={styles.insightCardContent}>
+        <Text style={[styles.insightCardContent, { color: palette.textSecondary }]}>
           "{insightContent}"
         </Text>
 
         {/* Attribution */}
         <View style={styles.insightCardAttribution}>
           <View style={[styles.insightCardCoachDot, { backgroundColor: coachColor }]} />
-          <Text style={styles.insightCardCoachName}>from {coachName}</Text>
+          <Text style={[styles.insightCardCoachName, { color: palette.textTertiary }]}>from {coachName}</Text>
         </View>
 
         {/* Action */}
@@ -235,11 +244,11 @@ export function KeyInsightCard({
           onPress={onSaveToJournal}
         >
           <LinearGradient
-            colors={[Colors.burnishedGold, Colors.goldLight]}
+            colors={[palette.accent, palette.accentLight]}
             style={styles.saveToJournalGradient}
           >
-            <Ionicons name="bookmark-outline" size={18} color={Colors.white} />
-            <Text style={styles.saveToJournalText}>Save to Journal</Text>
+            <Ionicons name="bookmark-outline" size={18} color={palette.textInverse} />
+            <Text style={[styles.saveToJournalText, { color: palette.textInverse }]}>Save to Journal</Text>
           </LinearGradient>
         </TouchableOpacity>
       </LinearGradient>
@@ -269,17 +278,12 @@ const styles = StyleSheet.create({
   speakerName: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
     flex: 1,
   },
-  speakerNameUser: {
-    color: Colors.midnightEmerald,
-  },
   timestamp: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
     marginRight: Spacing.sm,
   },
   insightBadge: {
@@ -293,18 +297,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Shadows.sm,
   },
-  messageCardCoach: {
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  messageCardUser: {
-    backgroundColor: Colors.warmOatmealDark,
-    borderWidth: 0,
-  },
   highlightOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.goldMuted,
     zIndex: 1,
   },
   accentBorder: {
@@ -325,7 +319,6 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
   },
@@ -336,7 +329,6 @@ const styles = StyleSheet.create({
   cursor: {
     width: 2,
     height: 20,
-    backgroundColor: Colors.burnishedGold,
     marginTop: 4,
   },
 
@@ -355,7 +347,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.midnightEmerald,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
     fontStyle: 'italic',
@@ -393,7 +384,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -402,7 +392,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   insightCardClose: {
@@ -410,7 +399,6 @@ const styles = StyleSheet.create({
   },
   insightCardContent: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.loose,
     fontFamily: Typography.fonts.serif,
     fontStyle: 'italic',
@@ -429,7 +417,6 @@ const styles = StyleSheet.create({
   },
   insightCardCoachName: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   saveToJournalButton: {
     borderRadius: Radius.pill,
@@ -446,7 +433,6 @@ const styles = StyleSheet.create({
   saveToJournalText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
   },
 });
 

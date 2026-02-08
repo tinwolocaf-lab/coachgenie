@@ -21,7 +21,8 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { WisdomGrid } from '@/components/archive/WisdomGrid';
 import { Chronicle } from '@/components/archive/Chronicle';
@@ -63,6 +64,7 @@ const getAuthHook = () => {
 
 export default function ArchiveScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -168,28 +170,28 @@ export default function ArchiveScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { borderBottomColor: palette.borderLight, backgroundColor: palette.background }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-            <Ionicons name="chevron-back" size={24} color={Colors.midnightEmerald} />
+            <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>The Archive</Text>
-          <TouchableOpacity style={styles.synthesisButton} onPress={handleOpenSynthesis}>
-            <Ionicons name="document-text-outline" size={20} color={Colors.burnishedGold} />
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>The Archive</Text>
+          <TouchableOpacity style={[styles.synthesisButton, { backgroundColor: palette.accentMuted }]} onPress={handleOpenSynthesis}>
+            <Ionicons name="document-text-outline" size={20} color={palette.accent} />
           </TouchableOpacity>
         </View>
 
         {/* Stats Bar */}
         {stats && (
-          <View style={styles.statsBar}>
+          <View style={[styles.statsBar, { backgroundColor: palette.cardBg }]}>
             <StatItem value={stats.totalSessions} label="Sessions" />
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: palette.borderLight }]} />
             <StatItem value={stats.totalInsights} label="Insights" />
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: palette.borderLight }]} />
             <StatItem value={stats.totalBreakthroughs} label="Breakthroughs" />
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: palette.borderLight }]} />
             <StatItem value={stats.currentStreak} label="Streak" suffix="🔥" />
           </View>
         )}
@@ -216,7 +218,7 @@ export default function ArchiveScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.burnishedGold}
+            tintColor={palette.accent}
           />
         }
       >
@@ -241,10 +243,10 @@ export default function ArchiveScreen() {
             {/* Wisdom Grid */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Key Insights</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Key Insights</Text>
                 {insights.length > 6 && (
                   <TouchableOpacity onPress={handleViewAllInsights}>
-                    <Text style={styles.seeAllText}>See All</Text>
+                    <Text style={[styles.seeAllText, { color: palette.accent }]}>See All</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -259,9 +261,9 @@ export default function ArchiveScreen() {
             {breakthroughs.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Recent Breakthroughs</Text>
+                  <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Recent Breakthroughs</Text>
                   <TouchableOpacity onPress={handleViewBreakthroughs}>
-                    <Text style={styles.seeAllText}>See All</Text>
+                    <Text style={[styles.seeAllText, { color: palette.accent }]}>See All</Text>
                   </TouchableOpacity>
                 </View>
                 <ScrollView
@@ -287,7 +289,7 @@ export default function ArchiveScreen() {
           <Animated.View entering={FadeInDown.duration(400)}>
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Session History</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Session History</Text>
               </View>
               <Chronicle
                 sessions={sessions}
@@ -315,12 +317,13 @@ export default function ArchiveScreen() {
 }
 
 function StatItem({ value, label, suffix }: { value: number; label: string; suffix?: string }) {
+  const { palette } = useThemeSafe();
   return (
     <View style={styles.statItem}>
-      <Text style={styles.statValue}>
+      <Text style={[styles.statValue, { color: palette.textPrimary }]}>
         {value}{suffix && <Text style={styles.statSuffix}>{suffix}</Text>}
       </Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statLabel, { color: palette.textTertiary }]}>{label}</Text>
     </View>
   );
 }
@@ -334,6 +337,7 @@ function TabButton({
   isActive: boolean;
   onPress: () => void;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const handlePress = () => {
@@ -351,16 +355,16 @@ function TabButton({
   return (
     <Animated.View style={animatedStyle}>
       <TouchableOpacity
-        style={[styles.tabButton, isActive && styles.tabButtonActive]}
+        style={[styles.tabButton, isActive && { backgroundColor: palette.accentMuted }]}
         onPress={handlePress}
         activeOpacity={0.9}
       >
         <Ionicons
           name={tab.icon}
           size={18}
-          color={isActive ? Colors.burnishedGold : Colors.stoneGray}
+          color={isActive ? palette.accent : palette.textTertiary}
         />
-        <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+        <Text style={[styles.tabLabel, { color: isActive ? palette.accent : palette.textTertiary }, isActive && styles.tabLabelActive]}>
           {tab.label}
         </Text>
       </TouchableOpacity>
@@ -379,20 +383,21 @@ function QuickActionCard({
   count: number;
   onPress: () => void;
 }) {
+  const { palette } = useThemeSafe();
   return (
     <TouchableOpacity style={styles.quickActionCard} onPress={onPress} activeOpacity={0.9}>
       <LinearGradient
-        colors={[Colors.cream, Colors.warmOatmealDark]}
-        style={styles.quickActionGradient}
+        colors={[palette.cardBg, palette.backgroundSecondary]}
+        style={[styles.quickActionGradient, { borderColor: palette.borderLight }]}
       >
-        <View style={styles.quickActionIcon}>
-          <Ionicons name={icon} size={20} color={Colors.burnishedGold} />
+        <View style={[styles.quickActionIcon, { backgroundColor: palette.accentMuted }]}>
+          <Ionicons name={icon} size={20} color={palette.accent} />
         </View>
         <View style={styles.quickActionContent}>
-          <Text style={styles.quickActionTitle}>{title}</Text>
-          <Text style={styles.quickActionCount}>{count}</Text>
+          <Text style={[styles.quickActionTitle, { color: palette.textSecondary }]}>{title}</Text>
+          <Text style={[styles.quickActionCount, { color: palette.textPrimary }]}>{count}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={Colors.stoneGray} />
+        <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -407,6 +412,7 @@ function BreakthroughCard({
   index: number;
   onPress: () => void;
 }) {
+  const { palette } = useThemeSafe();
   const date = new Date(breakthrough.date).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -416,14 +422,14 @@ function BreakthroughCard({
     <Animated.View entering={FadeInDown.duration(400).delay(index * 100)}>
       <TouchableOpacity style={styles.breakthroughCard} onPress={onPress} activeOpacity={0.9}>
         <LinearGradient
-          colors={[Colors.midnightEmerald, '#243D2E']}
+          colors={[palette.textPrimary, '#243D2E']}
           style={styles.breakthroughGradient}
         >
           <View style={styles.breakthroughHeader}>
-            <Ionicons name="star" size={14} color={Colors.burnishedGold} />
-            <Text style={styles.breakthroughDate}>{date}</Text>
+            <Ionicons name="star" size={14} color={palette.accent} />
+            <Text style={[styles.breakthroughDate, { color: palette.accentLight }]}>{date}</Text>
           </View>
-          <Text style={styles.breakthroughTitle} numberOfLines={2}>
+          <Text style={[styles.breakthroughTitle, { color: palette.textInverse }]} numberOfLines={2}>
             {breakthrough.title}
           </Text>
           <Text style={styles.breakthroughSummary} numberOfLines={2}>
@@ -438,14 +444,11 @@ function BreakthroughCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   header: {
     paddingHorizontal: Spacing.xxl,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.warmOatmeal,
   },
   headerTop: {
     flexDirection: 'row',
@@ -464,20 +467,17 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   synthesisButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statsBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: Colors.cream,
     paddingVertical: Spacing.md,
     borderRadius: Radius.lg,
     marginBottom: Spacing.lg,
@@ -490,14 +490,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   statSuffix: {
     fontSize: Typography.sizes.body,
   },
   statLabel: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
     marginTop: 2,
@@ -505,7 +503,6 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: '60%',
-    backgroundColor: Colors.borderLight,
     alignSelf: 'center',
   },
   tabBar: {
@@ -521,16 +518,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     backgroundColor: 'transparent',
   },
-  tabButtonActive: {
-    backgroundColor: Colors.goldMuted,
-  },
   tabLabel: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.stoneGray,
   },
   tabLabelActive: {
-    color: Colors.burnishedGold,
     fontWeight: Typography.weights.semibold,
   },
   content: {
@@ -554,12 +546,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   seeAllText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.burnishedGold,
   },
   quickActions: {
     flexDirection: 'row',
@@ -578,14 +568,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     borderRadius: Radius.squircle,
   },
   quickActionIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -596,13 +584,11 @@ const styles = StyleSheet.create({
   quickActionTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
   },
   quickActionCount: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   breakthroughsScroll: {
     paddingHorizontal: Spacing.xxl,
@@ -626,13 +612,11 @@ const styles = StyleSheet.create({
   },
   breakthroughDate: {
     fontSize: Typography.sizes.caption,
-    color: Colors.goldLight,
   },
   breakthroughTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.white,
     marginTop: Spacing.sm,
   },
   breakthroughSummary: {

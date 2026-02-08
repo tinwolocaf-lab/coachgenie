@@ -161,16 +161,26 @@ function AtmospherePreviewCard({
           </View>
 
           {/* Coach Card */}
-          <LinearGradient
-            colors={[palette.gradientStart, palette.gradientEnd]}
-            style={styles.miniCoachCard}
-          >
-            <View style={[styles.miniCoachIcon, { backgroundColor: palette.accent + '40' }]} />
-            <View style={styles.miniCoachContent}>
-              <View style={[styles.miniTextLine, { backgroundColor: 'rgba(255,255,255,0.5)', width: 25 }]} />
-              <View style={[styles.miniTextLine, { backgroundColor: palette.textInverse, width: 40, marginTop: 2 }]} />
+          {palette.useGradients ? (
+            <LinearGradient
+              colors={[palette.gradientStart, palette.gradientEnd]}
+              style={styles.miniCoachCard}
+            >
+              <View style={[styles.miniCoachIcon, { backgroundColor: palette.accent + '40' }]} />
+              <View style={styles.miniCoachContent}>
+                <View style={[styles.miniTextLine, { backgroundColor: 'rgba(255,255,255,0.5)', width: 25 }]} />
+                <View style={[styles.miniTextLine, { backgroundColor: palette.textInverse, width: 40, marginTop: 2 }]} />
+              </View>
+            </LinearGradient>
+          ) : (
+            <View style={[styles.miniCoachCard, { backgroundColor: palette.gradientStart }]}>
+              <View style={[styles.miniCoachIcon, { backgroundColor: palette.accent + '40' }]} />
+              <View style={styles.miniCoachContent}>
+                <View style={[styles.miniTextLine, { backgroundColor: 'rgba(255,255,255,0.5)', width: 25 }]} />
+                <View style={[styles.miniTextLine, { backgroundColor: palette.textInverse, width: 40, marginTop: 2 }]} />
+              </View>
             </View>
-          </LinearGradient>
+          )}
 
           {/* Tab Bar */}
           <View style={[styles.miniTabBar, { backgroundColor: palette.tabBarBg }]}>

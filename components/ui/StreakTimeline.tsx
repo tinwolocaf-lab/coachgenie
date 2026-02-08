@@ -10,7 +10,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { Colors, Typography, Spacing, Timing } from '@/constants/theme';
+import { Typography, Spacing, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface StreakDay {
   day: string;
@@ -26,6 +27,7 @@ interface StreakTimelineProps {
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 function StreakDot({ day, completed, isToday, index }: StreakDay & { index: number }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const ringProgress = useSharedValue(0);
@@ -69,7 +71,7 @@ function StreakDot({ day, completed, isToday, index }: StreakDay & { index: numb
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={isToday ? Colors.goldMuted : Colors.border}
+            stroke={isToday ? palette.accentMuted : palette.border}
             strokeWidth={strokeWidth}
             fill="none"
           />
@@ -84,8 +86,8 @@ function StreakDot({ day, completed, isToday, index }: StreakDay & { index: numb
           >
             <Defs>
               <LinearGradient id={`streakGradient${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor={Colors.burnishedGold} />
-                <Stop offset="100%" stopColor={Colors.goldLight} />
+                <Stop offset="0%" stopColor={palette.accent} />
+                <Stop offset="100%" stopColor={palette.accentLight} />
               </LinearGradient>
             </Defs>
             <AnimatedCircle
@@ -110,10 +112,10 @@ function StreakDot({ day, completed, isToday, index }: StreakDay & { index: numb
             styles.centerDot,
             {
               backgroundColor: completed
-                ? Colors.burnishedGold
+                ? palette.accent
                 : isToday
-                ? Colors.goldMuted
-                : Colors.warmOatmealDark,
+                ? palette.accentMuted
+                : palette.backgroundSecondary,
             },
           ]}
         />
@@ -121,8 +123,9 @@ function StreakDot({ day, completed, isToday, index }: StreakDay & { index: numb
       <Text
         style={[
           styles.dayLabel,
-          isToday && styles.dayLabelToday,
-          completed && styles.dayLabelCompleted,
+          { color: palette.textTertiary },
+          isToday && { color: palette.textPrimary, fontWeight: Typography.weights.bold },
+          completed && { color: palette.accent },
         ]}
       >
         {day}
@@ -132,13 +135,15 @@ function StreakDot({ day, completed, isToday, index }: StreakDay & { index: numb
 }
 
 export function StreakTimeline({ days, currentStreak }: StreakTimelineProps) {
+  const { palette } = useThemeSafe();
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.streakLabel}>Coaching Streak</Text>
+        <Text style={[styles.streakLabel, { color: palette.textTertiary }]}>Coaching Streak</Text>
         <View style={styles.streakBadge}>
-          <Text style={styles.streakNumber}>{currentStreak}</Text>
-          <Text style={styles.streakDays}>days</Text>
+          <Text style={[styles.streakNumber, { color: palette.accent }]}>{currentStreak}</Text>
+          <Text style={[styles.streakDays, { color: palette.textTertiary }]}>days</Text>
         </View>
       </View>
       <View style={styles.timeline}>
@@ -163,7 +168,6 @@ const styles = StyleSheet.create({
   streakLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.stoneGray,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
   },
@@ -175,12 +179,10 @@ const styles = StyleSheet.create({
   streakNumber: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
-    color: Colors.burnishedGold,
     fontFamily: Typography.fonts.serif,
   },
   streakDays: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   timeline: {
     flexDirection: 'row',
@@ -202,15 +204,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.medium,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
     textTransform: 'uppercase',
-  },
-  dayLabelToday: {
-    color: Colors.midnightEmerald,
-    fontWeight: Typography.weights.bold,
-  },
-  dayLabelCompleted: {
-    color: Colors.burnishedGold,
   },
 });

@@ -7,7 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Typography, Spacing, Radius } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { Button } from '@/components/ui/Button';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
@@ -31,8 +32,10 @@ try {
 
 // Custom loading component with premium styling
 function PremiumLoadingState({ message }: { message: string }) {
+  const { palette } = useThemeSafe();
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       <View style={styles.loadingContent}>
         <GoldDustLoader
           message={message}
@@ -56,6 +59,8 @@ function PremiumErrorState({
   onRetry: () => void;
   onBackToLogin: () => void;
 }) {
+  const { palette } = useThemeSafe();
+
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }, []);
@@ -112,32 +117,32 @@ function PremiumErrorState({
   const content = getErrorContent();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       <View style={styles.errorContent}>
         {/* Error Icon */}
         <Animated.View entering={FadeIn.duration(400)} style={styles.errorIconSection}>
           <View style={styles.errorIconContainer}>
             <LinearGradient
-              colors={[Colors.error, '#B05858']}
-              style={styles.errorIconGradient}
+              colors={[palette.error, '#B05858']}
+              style={[styles.errorIconGradient, { shadowColor: palette.error }]}
             >
-              <Ionicons name={content.icon} size={40} color={Colors.white} />
+              <Ionicons name={content.icon} size={40} color={palette.textInverse} />
             </LinearGradient>
           </View>
         </Animated.View>
 
         {/* Error Text */}
         <Animated.View entering={FadeInUp.duration(500).delay(100)} style={styles.errorTextSection}>
-          <Text style={styles.errorTitle}>{content.title}</Text>
-          <Text style={styles.errorMessage}>{content.message}</Text>
+          <Text style={[styles.errorTitle, { color: palette.textPrimary }]}>{content.title}</Text>
+          <Text style={[styles.errorMessage, { color: palette.textTertiary }]}>{content.message}</Text>
         </Animated.View>
 
         {/* Suggestion Card */}
-        <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.suggestionCard}>
-          <View style={styles.suggestionIconContainer}>
-            <Ionicons name="bulb-outline" size={18} color={Colors.burnishedGold} />
+        <Animated.View entering={FadeInUp.duration(500).delay(200)} style={[styles.suggestionCard, { backgroundColor: palette.accentMuted, borderColor: palette.borderAccent }]}>
+          <View style={[styles.suggestionIconContainer, { backgroundColor: palette.cardBg }]}>
+            <Ionicons name="bulb-outline" size={18} color={palette.accent} />
           </View>
-          <Text style={styles.suggestionText}>{content.suggestion}</Text>
+          <Text style={[styles.suggestionText, { color: palette.textSecondary }]}>{content.suggestion}</Text>
         </Animated.View>
 
         {/* Action Buttons */}
@@ -148,7 +153,7 @@ function PremiumErrorState({
             fullWidth
             variant="gold"
             size="lg"
-            icon={<Ionicons name="refresh" size={18} color={Colors.white} />}
+            icon={<Ionicons name="refresh" size={18} color={palette.textInverse} />}
             style={styles.retryButton}
           />
           <Button
@@ -166,6 +171,7 @@ function PremiumErrorState({
 }
 
 export default function Callback() {
+  const { palette } = useThemeSafe();
   const router = useRouter();
   const [error, setError] = useState<{ message: string; type?: string } | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -223,7 +229,7 @@ export default function Callback() {
   // Use AuthCallbackPage if available
   if (AuthCallbackPage) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
         <AuthCallbackPage
           supabaseClient={supabase}
           onSuccess={handleSuccess}
@@ -241,7 +247,6 @@ export default function Callback() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Loading State
@@ -274,7 +279,6 @@ const styles = StyleSheet.create({
     borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.error,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
@@ -287,14 +291,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
   errorMessage: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
     paddingHorizontal: Spacing.lg,
@@ -302,18 +304,15 @@ const styles = StyleSheet.create({
   suggestionCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.goldMuted,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.xxl,
     borderWidth: 1,
-    borderColor: Colors.borderGold,
   },
   suggestionIconContainer: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -321,7 +320,6 @@ const styles = StyleSheet.create({
   suggestionText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
   errorActions: {

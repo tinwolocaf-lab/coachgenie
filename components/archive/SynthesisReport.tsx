@@ -23,7 +23,8 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { MonthlySynthesis, ThemeItem, PatternItem, CoachContribution } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -41,12 +42,14 @@ export function SynthesisReport({
   onGenerate,
   onThemePress,
 }: SynthesisReportProps) {
+  const { palette } = useThemeSafe();
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.burnishedGold} />
-        <Text style={styles.loadingText}>Synthesizing your journey...</Text>
-        <Text style={styles.loadingSubtext}>
+        <ActivityIndicator size="large" color={palette.accent} />
+        <Text style={[styles.loadingText, { color: palette.textPrimary }]}>Synthesizing your journey...</Text>
+        <Text style={[styles.loadingSubtext, { color: palette.textTertiary }]}>
           Analyzing patterns and extracting wisdom
         </Text>
       </View>
@@ -56,11 +59,11 @@ export function SynthesisReport({
   if (!synthesis) {
     return (
       <View style={styles.emptyContainer}>
-        <View style={styles.emptyIcon}>
-          <Ionicons name="document-text-outline" size={48} color={Colors.stoneGray} />
+        <View style={[styles.emptyIcon, { backgroundColor: palette.accentMuted }]}>
+          <Ionicons name="document-text-outline" size={48} color={palette.textTertiary} />
         </View>
-        <Text style={styles.emptyTitle}>No Report Yet</Text>
-        <Text style={styles.emptySubtitle}>
+        <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>No Report Yet</Text>
+        <Text style={[styles.emptySubtitle, { color: palette.textTertiary }]}>
           Generate a monthly synthesis to discover patterns and insights from your journey
         </Text>
         {onGenerate && (
@@ -72,11 +75,11 @@ export function SynthesisReport({
             }}
           >
             <LinearGradient
-              colors={[Colors.burnishedGold, Colors.goldLight]}
+              colors={[palette.accent, palette.accentLight]}
               style={styles.generateGradient}
             >
-              <Ionicons name="sparkles" size={18} color={Colors.white} />
-              <Text style={styles.generateText}>Generate Report</Text>
+              <Ionicons name="sparkles" size={18} color={palette.textInverse} />
+              <Text style={[styles.generateText, { color: palette.textInverse }]}>Generate Report</Text>
             </LinearGradient>
           </TouchableOpacity>
         )}
@@ -96,9 +99,9 @@ export function SynthesisReport({
       showsVerticalScrollIndicator={false}
     >
       {/* Magazine Header */}
-      <Animated.View entering={FadeIn.duration(500)} style={styles.header}>
-        <Text style={styles.monthLabel}>{monthName} {year}</Text>
-        <Text style={styles.headerTitle}>{synthesis.title}</Text>
+      <Animated.View entering={FadeIn.duration(500)} style={[styles.header, { borderBottomColor: palette.borderLight }]}>
+        <Text style={[styles.monthLabel, { color: palette.accent }]}>{monthName} {year}</Text>
+        <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>{synthesis.title}</Text>
         <View style={styles.statsRow}>
           <StatBadge
             icon="chatbubbles"
@@ -124,12 +127,12 @@ export function SynthesisReport({
         style={styles.section}
       >
         <View style={styles.sectionHeader}>
-          <View style={styles.sectionIcon}>
-            <Ionicons name="document-text" size={16} color={Colors.burnishedGold} />
+          <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+            <Ionicons name="document-text" size={16} color={palette.accent} />
           </View>
-          <Text style={styles.sectionTitle}>Executive Summary</Text>
+          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Executive Summary</Text>
         </View>
-        <Text style={styles.summaryText}>{synthesis.executive_summary}</Text>
+        <Text style={[styles.summaryText, { color: palette.textSecondary }]}>{synthesis.executive_summary}</Text>
       </Animated.View>
 
       {/* Key Themes */}
@@ -139,10 +142,10 @@ export function SynthesisReport({
           style={styles.section}
         >
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Ionicons name="layers" size={16} color={Colors.burnishedGold} />
+            <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="layers" size={16} color={palette.accent} />
             </View>
-            <Text style={styles.sectionTitle}>Key Themes</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Key Themes</Text>
           </View>
           <View style={styles.themesGrid}>
             {synthesis.key_themes.map((theme, index) => (
@@ -164,10 +167,10 @@ export function SynthesisReport({
           style={styles.section}
         >
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Ionicons name="trending-up" size={16} color={Colors.burnishedGold} />
+            <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="trending-up" size={16} color={palette.accent} />
             </View>
-            <Text style={styles.sectionTitle}>Growth Areas</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Growth Areas</Text>
           </View>
           <View style={styles.growthList}>
             {synthesis.growth_areas.map((area, index) => (
@@ -184,10 +187,10 @@ export function SynthesisReport({
           style={styles.section}
         >
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Ionicons name="analytics" size={16} color={Colors.burnishedGold} />
+            <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="analytics" size={16} color={palette.accent} />
             </View>
-            <Text style={styles.sectionTitle}>Patterns & Recommendations</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Patterns & Recommendations</Text>
           </View>
           {synthesis.patterns_identified.map((pattern, index) => (
             <PatternCard key={index} pattern={pattern} index={index} />
@@ -202,10 +205,10 @@ export function SynthesisReport({
           style={styles.section}
         >
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Ionicons name="people" size={16} color={Colors.burnishedGold} />
+            <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="people" size={16} color={palette.accent} />
             </View>
-            <Text style={styles.sectionTitle}>Your Coaches</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Your Coaches</Text>
           </View>
           <View style={styles.coachGrid}>
             {Object.values(synthesis.coach_contributions).map((contribution, index) => (
@@ -215,8 +218,8 @@ export function SynthesisReport({
         </Animated.View>
       )}
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
+      <View style={[styles.footer, { borderTopColor: palette.borderLight }]}>
+        <Text style={[styles.footerText, { color: palette.textTertiary }]}>
           Generated on {new Date(synthesis.created_at).toLocaleDateString()}
         </Text>
       </View>
@@ -225,16 +228,18 @@ export function SynthesisReport({
 }
 
 function StatBadge({ icon, value, label }: { icon: string; value: number; label: string }) {
+  const { palette } = useThemeSafe();
   return (
     <View style={styles.statBadge}>
-      <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={16} color={Colors.burnishedGold} />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={16} color={palette.accent} />
+      <Text style={[styles.statValue, { color: palette.textPrimary }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: palette.textTertiary }]}>{label}</Text>
     </View>
   );
 }
 
 function ThemeCard({ theme, index, onPress }: { theme: ThemeItem; index: number; onPress?: () => void }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(0.9);
 
   useEffect(() => {
@@ -255,12 +260,12 @@ function ThemeCard({ theme, index, onPress }: { theme: ThemeItem; index: number;
         }}
       >
         <LinearGradient
-          colors={[Colors.midnightEmerald, '#243D2E']}
+          colors={[palette.textPrimary, palette.textPrimary + 'CC']}
           style={styles.themeGradient}
         >
-          <Text style={styles.themeName}>{theme.name}</Text>
+          <Text style={[styles.themeName, { color: palette.textInverse }]}>{theme.name}</Text>
           <View style={styles.themeStats}>
-            <Text style={styles.themeFrequency}>{theme.frequency}x</Text>
+            <Text style={[styles.themeFrequency, { color: palette.accentLight }]}>{theme.frequency}x</Text>
           </View>
           {theme.relatedInsights.length > 0 && (
             <Text style={styles.themeInsight} numberOfLines={2}>
@@ -274,47 +279,50 @@ function ThemeCard({ theme, index, onPress }: { theme: ThemeItem; index: number;
 }
 
 function GrowthItem({ text, index }: { text: string; index: number }) {
+  const { palette } = useThemeSafe();
   return (
     <Animated.View
       entering={FadeInUp.duration(300).delay(index * 50)}
       style={styles.growthItem}
     >
-      <View style={styles.growthBullet}>
-        <Ionicons name="checkmark" size={12} color={Colors.success} />
+      <View style={[styles.growthBullet, { backgroundColor: palette.successLight }]}>
+        <Ionicons name="checkmark" size={12} color={palette.success} />
       </View>
-      <Text style={styles.growthText}>{text}</Text>
+      <Text style={[styles.growthText, { color: palette.textSecondary }]}>{text}</Text>
     </Animated.View>
   );
 }
 
 function PatternCard({ pattern, index }: { pattern: PatternItem; index: number }) {
+  const { palette } = useThemeSafe();
   return (
     <Animated.View
       entering={FadeInUp.duration(400).delay(index * 100)}
-      style={styles.patternCard}
+      style={[styles.patternCard, { backgroundColor: palette.cardBg }]}
     >
-      <Text style={styles.patternName}>{pattern.pattern}</Text>
-      <Text style={styles.patternObservation}>{pattern.observation}</Text>
-      <View style={styles.recommendationBox}>
-        <Ionicons name="arrow-forward" size={14} color={Colors.burnishedGold} />
-        <Text style={styles.recommendationText}>{pattern.recommendation}</Text>
+      <Text style={[styles.patternName, { color: palette.textPrimary }]}>{pattern.pattern}</Text>
+      <Text style={[styles.patternObservation, { color: palette.textSecondary }]}>{pattern.observation}</Text>
+      <View style={[styles.recommendationBox, { backgroundColor: palette.accentMuted }]}>
+        <Ionicons name="arrow-forward" size={14} color={palette.accent} />
+        <Text style={[styles.recommendationText, { color: palette.textSecondary }]}>{pattern.recommendation}</Text>
       </View>
     </Animated.View>
   );
 }
 
 function CoachCard({ contribution }: { contribution: CoachContribution }) {
+  const { palette } = useThemeSafe();
   return (
-    <View style={styles.coachCard}>
-      <Text style={styles.coachName}>{contribution.coachName}</Text>
+    <View style={[styles.coachCard, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}>
+      <Text style={[styles.coachName, { color: palette.textPrimary }]}>{contribution.coachName}</Text>
       <View style={styles.coachStats}>
         <View style={styles.coachStatItem}>
-          <Text style={styles.coachStatValue}>{contribution.sessionCount}</Text>
-          <Text style={styles.coachStatLabel}>sessions</Text>
+          <Text style={[styles.coachStatValue, { color: palette.accent }]}>{contribution.sessionCount}</Text>
+          <Text style={[styles.coachStatLabel, { color: palette.textTertiary }]}>sessions</Text>
         </View>
         <View style={styles.coachStatItem}>
-          <Text style={styles.coachStatValue}>{contribution.insightCount}</Text>
-          <Text style={styles.coachStatLabel}>insights</Text>
+          <Text style={[styles.coachStatValue, { color: palette.accent }]}>{contribution.insightCount}</Text>
+          <Text style={[styles.coachStatLabel, { color: palette.textTertiary }]}>insights</Text>
         </View>
       </View>
     </View>
@@ -339,13 +347,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     marginTop: Spacing.lg,
     textAlign: 'center',
   },
   loadingSubtext: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
     textAlign: 'center',
   },
@@ -359,7 +365,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
@@ -368,12 +373,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
     textAlign: 'center',
     maxWidth: 280,
@@ -394,7 +397,6 @@ const styles = StyleSheet.create({
   generateText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
   },
 
   // Header
@@ -402,13 +404,11 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.xxl,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
     marginBottom: Spacing.xl,
   },
   monthLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
     marginBottom: Spacing.sm,
@@ -417,7 +417,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     lineHeight: Typography.sizes.display * Typography.lineHeights.tight,
     marginBottom: Spacing.lg,
   },
@@ -433,11 +432,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   statLabel: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
@@ -456,7 +453,6 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -464,11 +460,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   summaryText: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
     fontStyle: 'italic',
   },
@@ -494,7 +488,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.white,
   },
   themeStats: {
     flexDirection: 'row',
@@ -502,7 +495,6 @@ const styles = StyleSheet.create({
   },
   themeFrequency: {
     fontSize: Typography.sizes.caption,
-    color: Colors.goldLight,
     fontWeight: Typography.weights.semibold,
   },
   themeInsight: {
@@ -525,7 +517,6 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: Colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -533,13 +524,11 @@ const styles = StyleSheet.create({
   growthText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
   // Patterns
   patternCard: {
-    backgroundColor: Colors.cardBg,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     marginBottom: Spacing.md,
@@ -548,26 +537,22 @@ const styles = StyleSheet.create({
   patternName: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.xs,
   },
   patternObservation: {
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     marginBottom: Spacing.md,
   },
   recommendationBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.sm,
-    backgroundColor: Colors.goldMuted,
     padding: Spacing.md,
     borderRadius: Radius.md,
   },
   recommendationText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     fontWeight: Typography.weights.medium,
   },
 
@@ -578,17 +563,14 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   coachCard: {
-    backgroundColor: Colors.cream,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     minWidth: 140,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   coachName: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.sm,
   },
   coachStats: {
@@ -602,22 +584,18 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.burnishedGold,
   },
   coachStatLabel: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
   },
 
   footer: {
     alignItems: 'center',
     paddingTop: Spacing.xl,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
     marginTop: Spacing.lg,
   },
   footerText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
 });

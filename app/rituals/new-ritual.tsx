@@ -22,7 +22,8 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { createRitual, getGrowthChapters } from '@/lib/supabase-rituals';
@@ -61,6 +62,7 @@ const getAuthHook = () => {
 export default function NewRitualScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ chapterId?: string }>();
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -134,13 +136,13 @@ export default function NewRitualScreen() {
 
   if (showSuccess) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.successContainer}>
           <Animated.View style={[styles.successIcon, successStyle]}>
-            <Ionicons name="checkmark-circle" size={80} color={Colors.success} />
+            <Ionicons name="checkmark-circle" size={80} color={palette.success} />
           </Animated.View>
-          <Text style={styles.successTitle}>Ritual Created!</Text>
-          <Text style={styles.successSubtitle}>
+          <Text style={[styles.successTitle, { color: palette.textPrimary }]}>Ritual Created!</Text>
+          <Text style={[styles.successSubtitle, { color: palette.textTertiary }]}>
             Your new daily ritual has been added
           </Text>
         </View>
@@ -149,9 +151,9 @@ export default function NewRitualScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: palette.borderLight }]}>
         <TouchableOpacity
           style={styles.closeButton}
           onPress={() => {
@@ -159,9 +161,9 @@ export default function NewRitualScreen() {
             router.back();
           }}
         >
-          <Ionicons name="close" size={24} color={Colors.charcoal} />
+          <Ionicons name="close" size={24} color={palette.textSecondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Ritual</Text>
+        <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>New Ritual</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -176,8 +178,8 @@ export default function NewRitualScreen() {
         >
           {/* Preview Card */}
           <Animated.View entering={FadeInUp.duration(400)} style={styles.previewSection}>
-            <Text style={styles.sectionLabel}>Preview</Text>
-            <View style={[styles.previewCard, { borderLeftColor: selectedColor }]}>
+            <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>Preview</Text>
+            <View style={[styles.previewCard, { backgroundColor: palette.cardBg, borderLeftColor: selectedColor }]}>
               <View style={[styles.previewIcon, { backgroundColor: selectedColor + '20' }]}>
                 <Ionicons
                   name={selectedIcon as keyof typeof Ionicons.glyphMap}
@@ -186,11 +188,11 @@ export default function NewRitualScreen() {
                 />
               </View>
               <View style={styles.previewContent}>
-                <Text style={styles.previewTitle} numberOfLines={1}>
+                <Text style={[styles.previewTitle, { color: palette.textSecondary }]} numberOfLines={1}>
                   {title || 'Your ritual name'}
                 </Text>
                 {description ? (
-                  <Text style={styles.previewDescription} numberOfLines={1}>
+                  <Text style={[styles.previewDescription, { color: palette.textTertiary }]} numberOfLines={1}>
                     {description}
                   </Text>
                 ) : null}
@@ -200,26 +202,26 @@ export default function NewRitualScreen() {
 
           {/* Title Input */}
           <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Ritual Name *</Text>
+            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Ritual Name *</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { backgroundColor: palette.cardBg, borderColor: palette.border, color: palette.textSecondary }]}
               value={title}
               onChangeText={setTitle}
               placeholder="e.g., Morning Meditation"
-              placeholderTextColor={Colors.stoneGray}
+              placeholderTextColor={palette.textTertiary}
               maxLength={50}
             />
           </Animated.View>
 
           {/* Description Input */}
           <Animated.View entering={FadeInUp.duration(400).delay(150)} style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Description (optional)</Text>
+            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Description (optional)</Text>
             <TextInput
-              style={[styles.textInput, styles.textInputMultiline]}
+              style={[styles.textInput, styles.textInputMultiline, { backgroundColor: palette.cardBg, borderColor: palette.border, color: palette.textSecondary }]}
               value={description}
               onChangeText={setDescription}
               placeholder="What does this ritual involve?"
-              placeholderTextColor={Colors.stoneGray}
+              placeholderTextColor={palette.textTertiary}
               multiline
               numberOfLines={3}
               maxLength={150}
@@ -228,13 +230,14 @@ export default function NewRitualScreen() {
 
           {/* Icon Picker */}
           <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Icon</Text>
+            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Icon</Text>
             <View style={styles.iconPicker}>
               {RITUAL_ICONS.map((icon) => (
                 <TouchableOpacity
                   key={icon}
                   style={[
                     styles.iconOption,
+                    { backgroundColor: palette.cardBg, borderColor: palette.border },
                     selectedIcon === icon && [styles.iconOptionSelected, { backgroundColor: selectedColor }],
                   ]}
                   onPress={() => {
@@ -245,7 +248,7 @@ export default function NewRitualScreen() {
                   <Ionicons
                     name={icon as keyof typeof Ionicons.glyphMap}
                     size={20}
-                    color={selectedIcon === icon ? Colors.white : Colors.charcoal}
+                    color={selectedIcon === icon ? palette.textInverse : palette.textSecondary}
                   />
                 </TouchableOpacity>
               ))}
@@ -254,7 +257,7 @@ export default function NewRitualScreen() {
 
           {/* Color Picker */}
           <Animated.View entering={FadeInUp.duration(400).delay(250)} style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Color</Text>
+            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Color</Text>
             <View style={styles.colorPicker}>
               {RITUAL_COLORS.map((color) => (
                 <TouchableOpacity
@@ -262,7 +265,7 @@ export default function NewRitualScreen() {
                   style={[
                     styles.colorOption,
                     { backgroundColor: color },
-                    selectedColor === color && styles.colorOptionSelected,
+                    selectedColor === color && { borderColor: palette.textSecondary },
                   ]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -270,7 +273,7 @@ export default function NewRitualScreen() {
                   }}
                 >
                   {selectedColor === color && (
-                    <Ionicons name="checkmark" size={18} color={Colors.white} />
+                    <Ionicons name="checkmark" size={18} color={palette.textInverse} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -280,7 +283,7 @@ export default function NewRitualScreen() {
           {/* Link to Chapter (optional) */}
           {chapters.length > 0 && (
             <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Link to Growth Chapter (optional)</Text>
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Link to Growth Chapter (optional)</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -289,7 +292,8 @@ export default function NewRitualScreen() {
                 <TouchableOpacity
                   style={[
                     styles.chapterOption,
-                    !linkedChapterId && styles.chapterOptionSelected,
+                    { backgroundColor: palette.cardBg, borderColor: palette.border },
+                    !linkedChapterId && { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
                   ]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -298,7 +302,8 @@ export default function NewRitualScreen() {
                 >
                   <Text style={[
                     styles.chapterOptionText,
-                    !linkedChapterId && styles.chapterOptionTextSelected,
+                    { color: palette.textSecondary },
+                    !linkedChapterId && { color: palette.textInverse, fontWeight: Typography.weights.medium },
                   ]}>
                     None
                   </Text>
@@ -308,8 +313,8 @@ export default function NewRitualScreen() {
                     key={chapter.id}
                     style={[
                       styles.chapterOption,
-                      linkedChapterId === chapter.id && styles.chapterOptionSelected,
-                      { borderColor: chapter.cover_color || Colors.border },
+                      { backgroundColor: palette.cardBg, borderColor: chapter.cover_color || palette.border },
+                      linkedChapterId === chapter.id && { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
                     ]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -318,7 +323,8 @@ export default function NewRitualScreen() {
                   >
                     <Text style={[
                       styles.chapterOptionText,
-                      linkedChapterId === chapter.id && styles.chapterOptionTextSelected,
+                      { color: palette.textSecondary },
+                      linkedChapterId === chapter.id && { color: palette.textInverse, fontWeight: Typography.weights.medium },
                     ]} numberOfLines={1}>
                       {chapter.title}
                     </Text>
@@ -350,7 +356,6 @@ export default function NewRitualScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   header: {
     flexDirection: 'row',
@@ -359,7 +364,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   closeButton: {
     width: 40,
@@ -371,7 +375,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   headerSpacer: {
     width: 40,
@@ -392,7 +395,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
     marginBottom: Spacing.sm,
@@ -400,7 +402,6 @@ const styles = StyleSheet.create({
   previewCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
     padding: Spacing.lg,
     borderRadius: Radius.squircle,
     borderLeftWidth: 4,
@@ -420,11 +421,9 @@ const styles = StyleSheet.create({
   previewTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
   },
   previewDescription: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
   inputSection: {
@@ -433,20 +432,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
     marginBottom: Spacing.sm,
   },
   textInput: {
-    backgroundColor: Colors.cardBg,
     borderWidth: 1,
-    borderColor: Colors.border,
     borderRadius: Radius.lg,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
   },
   textInputMultiline: {
     height: 80,
@@ -462,11 +457,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: Colors.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   iconOptionSelected: {
     borderColor: 'transparent',
@@ -484,9 +477,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'transparent',
   },
-  colorOptionSelected: {
-    borderColor: Colors.charcoal,
-  },
   chapterPicker: {
     marginHorizontal: -Spacing.xxl,
     paddingHorizontal: Spacing.xxl,
@@ -494,23 +484,12 @@ const styles = StyleSheet.create({
   chapterOption: {
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.pill,
     marginRight: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  chapterOptionSelected: {
-    backgroundColor: Colors.midnightEmerald,
-    borderColor: Colors.midnightEmerald,
   },
   chapterOptionText: {
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
-  },
-  chapterOptionTextSelected: {
-    color: Colors.white,
-    fontWeight: Typography.weights.medium,
   },
   buttonSection: {
     marginTop: Spacing.lg,
@@ -528,12 +507,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.sm,
   },
   successSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
   },
   bottomSpacer: {

@@ -13,7 +13,8 @@ import Animated, {
   useSharedValue,
   interpolate,
 } from 'react-native-reanimated';
-import { Colors, Radius, Shadows, Spacing, Timing } from '@/constants/theme';
+import { Radius, Shadows, Spacing, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -34,6 +35,7 @@ export function GlassCard({
   intensity = 60,
   disabled = false,
 }: GlassCardProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
   const pressed = useSharedValue(0);
 
@@ -58,22 +60,22 @@ export function GlassCard({
 
   const variantStyles = {
     default: {
-      backgroundColor: Colors.glassBg,
-      borderColor: Colors.glassBorder,
+      backgroundColor: palette.glassBg,
+      borderColor: palette.glassBorder,
       ...Shadows.md,
     },
     elevated: {
-      backgroundColor: Colors.white,
-      borderColor: Colors.borderLight,
+      backgroundColor: palette.cardBg,
+      borderColor: palette.borderLight,
       ...Shadows.lg,
     },
     gold: {
-      backgroundColor: Colors.white,
-      borderColor: Colors.borderGold,
+      backgroundColor: palette.cardBg,
+      borderColor: palette.borderAccent,
       ...Shadows.gold,
     },
     minimal: {
-      backgroundColor: Colors.warmOatmeal,
+      backgroundColor: palette.background,
       borderColor: 'transparent',
       ...Shadows.subtle,
     },

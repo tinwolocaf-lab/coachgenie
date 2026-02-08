@@ -14,7 +14,8 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { KeyInsight } from '@/types';
 import { getCoachById } from '@/data/coaches';
 
@@ -30,14 +31,15 @@ interface WisdomGridProps {
 }
 
 export function WisdomGrid({ insights, onInsightPress, maxItems = 6 }: WisdomGridProps) {
+  const { palette } = useThemeSafe();
   const displayInsights = insights.slice(0, maxItems);
 
   if (displayInsights.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="sparkles-outline" size={40} color={Colors.stoneGray} />
-        <Text style={styles.emptyText}>Your wisdom collection awaits</Text>
-        <Text style={styles.emptySubtext}>
+        <Ionicons name="sparkles-outline" size={40} color={palette.textTertiary} />
+        <Text style={[styles.emptyText, { color: palette.textSecondary }]}>Your wisdom collection awaits</Text>
+        <Text style={[styles.emptySubtext, { color: palette.textTertiary }]}>
           Insights from your coaching sessions will appear here
         </Text>
       </View>
@@ -75,6 +77,7 @@ interface InsightCardProps {
 }
 
 function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: InsightCardProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(0.8);
   const opacity = useSharedValue(0);
   const shimmerPosition = useSharedValue(0);
@@ -85,11 +88,11 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
     strategy: ['#2C1E1B', '#4A3632'],
     productivity: ['#1A2A3A', '#2B3D50'],
     systems: ['#2A2A1A', '#454530'],
-    general: [Colors.midnightEmerald, '#243D2E'],
+    general: [palette.gradientStart, palette.gradientEnd],
   };
 
   const gradientColors = isHighlighted
-    ? [Colors.burnishedGold, Colors.goldLight]
+    ? [palette.accent, palette.accentLight]
     : categoryColors[insight.category] || categoryColors.general;
 
   useEffect(() => {
@@ -157,7 +160,7 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
           {/* Gold dust shimmer overlay */}
           <Animated.View style={[styles.shimmerOverlay, shimmerStyle]}>
             <LinearGradient
-              colors={['transparent', Colors.goldShimmer, 'transparent']}
+              colors={['transparent', palette.accentShimmer, 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.shimmerGradient}
@@ -174,7 +177,7 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
           {/* Content */}
           <View style={styles.cardContent}>
             <Text
-              style={[styles.cardTitle, isLarge && styles.cardTitleLarge]}
+              style={[styles.cardTitle, { color: palette.textInverse }, isLarge && styles.cardTitleLarge]}
               numberOfLines={isLarge ? 3 : 2}
             >
               {insight.title}
@@ -193,7 +196,7 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
               <Ionicons
                 name={coach?.icon_name as keyof typeof Ionicons.glyphMap || 'person'}
                 size={12}
-                color={Colors.white}
+                color={palette.textInverse}
               />
               <Text style={styles.coachName}>{coach?.name || 'Coach'}</Text>
             </View>
@@ -203,7 +206,7 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
           {/* Highlighted star */}
           {isHighlighted && (
             <View style={styles.highlightStar}>
-              <Ionicons name="star" size={14} color={Colors.white} />
+              <Ionicons name="star" size={14} color={palette.textInverse} />
             </View>
           )}
         </LinearGradient>
@@ -228,13 +231,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
     marginTop: Spacing.lg,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
     textAlign: 'center',
   },
@@ -301,7 +302,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.white,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.snug,
   },
   cardTitleLarge: {

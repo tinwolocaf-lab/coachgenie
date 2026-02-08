@@ -31,7 +31,8 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { Coach, Message, Session, SessionResult, ContextVault } from '@/types';
@@ -49,6 +50,7 @@ import { streamChat, generateArtifacts } from '@/lib/apiClient';
 
 export default function ChatScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const insets = useSafeAreaInsets();
   const { coachId, context } = useLocalSearchParams<{
     coachId: string;
@@ -328,18 +330,18 @@ export default function ChatScreen() {
       >
         {/* Speaker indicator */}
         <View style={styles.speakerRow}>
-          <View style={[styles.speakerDot, isUser && styles.speakerDotUser]} />
-          <Text style={[styles.speakerLabel, isUser && styles.speakerLabelUser]}>
+          <View style={[styles.speakerDot, { backgroundColor: palette.accent }, isUser && { backgroundColor: palette.textPrimary }]} />
+          <Text style={[styles.speakerLabel, { color: palette.accent }, isUser && { color: palette.textPrimary }]}>
             {isUser ? 'You' : coach?.name || 'Coach'}
           </Text>
-          <Text style={styles.timestamp}>
+          <Text style={[styles.timestamp, { color: palette.textTertiary }]}>
             {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
 
         {/* Message content - transcript style */}
-        <View style={[styles.transcriptContent, isUser && styles.transcriptContentUser]}>
-          <Text style={[styles.transcriptText, isUser && styles.transcriptTextUser]}>
+        <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }, isUser && { borderLeftColor: palette.borderLight }]}>
+          <Text style={[styles.transcriptText, { color: palette.textSecondary }, isUser && styles.transcriptTextUser]}>
             {item.content}
           </Text>
         </View>
@@ -349,27 +351,27 @@ export default function ChatScreen() {
 
   if (!coach) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={Colors.burnishedGold} />
+          <ActivityIndicator size="large" color={palette.accent} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Premium Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: palette.borderLight, backgroundColor: palette.background }]}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="chevron-down" size={28} color={Colors.midnightEmerald} />
+          <Ionicons name="chevron-down" size={28} color={palette.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
           <CoachIcon iconName={coach.icon_name} color={coach.color} size="sm" />
           <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>{coach.name}</Text>
-            <Text style={styles.headerSubtitle}>Session in progress</Text>
+            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>{coach.name}</Text>
+            <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>Session in progress</Text>
           </View>
         </View>
 
@@ -379,11 +381,11 @@ export default function ChatScreen() {
           disabled={isGeneratingArtifacts}
         >
           {isGeneratingArtifacts ? (
-            <ActivityIndicator size="small" color={Colors.burnishedGold} />
+            <ActivityIndicator size="small" color={palette.accent} />
           ) : (
             <>
-              <Ionicons name="sparkles" size={18} color={Colors.burnishedGold} />
-              {sessionResult && <View style={styles.insightsBadge} />}
+              <Ionicons name="sparkles" size={18} color={palette.accent} />
+              {sessionResult && <View style={[styles.insightsBadge, { backgroundColor: palette.success }]} />}
             </>
           )}
         </TouchableOpacity>
@@ -406,26 +408,26 @@ export default function ChatScreen() {
               {isStreaming && streamingText && (
                 <Animated.View entering={FadeIn.duration(300)} style={styles.transcriptEntry}>
                   <View style={styles.speakerRow}>
-                    <View style={styles.speakerDot} />
-                    <Text style={styles.speakerLabel}>{coach.name}</Text>
-                    <Animated.View style={[styles.typingIndicator, pulseStyle]}>
-                      <Text style={styles.typingText}>composing</Text>
+                    <View style={[styles.speakerDot, { backgroundColor: palette.accent }]} />
+                    <Text style={[styles.speakerLabel, { color: palette.accent }]}>{coach.name}</Text>
+                    <Animated.View style={[styles.typingIndicator, { backgroundColor: palette.accentMuted }, pulseStyle]}>
+                      <Text style={[styles.typingText, { color: palette.accent }]}>composing</Text>
                     </Animated.View>
                   </View>
-                  <View style={styles.transcriptContent}>
-                    <Text style={styles.transcriptText}>{streamingText}</Text>
-                    <Animated.View style={[styles.cursor, pulseStyle]} />
+                  <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }]}>
+                    <Text style={[styles.transcriptText, { color: palette.textSecondary }]}>{streamingText}</Text>
+                    <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
                   </View>
                 </Animated.View>
               )}
               {(isStreaming && !streamingText) && (
                 <Animated.View entering={FadeIn.duration(300)} style={styles.thinkingContainer}>
                   <View style={styles.thinkingDots}>
-                    <View style={styles.thinkingDot} />
-                    <View style={[styles.thinkingDot, { marginHorizontal: 4 }]} />
-                    <View style={styles.thinkingDot} />
+                    <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
+                    <View style={[styles.thinkingDot, { backgroundColor: palette.accent, marginHorizontal: 4 }]} />
+                    <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
                   </View>
-                  <Text style={styles.thinkingText}>{coach.name} is reflecting...</Text>
+                  <Text style={[styles.thinkingText, { color: palette.textTertiary }]}>{coach.name} is reflecting...</Text>
                 </Animated.View>
               )}
             </>
@@ -433,12 +435,12 @@ export default function ChatScreen() {
         />
 
         {/* Premium Input */}
-        <View style={[styles.inputContainer, { paddingBottom: insets.bottom || Spacing.md }]}>
-          <View style={styles.inputWrapper}>
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom || Spacing.md, backgroundColor: palette.background, borderTopColor: palette.borderLight }]}>
+          <View style={[styles.inputWrapper, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: palette.textSecondary }]}
               placeholder="Share your thoughts..."
-              placeholderTextColor={Colors.stoneGray}
+              placeholderTextColor={palette.textTertiary}
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -446,14 +448,14 @@ export default function ChatScreen() {
               editable={!isStreaming}
             />
             <TouchableOpacity
-              style={[styles.sendButton, (!inputText.trim() || isStreaming) && styles.sendButtonDisabled]}
+              style={[styles.sendButton, { backgroundColor: palette.accent }, (!inputText.trim() || isStreaming) && { backgroundColor: palette.backgroundSecondary }]}
               onPress={handleSend}
               disabled={!inputText.trim() || isStreaming}
             >
               <Ionicons
                 name="arrow-up"
                 size={20}
-                color={(!inputText.trim() || isStreaming) ? Colors.stoneGray : Colors.white}
+                color={(!inputText.trim() || isStreaming) ? palette.textTertiary : palette.textInverse}
               />
             </TouchableOpacity>
           </View>
@@ -489,18 +491,19 @@ function PaperArtifact({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const { palette } = useThemeSafe();
   const insets = useSafeAreaInsets();
 
   if (!sessionResult) return null;
 
   return (
-    <View style={[paperStyles.container, { paddingTop: insets.top }]}>
+    <View style={[paperStyles.container, { paddingTop: insets.top, backgroundColor: palette.background }]}>
       {/* Paper Header */}
-      <View style={paperStyles.header}>
+      <View style={[paperStyles.header, { borderBottomColor: palette.borderLight }]}>
         <TouchableOpacity onPress={onClose} style={paperStyles.closeButton}>
-          <Ionicons name="close" size={24} color={Colors.stoneGray} />
+          <Ionicons name="close" size={24} color={palette.textTertiary} />
         </TouchableOpacity>
-        <Text style={paperStyles.headerTitle}>Session Insights</Text>
+        <Text style={[paperStyles.headerTitle, { color: palette.textPrimary }]}>Session Insights</Text>
         <View style={paperStyles.headerSpacer} />
       </View>
 
@@ -510,37 +513,37 @@ function PaperArtifact({
         showsVerticalScrollIndicator={false}
       >
         {/* Coach Attribution */}
-        <Animated.View entering={FadeInUp.duration(600)} style={paperStyles.attribution}>
+        <Animated.View entering={FadeInUp.duration(600)} style={[paperStyles.attribution, { borderBottomColor: palette.borderLight }]}>
           <CoachIcon iconName={coach.icon_name} color={coach.color} size="md" />
           <View style={paperStyles.attributionText}>
-            <Text style={paperStyles.attributionLabel}>Guided by</Text>
-            <Text style={paperStyles.attributionName}>{coach.name}</Text>
+            <Text style={[paperStyles.attributionLabel, { color: palette.textTertiary }]}>Guided by</Text>
+            <Text style={[paperStyles.attributionName, { color: palette.textPrimary }]}>{coach.name}</Text>
           </View>
         </Animated.View>
 
         {/* Summary Section */}
         <Animated.View entering={FadeInUp.duration(600).delay(100)} style={paperStyles.section}>
-          <Text style={paperStyles.sectionTitle}>Summary</Text>
-          <View style={paperStyles.summaryCard}>
-            <Text style={paperStyles.summaryText}>{sessionResult.summary}</Text>
+          <Text style={[paperStyles.sectionTitle, { color: palette.textTertiary }]}>Summary</Text>
+          <View style={[paperStyles.summaryCard, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}>
+            <Text style={[paperStyles.summaryText, { color: palette.textSecondary }]}>{sessionResult.summary}</Text>
           </View>
         </Animated.View>
 
         {/* Next Actions */}
         {sessionResult.next_actions && sessionResult.next_actions.length > 0 && (
           <Animated.View entering={FadeInUp.duration(600).delay(200)} style={paperStyles.section}>
-            <Text style={paperStyles.sectionTitle}>Next Actions</Text>
+            <Text style={[paperStyles.sectionTitle, { color: palette.textTertiary }]}>Next Actions</Text>
             <View style={paperStyles.actionsContainer}>
               {sessionResult.next_actions.map((action, index) => (
                 <Animated.View
                   key={action.id}
                   entering={FadeInUp.duration(400).delay(300 + index * 100)}
-                  style={paperStyles.actionItem}
+                  style={[paperStyles.actionItem, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
                 >
-                  <View style={paperStyles.actionNumber}>
-                    <Text style={paperStyles.actionNumberText}>{index + 1}</Text>
+                  <View style={[paperStyles.actionNumber, { backgroundColor: palette.accentMuted }]}>
+                    <Text style={[paperStyles.actionNumberText, { color: palette.accent }]}>{index + 1}</Text>
                   </View>
-                  <Text style={paperStyles.actionText}>{action.title}</Text>
+                  <Text style={[paperStyles.actionText, { color: palette.textSecondary }]}>{action.title}</Text>
                 </Animated.View>
               ))}
             </View>
@@ -549,13 +552,13 @@ function PaperArtifact({
 
         {/* Signature Line */}
         <Animated.View entering={FadeInUp.duration(600).delay(400)} style={paperStyles.signatureSection}>
-          <View style={paperStyles.signatureLine} />
-          <Text style={paperStyles.signatureLabel}>Committed on {new Date().toLocaleDateString()}</Text>
+          <View style={[paperStyles.signatureLine, { backgroundColor: palette.border }]} />
+          <Text style={[paperStyles.signatureLabel, { color: palette.textTertiary }]}>Committed on {new Date().toLocaleDateString()}</Text>
         </Animated.View>
       </ScrollView>
 
       {/* Footer Actions */}
-      <View style={[paperStyles.footer, { paddingBottom: insets.bottom || Spacing.xl }]}>
+      <View style={[paperStyles.footer, { paddingBottom: insets.bottom || Spacing.xl, borderTopColor: palette.borderLight, backgroundColor: palette.background }]}>
         <Button
           title="View Plan"
           onPress={onConfirm}
@@ -571,7 +574,6 @@ function PaperArtifact({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   loading: {
     flex: 1,
@@ -586,8 +588,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.warmOatmeal,
   },
   backButton: {
     padding: Spacing.xs,
@@ -604,12 +604,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   headerSubtitle: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
   insightsButton: {
@@ -623,7 +621,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.success,
   },
 
   // Chat
@@ -649,41 +646,27 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.burnishedGold,
     marginRight: Spacing.sm,
-  },
-  speakerDotUser: {
-    backgroundColor: Colors.midnightEmerald,
   },
   speakerLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
     flex: 1,
   },
-  speakerLabelUser: {
-    color: Colors.midnightEmerald,
-  },
   timestamp: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
   },
   transcriptContent: {
     paddingLeft: Spacing.lg,
     borderLeftWidth: 2,
-    borderLeftColor: Colors.goldMuted,
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-end',
   },
-  transcriptContentUser: {
-    borderLeftColor: Colors.borderLight,
-  },
   transcriptText: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
   },
@@ -693,19 +676,16 @@ const styles = StyleSheet.create({
   cursor: {
     width: 2,
     height: 20,
-    backgroundColor: Colors.burnishedGold,
     marginLeft: 4,
     marginBottom: 2,
   },
   typingIndicator: {
-    backgroundColor: Colors.goldMuted,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.pill,
   },
   typingText: {
     fontSize: Typography.sizes.micro,
-    color: Colors.burnishedGold,
     fontStyle: 'italic',
   },
 
@@ -724,11 +704,9 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.burnishedGold,
   },
   thinkingText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
   },
 
@@ -736,17 +714,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    backgroundColor: Colors.warmOatmeal,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingLeft: Spacing.lg,
     paddingRight: Spacing.xs,
     paddingVertical: Spacing.xs,
@@ -755,7 +729,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     maxHeight: 100,
     paddingVertical: Spacing.sm,
   },
@@ -763,19 +736,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.burnishedGold,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: Colors.warmOatmealDark,
   },
 });
 
 const paperStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   header: {
     flexDirection: 'row',
@@ -783,7 +751,6 @@ const paperStyles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   closeButton: {
     padding: Spacing.xs,
@@ -792,7 +759,6 @@ const paperStyles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     textAlign: 'center',
   },
@@ -811,21 +777,18 @@ const paperStyles = StyleSheet.create({
     marginBottom: Spacing.xxxl,
     paddingBottom: Spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   attributionText: {
     marginLeft: Spacing.md,
   },
   attributionLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
   },
   attributionName: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   section: {
@@ -834,22 +797,18 @@ const paperStyles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.stoneGray,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
     marginBottom: Spacing.md,
   },
   summaryCard: {
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     ...Shadows.sm,
   },
   summaryText: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
     fontStyle: 'italic',
@@ -860,18 +819,15 @@ const paperStyles = StyleSheet.create({
   actionItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.white,
     borderRadius: Radius.xl,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     ...Shadows.subtle,
   },
   actionNumber: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -879,13 +835,11 @@ const paperStyles = StyleSheet.create({
   actionNumberText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     fontFamily: Typography.fonts.serif,
   },
   actionText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
   signatureSection: {
@@ -896,19 +850,15 @@ const paperStyles = StyleSheet.create({
   signatureLine: {
     width: 200,
     height: 1,
-    backgroundColor: Colors.border,
     marginBottom: Spacing.md,
   },
   signatureLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
   },
   footer: {
     paddingHorizontal: Spacing.xxl,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    backgroundColor: Colors.warmOatmeal,
   },
 });

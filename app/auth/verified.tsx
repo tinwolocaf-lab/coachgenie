@@ -21,7 +21,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
@@ -35,6 +36,7 @@ interface ParticleProps {
 }
 
 function CelebrationParticle({ delay, startX, startY }: ParticleProps) {
+  const { palette } = useThemeSafe();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
@@ -92,6 +94,8 @@ function CelebrationParticle({ delay, startX, startY }: ParticleProps) {
           borderRadius: size / 2,
           left: startX,
           top: startY,
+          backgroundColor: palette.accent,
+          shadowColor: palette.accent,
         },
         animatedStyle,
       ]}
@@ -101,6 +105,7 @@ function CelebrationParticle({ delay, startX, startY }: ParticleProps) {
 
 // Pulsing ring around the success icon
 function PulsingRing({ delay, size }: { delay: number; size: number }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(0.8);
   const opacity = useSharedValue(0);
 
@@ -139,7 +144,7 @@ function PulsingRing({ delay, size }: { delay: number; size: number }) {
     <Animated.View
       style={[
         styles.pulsingRing,
-        { width: size, height: size, borderRadius: size / 2 },
+        { width: size, height: size, borderRadius: size / 2, borderColor: palette.accent },
         animatedStyle,
       ]}
     />
@@ -161,6 +166,7 @@ const getAuthHook = () => {
 
 export default function VerifiedScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth ? useAuth() : null;
@@ -220,7 +226,7 @@ export default function VerifiedScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       {/* Celebration particles */}
       <View style={styles.particleContainer}>
         {particles}
@@ -239,10 +245,10 @@ export default function VerifiedScreen() {
             {/* Main icon */}
             <Animated.View style={checkmarkStyle}>
               <LinearGradient
-                colors={[Colors.burnishedGold, Colors.goldLight]}
+                colors={[palette.accent, palette.accentLight]}
                 style={styles.iconGradient}
               >
-                <Ionicons name="checkmark" size={56} color={Colors.white} />
+                <Ionicons name="checkmark" size={56} color={palette.textInverse} />
               </LinearGradient>
             </Animated.View>
           </View>
@@ -252,18 +258,18 @@ export default function VerifiedScreen() {
         {showContent && (
           <>
             <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.textSection}>
-              <Text style={styles.title}>Welcome, {displayName}</Text>
-              <Text style={styles.subtitle}>Your account has been verified</Text>
+              <Text style={[styles.title, { color: palette.textPrimary }]}>Welcome, {displayName}</Text>
+              <Text style={[styles.subtitle, { color: palette.textTertiary }]}>Your account has been verified</Text>
             </Animated.View>
 
             <Animated.View entering={FadeIn.duration(500).delay(300)} style={styles.messageSection}>
-              <View style={styles.messageCard}>
-                <View style={styles.messageIconContainer}>
-                  <Ionicons name="sparkles" size={20} color={Colors.burnishedGold} />
+              <View style={[styles.messageCard, { backgroundColor: palette.cardBg, borderColor: palette.borderAccent }]}>
+                <View style={[styles.messageIconContainer, { backgroundColor: palette.accentMuted }]}>
+                  <Ionicons name="sparkles" size={20} color={palette.accent} />
                 </View>
                 <View style={styles.messageTextContainer}>
-                  <Text style={styles.messageTitle}>Your journey begins now</Text>
-                  <Text style={styles.messageText}>
+                  <Text style={[styles.messageTitle, { color: palette.textPrimary }]}>Your journey begins now</Text>
+                  <Text style={[styles.messageText, { color: palette.textTertiary }]}>
                     Connect with AI coaches tailored to your unique goals and aspirations.
                     Your personalized growth experience awaits.
                   </Text>
@@ -278,14 +284,14 @@ export default function VerifiedScreen() {
                 fullWidth
                 variant="gold"
                 size="lg"
-                icon={<Ionicons name="arrow-forward" size={20} color={Colors.white} />}
+                icon={<Ionicons name="arrow-forward" size={20} color={palette.textInverse} />}
                 iconPosition="right"
               />
             </Animated.View>
 
             <Animated.View entering={FadeIn.duration(400).delay(700)} style={styles.footerSection}>
-              <View style={styles.footerDivider} />
-              <Text style={styles.footerText}>
+              <View style={[styles.footerDivider, { backgroundColor: palette.border }]} />
+              <Text style={[styles.footerText, { color: palette.textTertiary }]}>
                 You&apos;re now part of an exclusive community committed to personal excellence
               </Text>
             </Animated.View>
@@ -299,7 +305,6 @@ export default function VerifiedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   particleContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -307,8 +312,6 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: 'absolute',
-    backgroundColor: Colors.burnishedGold,
-    shadowColor: Colors.burnishedGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 8,
@@ -334,7 +337,6 @@ const styles = StyleSheet.create({
   pulsingRing: {
     position: 'absolute',
     borderWidth: 2,
-    borderColor: Colors.burnishedGold,
   },
   iconGradient: {
     width: 120,
@@ -353,14 +355,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.sizes.hero,
     fontWeight: Typography.weights.bold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   subtitle: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.stoneGray,
     textAlign: 'center',
   },
 
@@ -370,18 +370,15 @@ const styles = StyleSheet.create({
   },
   messageCard: {
     flexDirection: 'row',
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
     padding: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.borderGold,
     ...Shadows.sm,
   },
   messageIconContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.lg,
@@ -392,12 +389,10 @@ const styles = StyleSheet.create({
   messageTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.xs,
   },
   messageText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -414,12 +409,10 @@ const styles = StyleSheet.create({
   footerDivider: {
     width: 40,
     height: 1,
-    backgroundColor: Colors.border,
     marginBottom: Spacing.lg,
   },
   footerText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     textAlign: 'center',
     fontStyle: 'italic',
     paddingHorizontal: Spacing.xl,

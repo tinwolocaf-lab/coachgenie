@@ -28,7 +28,8 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Coach, EnhancedMessage, ContextVault } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { getContextVault } from '@/store/app';
@@ -60,6 +61,7 @@ import { VoiceNoteInput, VoiceNoteTrigger } from '@/components/sanctuary/VoiceNo
 
 export default function SanctuaryScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const insets = useSafeAreaInsets();
   const { coachId, resume } = useLocalSearchParams<{
     coachId: string;
@@ -513,7 +515,7 @@ export default function SanctuaryScreen() {
     <EditorialBlock
       message={item}
       coachName={coach?.name || 'Coach'}
-      coachColor={coach?.color || Colors.burnishedGold}
+      coachColor={coach?.color || palette.accent}
       index={index}
       onLongPress={handleLongPress}
       onInsightPress={() => {
@@ -557,20 +559,20 @@ export default function SanctuaryScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: palette.borderLight, backgroundColor: palette.background }]}>
         <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
-          <Ionicons name="chevron-down" size={28} color={Colors.midnightEmerald} />
+          <Ionicons name="chevron-down" size={28} color={palette.textPrimary} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.headerCenter} onPress={() => {}}>
           <CoachIcon iconName={coach.icon_name} color={coach.color} size="sm" />
           <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>{coach.name}</Text>
+            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>{coach.name}</Text>
             <View style={styles.headerStatus}>
-              <View style={[styles.statusDot, { backgroundColor: Colors.success }]} />
-              <Text style={styles.headerSubtitle}>In Session</Text>
+              <View style={[styles.statusDot, { backgroundColor: palette.success }]} />
+              <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>In Session</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -583,7 +585,7 @@ export default function SanctuaryScreen() {
           <Ionicons
             name="sparkles"
             size={22}
-            color={messages.length < 4 ? Colors.stoneGray : Colors.burnishedGold}
+            color={messages.length < 4 ? palette.textTertiary : palette.accent}
           />
         </TouchableOpacity>
       </View>
@@ -650,16 +652,16 @@ export default function SanctuaryScreen() {
         <Animated.View
           style={[
             styles.inputContainer,
-            { paddingBottom: insets.bottom || Spacing.md },
+            { paddingBottom: insets.bottom || Spacing.md, backgroundColor: palette.background, borderTopColor: palette.borderLight },
             inputContainerStyle,
           ]}
         >
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
             <TextInput
               ref={inputRef}
-              style={styles.input}
+              style={[styles.input, { color: palette.textSecondary }]}
               placeholder="Share your thoughts..."
-              placeholderTextColor={Colors.stoneGray}
+              placeholderTextColor={palette.textTertiary}
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -684,7 +686,8 @@ export default function SanctuaryScreen() {
               <TouchableOpacity
                 style={[
                   styles.sendButton,
-                  (!inputText.trim() || isGenerating) && styles.sendButtonDisabled,
+                  { backgroundColor: palette.accent },
+                  (!inputText.trim() || isGenerating) && { backgroundColor: palette.backgroundSecondary },
                 ]}
                 onPress={() => handleSend()}
                 disabled={!inputText.trim() || isGenerating}
@@ -692,7 +695,7 @@ export default function SanctuaryScreen() {
                 <Ionicons
                   name="arrow-up"
                   size={20}
-                  color={(!inputText.trim() || isGenerating) ? Colors.stoneGray : Colors.white}
+                  color={(!inputText.trim() || isGenerating) ? palette.textTertiary : palette.textInverse}
                 />
               </TouchableOpacity>
             </View>
@@ -741,7 +744,6 @@ export default function SanctuaryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Header
@@ -751,8 +753,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.warmOatmeal,
   },
   headerButton: {
     padding: Spacing.sm,
@@ -769,7 +769,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   headerStatus: {
@@ -785,7 +784,6 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
 
   // Chat
@@ -805,17 +803,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    backgroundColor: Colors.warmOatmeal,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingLeft: Spacing.lg,
     paddingRight: Spacing.xs,
     paddingVertical: Spacing.xs,
@@ -824,7 +818,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     maxHeight: 120,
     paddingVertical: Spacing.sm,
     fontFamily: Typography.fonts.sans,
@@ -839,11 +832,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.burnishedGold,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: Colors.warmOatmealDark,
   },
 });

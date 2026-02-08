@@ -20,7 +20,8 @@ import Animated, {
   useSharedValue,
   interpolate,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { AVAILABLE_VALUES } from '@/types';
 import { getOnboardingState, updateValues } from '@/store/onboarding';
@@ -46,6 +47,7 @@ const VALUE_CONFIGS: Record<string, { icon: keyof typeof Ionicons.glyphMap; colo
 
 export default function ValuesScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
 
   useEffect(() => {
@@ -82,13 +84,13 @@ export default function ValuesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       {/* Progress indicator */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <Animated.View style={[styles.progressFill, { width: '20%' }]} />
+        <View style={[styles.progressBar, { backgroundColor: palette.border }]}>
+          <Animated.View style={[styles.progressFill, { width: '20%', backgroundColor: palette.accent }]} />
         </View>
-        <Text style={styles.progressText}>1 of 5</Text>
+        <Text style={[styles.progressText, { color: palette.textTertiary }]}>1 of 5</Text>
       </View>
 
       <ScrollView
@@ -98,8 +100,8 @@ export default function ValuesScreen() {
       >
         {/* Consultation Question */}
         <Animated.View entering={FadeInUp.duration(800)} style={styles.questionContainer}>
-          <Text style={styles.question}>What drives you?</Text>
-          <Text style={styles.questionSubtitle}>
+          <Text style={[styles.question, { color: palette.textPrimary }]}>What drives you?</Text>
+          <Text style={[styles.questionSubtitle, { color: palette.textTertiary }]}>
             Select up to 5 values that guide your decisions. This helps us understand what matters most to you.
           </Text>
         </Animated.View>
@@ -126,12 +128,13 @@ export default function ValuesScreen() {
                 key={i}
                 style={[
                   styles.dot,
-                  i < selectedValues.length && styles.dotFilled,
+                  { backgroundColor: palette.border },
+                  i < selectedValues.length && { backgroundColor: palette.accent },
                 ]}
               />
             ))}
           </View>
-          <Text style={styles.selectionText}>
+          <Text style={[styles.selectionText, { color: palette.textTertiary }]}>
             {selectedValues.length === 0
               ? 'Select your values'
               : `${selectedValues.length} of 5 selected`}
@@ -172,6 +175,7 @@ function VisionCard({
   onPress: () => void;
   index: number;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
   const config = VALUE_CONFIGS[value] || VALUE_CONFIGS.Growth;
 
@@ -198,7 +202,7 @@ function VisionCard({
       <TouchableOpacity
         style={[
           styles.visionCard,
-          selected && styles.visionCardSelected,
+          selected && [styles.visionCardSelected, { borderColor: palette.accent }],
         ]}
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -207,26 +211,26 @@ function VisionCard({
         disabled={disabled}
       >
         <LinearGradient
-          colors={selected ? config.colors : [Colors.white, Colors.warmOatmealDark]}
+          colors={selected ? config.colors : [palette.cardBg, palette.backgroundSecondary]}
           style={styles.visionCardGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <View style={[styles.iconContainer, selected && styles.iconContainerSelected]}>
+          <View style={[styles.iconContainer, { backgroundColor: palette.background }, selected && styles.iconContainerSelected]}>
             <Ionicons
               name={config.icon}
               size={28}
-              color={selected ? Colors.white : config.colors[0]}
+              color={selected ? palette.textInverse : config.colors[0]}
             />
           </View>
-          <Text style={[styles.valueName, selected && styles.valueNameSelected]}>
+          <Text style={[styles.valueName, { color: palette.textSecondary }, selected && { color: palette.textInverse }]}>
             {value}
           </Text>
 
           {/* Selection indicator */}
           {selected && (
-            <View style={styles.checkBadge}>
-              <Ionicons name="checkmark" size={14} color={Colors.white} />
+            <View style={[styles.checkBadge, { backgroundColor: palette.accent }]}>
+              <Ionicons name="checkmark" size={14} color={palette.textInverse} />
             </View>
           )}
         </LinearGradient>
@@ -238,7 +242,6 @@ function VisionCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Progress
@@ -252,18 +255,15 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: Colors.border,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.burnishedGold,
     borderRadius: 2,
   },
   progressText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontWeight: Typography.weights.medium,
   },
 
@@ -283,13 +283,11 @@ const styles = StyleSheet.create({
   question: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.md,
   },
   questionSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -309,7 +307,6 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   visionCardSelected: {
-    borderColor: Colors.burnishedGold,
     ...Shadows.gold,
   },
   visionCardGradient: {
@@ -322,7 +319,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.warmOatmeal,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
@@ -333,12 +329,8 @@ const styles = StyleSheet.create({
   valueName: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
     textAlign: 'center',
-  },
-  valueNameSelected: {
-    color: Colors.white,
   },
   checkBadge: {
     position: 'absolute',
@@ -347,7 +339,6 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.burnishedGold,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -365,14 +356,9 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.border,
-  },
-  dotFilled: {
-    backgroundColor: Colors.burnishedGold,
   },
   selectionText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
   },
 

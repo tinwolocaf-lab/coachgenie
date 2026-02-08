@@ -26,7 +26,8 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { getAllBreakthroughs } from '@/lib/supabase-archive';
 import { Breakthrough, BreakthroughAction } from '@/types';
@@ -49,6 +50,7 @@ const getAuthHook = () => {
 
 export default function BreakthroughsScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const { id: highlightId } = useLocalSearchParams<{ id?: string }>();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -93,15 +95,15 @@ export default function BreakthroughsScreen() {
   const groupedBreakthroughs = groupByMonth(breakthroughs);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { borderBottomColor: palette.borderLight }]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Ionicons name="chevron-back" size={24} color={Colors.midnightEmerald} />
+          <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Ionicons name="star" size={20} color={Colors.burnishedGold} />
-          <Text style={styles.headerTitle}>Breakthrough Logs</Text>
+          <Ionicons name="star" size={20} color={palette.accent} />
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Breakthrough Logs</Text>
         </View>
         <View style={styles.headerRight} />
       </Animated.View>
@@ -109,24 +111,24 @@ export default function BreakthroughsScreen() {
       {/* Stats Banner */}
       <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.statsBanner}>
         <LinearGradient
-          colors={[Colors.midnightEmerald, '#243D2E']}
+          colors={[palette.textPrimary, '#243D2E']}
           style={styles.statsGradient}
         >
           <View style={styles.statsContent}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{breakthroughs.length}</Text>
-              <Text style={styles.statLabel}>Total Breakthroughs</Text>
+              <Text style={[styles.statValue, { color: palette.textInverse }]}>{breakthroughs.length}</Text>
+              <Text style={[styles.statLabel, { color: palette.accentLight }]}>Total Breakthroughs</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>
+              <Text style={[styles.statValue, { color: palette.textInverse }]}>
                 {breakthroughs.filter(b => {
                   const date = new Date(b.date);
                   const now = new Date();
                   return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
                 }).length}
               </Text>
-              <Text style={styles.statLabel}>This Month</Text>
+              <Text style={[styles.statLabel, { color: palette.accentLight }]}>This Month</Text>
             </View>
           </View>
         </LinearGradient>
@@ -141,17 +143,17 @@ export default function BreakthroughsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.burnishedGold}
+            tintColor={palette.accent}
           />
         }
       >
         {breakthroughs.length === 0 ? (
           <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="star-outline" size={48} color={Colors.stoneGray} />
+            <View style={[styles.emptyIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="star-outline" size={48} color={palette.textTertiary} />
             </View>
-            <Text style={styles.emptyTitle}>No breakthroughs yet</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: palette.textSecondary }]}>No breakthroughs yet</Text>
+            <Text style={[styles.emptySubtitle, { color: palette.textTertiary }]}>
               Your breakthrough moments will be celebrated here
             </Text>
           </View>
@@ -160,7 +162,7 @@ export default function BreakthroughsScreen() {
             <View key={monthYear} style={styles.monthGroup}>
               <Animated.Text
                 entering={FadeInDown.duration(300).delay(groupIndex * 50)}
-                style={styles.monthLabel}
+                style={[styles.monthLabel, { color: palette.accent }]}
               >
                 {monthYear}
               </Animated.Text>
@@ -201,6 +203,7 @@ function BreakthroughCard({
   isHighlighted,
   onToggle,
 }: BreakthroughCardProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(0.95);
   const opacity = useSharedValue(0);
   const shimmerPosition = useSharedValue(0);
@@ -265,13 +268,13 @@ function BreakthroughCard({
     <Animated.View style={[styles.breakthroughCard, containerStyle]}>
       <TouchableOpacity activeOpacity={0.95} onPress={onToggle}>
         <LinearGradient
-          colors={isHighlighted ? [Colors.burnishedGold, Colors.goldLight] : [Colors.cardBg, Colors.cream]}
+          colors={isHighlighted ? [palette.accent, palette.accentLight] : [palette.cardBg, palette.cardBg]}
           style={styles.cardGradient}
         >
           {/* Shimmer overlay */}
           <Animated.View style={[styles.shimmerOverlay, shimmerStyle]}>
             <LinearGradient
-              colors={['transparent', Colors.goldShimmer, 'transparent']}
+              colors={['transparent', palette.accentShimmer, 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.shimmerGradient}
@@ -283,35 +286,35 @@ function BreakthroughCard({
             <Ionicons
               name="star"
               size={24}
-              color={isHighlighted ? Colors.white : Colors.burnishedGold}
+              color={isHighlighted ? palette.textInverse : palette.accent}
             />
           </View>
 
           {/* Header */}
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardDate, isHighlighted && styles.cardDateHighlighted]}>
+            <Text style={[styles.cardDate, { color: palette.textTertiary }, isHighlighted && styles.cardDateHighlighted]}>
               {formattedDate}
             </Text>
             <View style={styles.coachBadge}>
               <Ionicons
                 name={coach?.icon_name as keyof typeof Ionicons.glyphMap || 'person'}
                 size={12}
-                color={isHighlighted ? Colors.white : Colors.stoneGray}
+                color={isHighlighted ? palette.textInverse : palette.textTertiary}
               />
-              <Text style={[styles.coachName, isHighlighted && styles.coachNameHighlighted]}>
+              <Text style={[styles.coachName, { color: palette.textTertiary }, isHighlighted && styles.coachNameHighlighted]}>
                 {coach?.name || 'Coach'}
               </Text>
             </View>
           </View>
 
           {/* Title */}
-          <Text style={[styles.cardTitle, isHighlighted && styles.cardTitleHighlighted]}>
+          <Text style={[styles.cardTitle, { color: palette.textPrimary }, isHighlighted && { color: palette.textInverse }]}>
             {breakthrough.title}
           </Text>
 
           {/* Summary */}
           <Text
-            style={[styles.cardSummary, isHighlighted && styles.cardSummaryHighlighted]}
+            style={[styles.cardSummary, { color: palette.textSecondary }, isHighlighted && styles.cardSummaryHighlighted]}
             numberOfLines={isExpanded ? undefined : 3}
           >
             {breakthrough.summary}
@@ -321,14 +324,14 @@ function BreakthroughCard({
           <Animated.View style={[styles.expandedContent, expandedStyle]}>
             {/* Key Takeaways */}
             {breakthrough.key_takeaways && breakthrough.key_takeaways.length > 0 && (
-              <View style={styles.takeawaysSection}>
-                <Text style={[styles.sectionLabel, isHighlighted && styles.sectionLabelHighlighted]}>
+              <View style={[styles.takeawaysSection, { borderTopColor: palette.borderLight }]}>
+                <Text style={[styles.sectionLabel, { color: palette.accent }, isHighlighted && styles.sectionLabelHighlighted]}>
                   Key Takeaways
                 </Text>
                 {(breakthrough.key_takeaways as string[]).map((takeaway, i) => (
                   <View key={i} style={styles.takeawayItem}>
-                    <View style={[styles.takeawayBullet, isHighlighted && styles.takeawayBulletHighlighted]} />
-                    <Text style={[styles.takeawayText, isHighlighted && styles.takeawayTextHighlighted]}>
+                    <View style={[styles.takeawayBullet, { backgroundColor: palette.accent }, isHighlighted && { backgroundColor: palette.textInverse }]} />
+                    <Text style={[styles.takeawayText, { color: palette.textSecondary }, isHighlighted && styles.takeawayTextHighlighted]}>
                       {takeaway}
                     </Text>
                   </View>
@@ -339,7 +342,7 @@ function BreakthroughCard({
             {/* Action Items */}
             {breakthrough.action_items && (breakthrough.action_items as BreakthroughAction[]).length > 0 && (
               <View style={styles.actionsSection}>
-                <Text style={[styles.sectionLabel, isHighlighted && styles.sectionLabelHighlighted]}>
+                <Text style={[styles.sectionLabel, { color: palette.accent }, isHighlighted && styles.sectionLabelHighlighted]}>
                   Action Items
                 </Text>
                 {(breakthrough.action_items as BreakthroughAction[]).map((action, i) => (
@@ -348,14 +351,15 @@ function BreakthroughCard({
                       name={action.completed ? 'checkmark-circle' : 'ellipse-outline'}
                       size={18}
                       color={action.completed
-                        ? (isHighlighted ? Colors.white : Colors.success)
-                        : (isHighlighted ? 'rgba(255,255,255,0.6)' : Colors.stoneGray)
+                        ? (isHighlighted ? palette.textInverse : palette.success)
+                        : (isHighlighted ? 'rgba(255,255,255,0.6)' : palette.textTertiary)
                       }
                     />
                     <Text
                       style={[
                         styles.actionText,
-                        action.completed && styles.actionTextCompleted,
+                        { color: palette.textSecondary },
+                        action.completed && { textDecorationLine: 'line-through', color: palette.textTertiary },
                         isHighlighted && styles.actionTextHighlighted,
                       ]}
                     >
@@ -372,7 +376,7 @@ function BreakthroughCard({
             <Ionicons
               name={isExpanded ? 'chevron-up' : 'chevron-down'}
               size={18}
-              color={isHighlighted ? Colors.white : Colors.stoneGray}
+              color={isHighlighted ? palette.textInverse : palette.textTertiary}
             />
           </View>
         </LinearGradient>
@@ -401,7 +405,6 @@ function groupByMonth(breakthroughs: Breakthrough[]): Record<string, Breakthroug
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   header: {
     flexDirection: 'row',
@@ -409,7 +412,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   backButton: {
     width: 40,
@@ -428,7 +430,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   headerRight: {
     width: 40,
@@ -456,11 +457,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.white,
   },
   statLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.goldLight,
     marginTop: Spacing.xs,
   },
   statDivider: {
@@ -483,7 +482,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
@@ -492,11 +490,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
   },
   emptySubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
     textAlign: 'center',
   },
@@ -506,7 +502,6 @@ const styles = StyleSheet.create({
   monthLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
     marginBottom: Spacing.md,
@@ -549,7 +544,6 @@ const styles = StyleSheet.create({
   },
   cardDate: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   cardDateHighlighted: {
     color: 'rgba(255,255,255,0.8)',
@@ -561,7 +555,6 @@ const styles = StyleSheet.create({
   },
   coachName: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   coachNameHighlighted: {
     color: 'rgba(255,255,255,0.8)',
@@ -570,15 +563,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.sm,
-  },
-  cardTitleHighlighted: {
-    color: Colors.white,
   },
   cardSummary: {
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
   cardSummaryHighlighted: {
@@ -591,12 +579,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
   },
   sectionLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
     marginBottom: Spacing.md,
@@ -614,16 +600,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.burnishedGold,
     marginTop: 6,
-  },
-  takeawayBulletHighlighted: {
-    backgroundColor: Colors.white,
   },
   takeawayText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
   takeawayTextHighlighted: {
@@ -641,11 +622,6 @@ const styles = StyleSheet.create({
   actionText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
-  },
-  actionTextCompleted: {
-    textDecorationLine: 'line-through',
-    color: Colors.stoneGray,
   },
   actionTextHighlighted: {
     color: 'rgba(255,255,255,0.9)',

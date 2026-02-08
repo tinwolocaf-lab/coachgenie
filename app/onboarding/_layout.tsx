@@ -1,13 +1,14 @@
 import { Stack } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 export default function OnboardingLayout() {
+  const { palette } = useThemeSafe();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         animation: 'fade',
-        contentStyle: { backgroundColor: Colors.warmOatmeal },
+        contentStyle: { backgroundColor: palette.background },
         gestureEnabled: true,
         gestureDirection: 'horizontal',
         animationDuration: 500,

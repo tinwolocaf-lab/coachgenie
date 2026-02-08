@@ -19,7 +19,8 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Coach } from '@/types';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 
@@ -31,6 +32,7 @@ interface SessionEntryProps {
 }
 
 export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) {
+  const { palette } = useThemeSafe();
   const [phase, setPhase] = useState<'portrait' | 'blur' | 'focus' | 'reveal'>('portrait');
 
   // Animation values
@@ -116,11 +118,11 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
   }));
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.textPrimary }]}>
       {/* Background with color */}
       <Animated.View style={[styles.background, backgroundStyle]}>
         <LinearGradient
-          colors={[coach.color, Colors.midnightEmerald, '#0D1A11']}
+          colors={[coach.color, palette.textPrimary, '#0D1A11']}
           locations={[0, 0.5, 1]}
           style={styles.backgroundGradient}
         />
@@ -142,7 +144,7 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
       <Animated.View style={[styles.portraitContainer, portraitContainerStyle]}>
         {/* Decorative ring */}
         <Animated.View style={[styles.portraitRing, { borderColor: coach.color }, ringStyle]} />
-        <Animated.View style={[styles.portraitRingOuter, { borderColor: Colors.goldLight }, ringStyle]} />
+        <Animated.View style={[styles.portraitRingOuter, { borderColor: palette.accentLight }, ringStyle]} />
 
         {/* Coach icon */}
         <View style={styles.portraitInner}>
@@ -152,7 +154,7 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
           >
             <CoachIcon
               iconName={coach.icon_name}
-              color={Colors.white}
+              color={palette.textInverse}
               size="xl"
               variant="default"
               style={{ backgroundColor: 'transparent' }}
@@ -163,12 +165,12 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
 
       {/* Text */}
       <Animated.View style={[styles.textContainer, textContainerStyle]}>
-        <Text style={styles.enteringText}>Entering Sanctuary</Text>
-        <Text style={styles.coachName}>{coach.name}</Text>
+        <Text style={[styles.enteringText, { color: palette.accent }]}>Entering Sanctuary</Text>
+        <Text style={[styles.coachName, { color: palette.textInverse }]}>{coach.name}</Text>
         <View style={styles.methodContainer}>
-          <View style={styles.methodLine} />
-          <Text style={styles.methodText}>{coach.tagline}</Text>
-          <View style={styles.methodLine} />
+          <View style={[styles.methodLine, { backgroundColor: palette.accentLight }]} />
+          <Text style={[styles.methodText, { color: palette.accentLight }]}>{coach.tagline}</Text>
+          <View style={[styles.methodLine, { backgroundColor: palette.accentLight }]} />
         </View>
       </Animated.View>
     </View>
@@ -177,6 +179,7 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
 
 // Gold particle component
 function GoldParticle({ index }: { index: number }) {
+  const { palette } = useThemeSafe();
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(0);
@@ -232,6 +235,8 @@ function GoldParticle({ index }: { index: number }) {
           borderRadius: size / 2,
           left: SCREEN_WIDTH / 2,
           top: SCREEN_HEIGHT / 2,
+          backgroundColor: palette.accent,
+          shadowColor: palette.accent,
         },
         style,
       ]}
@@ -242,7 +247,6 @@ function GoldParticle({ index }: { index: number }) {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.midnightEmerald,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
@@ -262,8 +266,6 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: 'absolute',
-    backgroundColor: Colors.burnishedGold,
-    shadowColor: Colors.burnishedGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 8,
@@ -307,7 +309,6 @@ const styles = StyleSheet.create({
   enteringText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.widest,
     textTransform: 'uppercase',
     marginBottom: Spacing.md,
@@ -315,7 +316,6 @@ const styles = StyleSheet.create({
   coachName: {
     fontSize: Typography.sizes.hero,
     fontWeight: Typography.weights.light,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
     textAlign: 'center',
     marginBottom: Spacing.lg,
@@ -328,12 +328,10 @@ const styles = StyleSheet.create({
   methodLine: {
     width: 30,
     height: 1,
-    backgroundColor: Colors.goldLight,
     opacity: 0.5,
   },
   methodText: {
     fontSize: Typography.sizes.body,
-    color: Colors.goldLight,
     fontStyle: 'italic',
     textAlign: 'center',
     maxWidth: 250,

@@ -6,7 +6,8 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Colors, Radius, Typography, Spacing, Timing } from '@/constants/theme';
+import { Radius, Typography, Spacing, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface ChipProps {
   label: string;
@@ -27,6 +28,7 @@ export function Chip({
   style,
   variant = 'default',
 }: ChipProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -52,8 +54,23 @@ export function Chip({
     <AnimatedTouchable
       style={[
         styles.chip,
-        isPremium && styles.chipPremium,
-        selected && (isPremium ? styles.selectedPremium : styles.selected),
+        {
+          backgroundColor: palette.backgroundSecondary,
+          borderColor: palette.border,
+        },
+        isPremium && {
+          ...styles.chipPremium,
+          backgroundColor: palette.cardBg,
+          borderColor: palette.border,
+        },
+        selected && !isPremium && {
+          backgroundColor: palette.textPrimary,
+          borderColor: palette.textPrimary,
+        },
+        selected && isPremium && {
+          backgroundColor: palette.accentMuted,
+          borderColor: palette.accent,
+        },
         disabled && styles.disabled,
         animatedStyle,
         style,
@@ -67,8 +84,13 @@ export function Chip({
       <Text
         style={[
           styles.text,
+          { color: palette.textSecondary },
           isPremium && styles.textPremium,
-          selected && (isPremium ? styles.textSelectedPremium : styles.textSelected),
+          selected && !isPremium && { color: palette.textInverse },
+          selected && isPremium && {
+            color: palette.textPrimary,
+            fontWeight: Typography.weights.semibold,
+          },
         ]}
       >
         {label}
@@ -82,9 +104,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.warmOatmealDark,
     borderWidth: 1.5,
-    borderColor: Colors.border,
     marginRight: Spacing.sm,
     marginBottom: Spacing.sm,
   },
@@ -92,17 +112,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
     borderRadius: Radius.squircle,
-    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  selected: {
-    backgroundColor: Colors.midnightEmerald,
-    borderColor: Colors.midnightEmerald,
-  },
-  selectedPremium: {
-    backgroundColor: Colors.goldMuted,
-    borderColor: Colors.burnishedGold,
   },
   disabled: {
     opacity: 0.5,
@@ -110,18 +120,10 @@ const styles = StyleSheet.create({
   text: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
   },
   textPremium: {
     fontSize: Typography.sizes.bodyLarge,
     fontFamily: Typography.fonts.serif,
-  },
-  textSelected: {
-    color: Colors.white,
-  },
-  textSelectedPremium: {
-    color: Colors.midnightEmerald,
-    fontWeight: Typography.weights.semibold,
   },
 });
 

@@ -19,7 +19,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { Constraints } from '@/types';
 import { getOnboardingState, updateConstraints } from '@/store/onboarding';
@@ -65,6 +66,7 @@ const FOCUS_TIME_OPTIONS = [
 
 export default function ConstraintsScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const [constraints, setConstraints] = useState<Constraints>({
     available_hours_per_day: 4,
     energy_level: 'medium',
@@ -105,13 +107,13 @@ export default function ConstraintsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       {/* Progress indicator */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <Animated.View style={[styles.progressFill, { width: '40%' }]} />
+        <View style={[styles.progressBar, { backgroundColor: palette.border }]}>
+          <Animated.View style={[styles.progressFill, { width: '40%', backgroundColor: palette.accent }]} />
         </View>
-        <Text style={styles.progressText}>2 of 5</Text>
+        <Text style={[styles.progressText, { color: palette.textTertiary }]}>2 of 5</Text>
       </View>
 
       <ScrollView
@@ -121,8 +123,8 @@ export default function ConstraintsScreen() {
       >
         {/* Question Header */}
         <Animated.View entering={FadeInUp.duration(800)} style={styles.questionContainer}>
-          <Text style={styles.question}>What&apos;s your capacity?</Text>
-          <Text style={styles.questionSubtitle}>
+          <Text style={[styles.question, { color: palette.textPrimary }]}>What&apos;s your capacity?</Text>
+          <Text style={[styles.questionSubtitle, { color: palette.textTertiary }]}>
             Understanding your constraints helps us craft realistic, sustainable guidance.
           </Text>
         </Animated.View>
@@ -130,10 +132,10 @@ export default function ConstraintsScreen() {
         {/* Available Time Section */}
         <Animated.View entering={FadeInUp.duration(600).delay(200)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Ionicons name="time-outline" size={18} color={Colors.burnishedGold} />
+            <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="time-outline" size={18} color={palette.accent} />
             </View>
-            <Text style={styles.sectionTitle}>Daily focus time</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Daily focus time</Text>
           </View>
           <View style={styles.timeGrid}>
             {TIME_OPTIONS.map((option, index) => (
@@ -151,10 +153,10 @@ export default function ConstraintsScreen() {
         {/* Energy Level Section */}
         <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Ionicons name="battery-half-outline" size={18} color={Colors.burnishedGold} />
+            <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="battery-half-outline" size={18} color={palette.accent} />
             </View>
-            <Text style={styles.sectionTitle}>Current energy</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Current energy</Text>
           </View>
           <View style={styles.energyList}>
             {ENERGY_OPTIONS.map((option, index) => (
@@ -172,10 +174,10 @@ export default function ConstraintsScreen() {
         {/* Focus Time Section */}
         <Animated.View entering={FadeInUp.duration(600).delay(600)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Ionicons name="sparkles-outline" size={18} color={Colors.burnishedGold} />
+            <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="sparkles-outline" size={18} color={palette.accent} />
             </View>
-            <Text style={styles.sectionTitle}>Peak focus hours</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Peak focus hours</Text>
           </View>
           <View style={styles.focusGrid}>
             {FOCUS_TIME_OPTIONS.map((option, index) => (
@@ -221,6 +223,7 @@ function TimeOption({
   onPress: () => void;
   index: number;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -241,21 +244,21 @@ function TimeOption({
       style={animatedStyle}
     >
       <TouchableOpacity
-        style={[styles.timeOption, selected && styles.timeOptionSelected]}
+        style={[styles.timeOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={1}
       >
-        <Text style={[styles.timeLabel, selected && styles.timeLabelSelected]}>
+        <Text style={[styles.timeLabel, { color: palette.textSecondary }, selected && { color: palette.accent }]}>
           {option.label}
         </Text>
-        <Text style={[styles.timeDescription, selected && styles.timeDescriptionSelected]}>
+        <Text style={[styles.timeDescription, { color: palette.textTertiary }, selected && { color: palette.accent }]}>
           {option.description}
         </Text>
         {selected && (
-          <View style={styles.timeCheckmark}>
-            <Ionicons name="checkmark" size={12} color={Colors.white} />
+          <View style={[styles.timeCheckmark, { backgroundColor: palette.accent }]}>
+            <Ionicons name="checkmark" size={12} color={palette.textInverse} />
           </View>
         )}
       </TouchableOpacity>
@@ -274,6 +277,7 @@ function EnergyOption({
   onPress: () => void;
   index: number;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -294,7 +298,7 @@ function EnergyOption({
       style={animatedStyle}
     >
       <TouchableOpacity
-        style={[styles.energyOption, selected && styles.energyOptionSelected]}
+        style={[styles.energyOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -304,18 +308,18 @@ function EnergyOption({
           <Ionicons
             name={option.icon}
             size={24}
-            color={selected ? Colors.burnishedGold : option.color}
+            color={selected ? palette.accent : option.color}
           />
         </View>
         <View style={styles.energyContent}>
-          <Text style={[styles.energyLabel, selected && styles.energyLabelSelected]}>
+          <Text style={[styles.energyLabel, { color: palette.textSecondary }, selected && { color: palette.accent }]}>
             {option.label}
           </Text>
-          <Text style={styles.energyDescription}>{option.description}</Text>
+          <Text style={[styles.energyDescription, { color: palette.textTertiary }]}>{option.description}</Text>
         </View>
         {selected && (
           <View style={styles.energyCheck}>
-            <Ionicons name="checkmark-circle" size={24} color={Colors.burnishedGold} />
+            <Ionicons name="checkmark-circle" size={24} color={palette.accent} />
           </View>
         )}
       </TouchableOpacity>
@@ -334,6 +338,7 @@ function FocusTimeOption({
   onPress: () => void;
   index: number;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -365,15 +370,15 @@ function FocusTimeOption({
             colors={[option.color, `${option.color}DD`]}
             style={styles.focusGradient}
           >
-            <Ionicons name={option.icon} size={28} color={Colors.white} />
-            <Text style={styles.focusLabelSelected}>{option.label}</Text>
+            <Ionicons name={option.icon} size={28} color={palette.textInverse} />
+            <Text style={[styles.focusLabelSelected, { color: palette.textInverse }]}>{option.label}</Text>
             <Text style={styles.focusSublabelSelected}>{option.sublabel}</Text>
           </LinearGradient>
         ) : (
-          <View style={styles.focusContent}>
+          <View style={[styles.focusContent, { backgroundColor: palette.cardBg }]}>
             <Ionicons name={option.icon} size={28} color={option.color} />
-            <Text style={styles.focusLabel}>{option.label}</Text>
-            <Text style={styles.focusSublabel}>{option.sublabel}</Text>
+            <Text style={[styles.focusLabel, { color: palette.textSecondary }]}>{option.label}</Text>
+            <Text style={[styles.focusSublabel, { color: palette.textTertiary }]}>{option.sublabel}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -384,7 +389,6 @@ function FocusTimeOption({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Progress
@@ -398,18 +402,15 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: Colors.border,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.burnishedGold,
     borderRadius: 2,
   },
   progressText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontWeight: Typography.weights.medium,
   },
 
@@ -429,13 +430,11 @@ const styles = StyleSheet.create({
   question: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.md,
   },
   questionSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -452,7 +451,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -460,7 +458,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
   },
 
@@ -472,7 +469,6 @@ const styles = StyleSheet.create({
   },
   timeOption: {
     width: (SCREEN_WIDTH - Spacing.xxl * 2 - Spacing.md * 3) / 4,
-    backgroundColor: Colors.white,
     borderRadius: Radius.xl,
     padding: Spacing.md,
     alignItems: 'center',
@@ -480,26 +476,15 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     ...Shadows.sm,
   },
-  timeOptionSelected: {
-    borderColor: Colors.burnishedGold,
-  },
   timeLabel: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
-    color: Colors.charcoal,
     marginBottom: Spacing.xs,
-  },
-  timeLabelSelected: {
-    color: Colors.burnishedGold,
   },
   timeDescription: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wide,
-  },
-  timeDescriptionSelected: {
-    color: Colors.burnishedGold,
   },
   timeCheckmark: {
     position: 'absolute',
@@ -508,7 +493,6 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: Colors.burnishedGold,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -520,15 +504,11 @@ const styles = StyleSheet.create({
   energyOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.lg,
     borderWidth: 2,
     borderColor: 'transparent',
     ...Shadows.sm,
-  },
-  energyOptionSelected: {
-    borderColor: Colors.burnishedGold,
   },
   energyIconContainer: {
     width: 48,
@@ -544,16 +524,11 @@ const styles = StyleSheet.create({
   energyLabel: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.xs,
   },
-  energyLabelSelected: {
-    color: Colors.burnishedGold,
-  },
   energyDescription: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
   },
   energyCheck: {
     marginLeft: Spacing.md,
@@ -579,7 +554,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   focusContent: {
-    backgroundColor: Colors.white,
     padding: Spacing.lg,
     alignItems: 'center',
     minHeight: 120,
@@ -588,20 +562,17 @@ const styles = StyleSheet.create({
   focusLabel: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
     marginTop: Spacing.sm,
   },
   focusLabelSelected: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
     marginTop: Spacing.sm,
   },
   focusSublabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginTop: Spacing.xs,
   },
   focusSublabelSelected: {

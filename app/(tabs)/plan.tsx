@@ -20,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { DayPlan } from '@/types';
@@ -235,7 +235,7 @@ export default function PlanScreen() {
         <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.progressSection}>
           <BlurView intensity={40} tint={palette.statusBarStyle === 'light' ? 'dark' : 'light'} style={[styles.progressCard, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}>
             <View style={styles.progressHeader}>
-              <View style={[styles.progressCircle, { borderColor: palette.accent }]}>
+              <View style={[styles.progressCircle, { backgroundColor: palette.accentMuted, borderColor: palette.accent }]}>
                 <Text style={[styles.progressPercentage, { color: palette.accent }]}>{completionRate}%</Text>
               </View>
               <View style={styles.progressInfo}>
@@ -258,11 +258,11 @@ export default function PlanScreen() {
                 <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.remaining}</Text>
                 <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Pending</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
               <View style={styles.statItem}>
-                <View style={[styles.statDot, { backgroundColor: Colors.midnightEmerald }]} />
-                <Text style={styles.statValue}>{weeklyStats.timeBlocks}</Text>
-                <Text style={styles.statLabel}>Blocks</Text>
+                <View style={[styles.statDot, { backgroundColor: palette.textPrimary }]} />
+                <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.timeBlocks}</Text>
+                <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Blocks</Text>
               </View>
             </View>
           </BlurView>
@@ -272,7 +272,7 @@ export default function PlanScreen() {
         <View style={styles.timelineSection}>
           <Animated.Text
             entering={FadeInUp.duration(600).delay(200)}
-            style={styles.sectionTitle}
+            style={[styles.sectionTitle, { color: palette.textPrimary }]}
           >
             Your Week Ahead
           </Animated.Text>
@@ -308,11 +308,11 @@ export default function PlanScreen() {
         {/* Empty State */}
         {dayPlans.length === 0 && (
           <Animated.View entering={FadeIn.duration(600).delay(400)} style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="calendar-outline" size={48} color={Colors.stoneGray} />
+            <View style={[styles.emptyIcon, { backgroundColor: palette.backgroundSecondary }]}>
+              <Ionicons name="calendar-outline" size={48} color={palette.textTertiary} />
             </View>
-            <Text style={styles.emptyTitle}>Your timeline awaits</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>Your timeline awaits</Text>
+            <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
               {activeCoachId
                 ? 'Generate a personalized plan based on your values and goals.'
                 : 'Install a coach to start crafting your ideal week.'}
@@ -338,20 +338,20 @@ export default function PlanScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={[Colors.midnightEmerald, '#0D1A11']}
+                colors={[palette.textPrimary, '#0D1A11']}
                 style={styles.adjustGradient}
               >
                 <View style={styles.adjustContent}>
                   <View style={styles.adjustIconContainer}>
-                    <Ionicons name="chatbubble-ellipses" size={24} color={Colors.burnishedGold} />
+                    <Ionicons name="chatbubble-ellipses" size={24} color={palette.accent} />
                   </View>
                   <View style={styles.adjustTextContainer}>
-                    <Text style={styles.adjustTitle}>Refine with your coach</Text>
+                    <Text style={[styles.adjustTitle, { color: palette.textInverse }]}>Refine with your coach</Text>
                     <Text style={styles.adjustSubtitle}>
                       Discuss adjustments and optimize your week
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={Colors.burnishedGold} />
+                  <Ionicons name="chevron-forward" size={20} color={palette.accent} />
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -383,6 +383,7 @@ function TimelineDay({
   isLast: boolean;
   onTogglePriority: (priorityId: string) => void;
 }) {
+  const { palette } = useThemeSafe();
   const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
   const dayNumber = date.getDate();
   const monthName = date.toLocaleDateString('en-US', { month: 'short' });
@@ -397,14 +398,15 @@ function TimelineDay({
         {/* Node */}
         <View style={[
           styles.timelineNode,
-          isToday && styles.timelineNodeToday,
-          isCompleted && styles.timelineNodeCompleted,
+          { backgroundColor: palette.textTertiary },
+          isToday && { width: 20, height: 20, borderRadius: 10, backgroundColor: palette.accent },
+          isCompleted && { backgroundColor: palette.success },
         ]}>
           {isToday && (
-            <View style={styles.timelineNodeInner} />
+            <View style={[styles.timelineNodeInner, { backgroundColor: palette.textInverse }]} />
           )}
           {isCompleted && (
-            <Ionicons name="checkmark" size={12} color={Colors.white} />
+            <Ionicons name="checkmark" size={12} color={palette.textInverse} />
           )}
         </View>
 
@@ -412,7 +414,8 @@ function TimelineDay({
         {!isLast && (
           <View style={[
             styles.timelineLine,
-            hasContent && styles.timelineLineActive,
+            { backgroundColor: palette.border },
+            hasContent && { backgroundColor: palette.accentMuted, width: 3 },
           ]} />
         )}
       </View>
@@ -422,48 +425,50 @@ function TimelineDay({
         {/* Date Header */}
         <View style={styles.dateHeader}>
           <View style={styles.dateInfo}>
-            <Text style={[styles.dayName, isToday && styles.dayNameToday]}>
+            <Text style={[styles.dayName, { color: palette.textTertiary }, isToday && { color: palette.accent }]}>
               {dayName}
             </Text>
-            <Text style={[styles.dayNumber, isToday && styles.dayNumberToday]}>
+            <Text style={[styles.dayNumber, { color: palette.textSecondary }, isToday && { color: palette.accent }]}>
               {dayNumber}
             </Text>
-            <Text style={styles.monthName}>{monthName}</Text>
+            <Text style={[styles.monthName, { color: palette.textTertiary }]}>{monthName}</Text>
           </View>
           {isToday && (
-            <View style={styles.todayBadge}>
-              <Text style={styles.todayBadgeText}>Today</Text>
+            <View style={[styles.todayBadge, { backgroundColor: palette.accentMuted, borderColor: palette.accent }]}>
+              <Text style={[styles.todayBadgeText, { color: palette.accent }]}>Today</Text>
             </View>
           )}
         </View>
 
         {/* Priorities */}
         {priorities.length > 0 && (
-          <View style={styles.prioritiesContainer}>
+          <View style={[styles.prioritiesContainer, { backgroundColor: palette.cardBg }]}>
             <View style={styles.prioritiesHeader}>
-              <View style={styles.goldAccent} />
-              <Text style={styles.prioritiesTitle}>Priorities</Text>
+              <View style={[styles.goldAccent, { backgroundColor: palette.accent }]} />
+              <Text style={[styles.prioritiesTitle, { color: palette.textSecondary }]}>Priorities</Text>
             </View>
             {priorities.map((priority, index) => (
               <TouchableOpacity
                 key={priority.id}
-                style={styles.priorityItem}
+                style={[styles.priorityItem, { borderBottomColor: palette.borderLight }]}
                 onPress={() => onTogglePriority(priority.id)}
                 activeOpacity={0.7}
               >
                 <View style={[
                   styles.priorityNumber,
-                  priority.completed && styles.priorityNumberCompleted,
+                  { backgroundColor: palette.backgroundSecondary },
+                  priority.completed && { backgroundColor: palette.success },
                 ]}>
                   {priority.completed ? (
-                    <Ionicons name="checkmark" size={12} color={Colors.white} />
+                    <Ionicons name="checkmark" size={12} color={palette.textInverse} />
                   ) : (
-                    <Text style={styles.priorityNumberText}>{index + 1}</Text>
+                    <Text style={[styles.priorityNumberText, { color: palette.accent }]}>{index + 1}</Text>
                   )}
                 </View>
                 <Text style={[
                   styles.priorityText,
-                  priority.completed && styles.priorityTextCompleted,
+                  { color: palette.textSecondary },
+                  priority.completed && { textDecorationLine: 'line-through', color: palette.textTertiary },
                 ]}>
                   {priority.title}
                 </Text>
@@ -474,23 +479,23 @@ function TimelineDay({
 
         {/* Time Blocks */}
         {timeBlocks.length > 0 && (
-          <View style={styles.timeBlocksContainer}>
+          <View style={[styles.timeBlocksContainer, { backgroundColor: palette.backgroundSecondary, borderLeftColor: palette.accentMuted }]}>
             <View style={styles.timeBlocksHeader}>
-              <View style={[styles.goldAccent, styles.goldAccentSmall]} />
-              <Text style={styles.timeBlocksTitle}>Time Blocks</Text>
+              <View style={[styles.goldAccent, styles.goldAccentSmall, { backgroundColor: palette.accent }]} />
+              <Text style={[styles.timeBlocksTitle, { color: palette.textSecondary }]}>Time Blocks</Text>
             </View>
             {timeBlocks.map((block) => (
               <View key={block.id} style={styles.timeBlockItem}>
                 <View style={styles.timeBlockTimeContainer}>
-                  <Text style={styles.timeBlockTime}>{block.start_time}</Text>
-                  <View style={styles.timeBlockTimeLine} />
-                  <Text style={styles.timeBlockTime}>{block.end_time}</Text>
+                  <Text style={[styles.timeBlockTime, { color: palette.textTertiary }]}>{block.start_time}</Text>
+                  <View style={[styles.timeBlockTimeLine, { backgroundColor: palette.border }]} />
+                  <Text style={[styles.timeBlockTime, { color: palette.textTertiary }]}>{block.end_time}</Text>
                 </View>
                 <View style={styles.timeBlockContent}>
-                  <Text style={styles.timeBlockTitle}>{block.title}</Text>
+                  <Text style={[styles.timeBlockTitle, { color: palette.textSecondary }]}>{block.title}</Text>
                   {block.category && (
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryText}>{block.category}</Text>
+                    <View style={[styles.categoryBadge, { backgroundColor: palette.accentMuted }]}>
+                      <Text style={[styles.categoryText, { color: palette.accent }]}>{block.category}</Text>
                     </View>
                   )}
                 </View>
@@ -502,7 +507,7 @@ function TimelineDay({
         {/* Empty Day */}
         {!hasContent && (
           <View style={styles.emptyDay}>
-            <Text style={styles.emptyDayText}>No activities planned</Text>
+            <Text style={[styles.emptyDayText, { color: palette.textTertiary }]}>No activities planned</Text>
           </View>
         )}
       </View>
@@ -513,7 +518,6 @@ function TimelineDay({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   scrollContent: {
     paddingBottom: Spacing.section,
@@ -531,7 +535,6 @@ const styles = StyleSheet.create({
   headerLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
     marginBottom: Spacing.xs,
@@ -539,13 +542,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.sizes.hero,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     letterSpacing: Typography.letterSpacing.tight,
   },
   headerSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
@@ -565,7 +566,6 @@ const styles = StyleSheet.create({
   generateText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
   },
 
   // Progress Card
@@ -576,9 +576,7 @@ const styles = StyleSheet.create({
   progressCard: {
     borderRadius: Radius.squircle,
     padding: Spacing.xl,
-    backgroundColor: Colors.glassBg,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
     overflow: 'hidden',
   },
   progressHeader: {
@@ -590,9 +588,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.goldMuted,
     borderWidth: 3,
-    borderColor: Colors.burnishedGold,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.lg,
@@ -600,7 +596,6 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
-    color: Colors.burnishedGold,
   },
   progressInfo: {
     flex: 1,
@@ -608,12 +603,10 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: Typography.sizes.subtitle,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   progressSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.xs,
   },
   statsRow: {
@@ -621,7 +614,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
   },
   statItem: {
     flex: 1,
@@ -638,16 +630,13 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
-    color: Colors.charcoal,
   },
   statLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   statDivider: {
     width: 1,
     height: 24,
-    backgroundColor: Colors.border,
   },
 
   // Timeline Section
@@ -657,7 +646,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.xl,
   },
@@ -678,35 +666,19 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.stoneGray,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
-  },
-  timelineNodeToday: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.burnishedGold,
   },
   timelineNodeInner: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.white,
-  },
-  timelineNodeCompleted: {
-    backgroundColor: Colors.success,
   },
   timelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: Colors.border,
     marginTop: -2,
-  },
-  timelineLineActive: {
-    backgroundColor: Colors.goldMuted,
-    width: 3,
   },
   timelineDayContent: {
     flex: 1,
@@ -729,43 +701,30 @@ const styles = StyleSheet.create({
   dayName: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.stoneGray,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wide,
-  },
-  dayNameToday: {
-    color: Colors.burnishedGold,
   },
   dayNumber: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
-  },
-  dayNumberToday: {
-    color: Colors.burnishedGold,
   },
   monthName: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
   },
   todayBadge: {
-    backgroundColor: Colors.goldMuted,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.burnishedGold,
   },
   todayBadgeText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
 
   // Priorities
   prioritiesContainer: {
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
@@ -779,7 +738,6 @@ const styles = StyleSheet.create({
   goldAccent: {
     width: 3,
     height: 16,
-    backgroundColor: Colors.burnishedGold,
     borderRadius: 2,
     marginRight: Spacing.sm,
   },
@@ -789,7 +747,6 @@ const styles = StyleSheet.create({
   prioritiesTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
@@ -798,43 +755,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   priorityNumber: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
   },
-  priorityNumberCompleted: {
-    backgroundColor: Colors.success,
-  },
   priorityNumberText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.bold,
-    color: Colors.burnishedGold,
   },
   priorityText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.normal,
-  },
-  priorityTextCompleted: {
-    textDecorationLine: 'line-through',
-    color: Colors.stoneGray,
   },
 
   // Time Blocks
   timeBlocksContainer: {
-    backgroundColor: Colors.warmOatmealDark,
     borderRadius: Radius.xl,
     padding: Spacing.lg,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.goldMuted,
   },
   timeBlocksHeader: {
     flexDirection: 'row',
@@ -844,7 +788,6 @@ const styles = StyleSheet.create({
   timeBlocksTitle: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
@@ -860,12 +803,10 @@ const styles = StyleSheet.create({
   timeBlockTime: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.stoneGray,
   },
   timeBlockTimeLine: {
     width: 1,
     height: 8,
-    backgroundColor: Colors.border,
     marginVertical: 2,
   },
   timeBlockContent: {
@@ -874,10 +815,8 @@ const styles = StyleSheet.create({
   timeBlockTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
   },
   categoryBadge: {
-    backgroundColor: Colors.goldMuted,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
@@ -887,7 +826,6 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.medium,
-    color: Colors.burnishedGold,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wide,
   },
@@ -898,7 +836,6 @@ const styles = StyleSheet.create({
   },
   emptyDayText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
   },
 
@@ -912,7 +849,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xl,
@@ -920,13 +856,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.sm,
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
     marginBottom: Spacing.xl,
@@ -967,7 +901,6 @@ const styles = StyleSheet.create({
   adjustTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
   },
   adjustSubtitle: {

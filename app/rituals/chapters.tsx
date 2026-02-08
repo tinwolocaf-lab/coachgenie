@@ -23,7 +23,8 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { FluidProgressBar } from '@/components/rituals/FluidProgressBar';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -67,6 +68,7 @@ const getAuthHook = () => {
 
 export default function GrowthChaptersScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -177,21 +179,21 @@ export default function GrowthChaptersScreen() {
   const completedChapters = chapters.filter(c => c.status === 'completed');
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { borderBottomColor: palette.borderLight }]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Ionicons name="chevron-back" size={24} color={Colors.midnightEmerald} />
+          <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Growth Chapters</Text>
-          <Text style={styles.headerSubtitle}>Your journey, chapter by chapter</Text>
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Growth Chapters</Text>
+          <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>Your journey, chapter by chapter</Text>
         </View>
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: palette.accentMuted }]}
           onPress={() => setShowNewChapterModal(true)}
         >
-          <Ionicons name="add" size={24} color={Colors.burnishedGold} />
+          <Ionicons name="add" size={24} color={palette.accent} />
         </TouchableOpacity>
       </Animated.View>
 
@@ -203,7 +205,7 @@ export default function GrowthChaptersScreen() {
         {/* Vision Board Grid */}
         {activeChapters.length > 0 ? (
           <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-            <Text style={styles.sectionTitle}>Active Chapters</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Active Chapters</Text>
             <View style={styles.chaptersGrid}>
               {activeChapters.map((chapter, index) => (
                 <ChapterCard
@@ -218,11 +220,11 @@ export default function GrowthChaptersScreen() {
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="flag-outline" size={48} color={Colors.stoneGray} />
+            <View style={[styles.emptyIcon, { backgroundColor: palette.backgroundSecondary }]}>
+              <Ionicons name="flag-outline" size={48} color={palette.textTertiary} />
             </View>
-            <Text style={styles.emptyTitle}>Begin Your First Chapter</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>Begin Your First Chapter</Text>
+            <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
               Growth chapters are your long-term vision areas. Each chapter represents
               a major life theme you&apos;re working on.
             </Text>
@@ -238,7 +240,7 @@ export default function GrowthChaptersScreen() {
         {/* Completed Chapters */}
         {completedChapters.length > 0 && (
           <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.completedSection}>
-            <Text style={styles.sectionTitle}>Completed</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Completed</Text>
             {completedChapters.map((chapter, index) => (
               <CompletedChapterRow
                 key={chapter.id}
@@ -260,15 +262,15 @@ export default function GrowthChaptersScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowNewChapterModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
+          <View style={[styles.modalHeader, { borderBottomColor: palette.borderLight }]}>
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowNewChapterModal(false)}
             >
-              <Ionicons name="close" size={24} color={Colors.charcoal} />
+              <Ionicons name="close" size={24} color={palette.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>New Chapter</Text>
+            <Text style={[styles.modalTitle, { color: palette.textSecondary }]}>New Chapter</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -288,11 +290,11 @@ export default function GrowthChaptersScreen() {
 
             {/* Title Input */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Chapter Title</Text>
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Chapter Title</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: palette.cardBg, color: palette.textSecondary, borderColor: palette.borderLight }]}
                 placeholder="e.g., Career Growth, Health & Wellness"
-                placeholderTextColor={Colors.stoneGray}
+                placeholderTextColor={palette.textTertiary}
                 value={newChapter.title}
                 onChangeText={(text) => setNewChapter({ ...newChapter, title: text })}
               />
@@ -300,12 +302,12 @@ export default function GrowthChaptersScreen() {
 
             {/* Vision Input */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Your Vision</Text>
-              <Text style={styles.inputHint}>What does success look like?</Text>
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Your Vision</Text>
+              <Text style={[styles.inputHint, { color: palette.textTertiary }]}>What does success look like?</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, { backgroundColor: palette.cardBg, color: palette.textSecondary, borderColor: palette.borderLight }]}
                 placeholder="Describe where you want to be..."
-                placeholderTextColor={Colors.stoneGray}
+                placeholderTextColor={palette.textTertiary}
                 value={newChapter.vision}
                 onChangeText={(text) => setNewChapter({ ...newChapter, vision: text })}
                 multiline
@@ -315,11 +317,11 @@ export default function GrowthChaptersScreen() {
 
             {/* Why It Matters */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Why It Matters</Text>
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Why It Matters</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, { backgroundColor: palette.cardBg, color: palette.textSecondary, borderColor: palette.borderLight }]}
                 placeholder="Why is this chapter important to you?"
-                placeholderTextColor={Colors.stoneGray}
+                placeholderTextColor={palette.textTertiary}
                 value={newChapter.why_it_matters}
                 onChangeText={(text) => setNewChapter({ ...newChapter, why_it_matters: text })}
                 multiline
@@ -329,7 +331,7 @@ export default function GrowthChaptersScreen() {
 
             {/* Color Picker */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Cover Color</Text>
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Cover Color</Text>
               <View style={styles.colorPicker}>
                 {CHAPTER_COLORS.map((color) => (
                   <TouchableOpacity
@@ -337,12 +339,12 @@ export default function GrowthChaptersScreen() {
                     style={[
                       styles.colorOption,
                       { backgroundColor: color },
-                      newChapter.cover_color === color && styles.colorOptionSelected,
+                      newChapter.cover_color === color && { borderColor: palette.accent },
                     ]}
                     onPress={() => setNewChapter({ ...newChapter, cover_color: color })}
                   >
                     {newChapter.cover_color === color && (
-                      <Ionicons name="checkmark" size={16} color={Colors.white} />
+                      <Ionicons name="checkmark" size={16} color={palette.textInverse} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -351,21 +353,22 @@ export default function GrowthChaptersScreen() {
 
             {/* Icon Picker */}
             <View style={styles.inputSection}>
-              <Text style={styles.inputLabel}>Icon</Text>
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Icon</Text>
               <View style={styles.iconPicker}>
                 {CHAPTER_ICONS.map((icon) => (
                   <TouchableOpacity
                     key={icon}
                     style={[
                       styles.iconOption,
-                      newChapter.icon === icon && styles.iconOptionSelected,
+                      { backgroundColor: palette.backgroundSecondary },
+                      newChapter.icon === icon && { backgroundColor: palette.textPrimary },
                     ]}
                     onPress={() => setNewChapter({ ...newChapter, icon })}
                   >
                     <Ionicons
                       name={icon as keyof typeof Ionicons.glyphMap}
                       size={20}
-                      color={newChapter.icon === icon ? Colors.white : Colors.charcoal}
+                      color={newChapter.icon === icon ? palette.textInverse : palette.textSecondary}
                     />
                   </TouchableOpacity>
                 ))}
@@ -375,21 +378,21 @@ export default function GrowthChaptersScreen() {
             {/* Primary Toggle */}
             {chapters.length > 0 && (
               <TouchableOpacity
-                style={styles.primaryToggle}
+                style={[styles.primaryToggle, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
                 onPress={() => setNewChapter({ ...newChapter, is_primary: !newChapter.is_primary })}
               >
                 <View style={styles.primaryToggleContent}>
-                  <Ionicons name="star" size={20} color={Colors.burnishedGold} />
+                  <Ionicons name="star" size={20} color={palette.accent} />
                   <View style={styles.primaryToggleText}>
-                    <Text style={styles.primaryToggleTitle}>Set as Primary Chapter</Text>
-                    <Text style={styles.primaryToggleHint}>
+                    <Text style={[styles.primaryToggleTitle, { color: palette.textSecondary }]}>Set as Primary Chapter</Text>
+                    <Text style={[styles.primaryToggleHint, { color: palette.textTertiary }]}>
                       Primary chapters appear on your home screen
                     </Text>
                   </View>
                 </View>
-                <View style={[styles.checkbox, newChapter.is_primary && styles.checkboxChecked]}>
+                <View style={[styles.checkbox, { borderColor: palette.border }, newChapter.is_primary && { backgroundColor: palette.success, borderColor: palette.success }]}>
                   {newChapter.is_primary && (
-                    <Ionicons name="checkmark" size={14} color={Colors.white} />
+                    <Ionicons name="checkmark" size={14} color={palette.textInverse} />
                   )}
                 </View>
               </TouchableOpacity>
@@ -397,7 +400,7 @@ export default function GrowthChaptersScreen() {
           </ScrollView>
 
           {/* Create Button */}
-          <View style={styles.modalFooter}>
+          <View style={[styles.modalFooter, { borderTopColor: palette.borderLight }]}>
             <Button
               title={isCreating ? 'Creating...' : 'Create Chapter'}
               onPress={handleCreateChapter}
@@ -426,6 +429,7 @@ function ChapterCard({
   onPress: () => void;
   onLongPress: () => void;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const handlePressIn = () => {
@@ -459,7 +463,7 @@ function ChapterCard({
         >
           {chapter.is_primary && (
             <View style={styles.primaryBadge}>
-              <Ionicons name="star" size={12} color={Colors.burnishedGold} />
+              <Ionicons name="star" size={12} color={palette.accent} />
             </View>
           )}
 
@@ -467,11 +471,11 @@ function ChapterCard({
             <Ionicons
               name={chapter.icon as keyof typeof Ionicons.glyphMap || 'flag'}
               size={24}
-              color={Colors.white}
+              color={palette.textInverse}
             />
           </View>
 
-          <Text style={styles.chapterTitle} numberOfLines={2}>
+          <Text style={[styles.chapterTitle, { color: palette.textInverse }]} numberOfLines={2}>
             {chapter.title}
           </Text>
 
@@ -479,7 +483,7 @@ function ChapterCard({
             <FluidProgressBar
               progress={chapter.progress_percentage}
               height={4}
-              color={Colors.white}
+              color={palette.textInverse}
               backgroundColor="rgba(255,255,255,0.2)"
               showWave={false}
             />
@@ -503,9 +507,11 @@ function CompletedChapterRow({
   index: number;
   onPress: () => void;
 }) {
+  const { palette } = useThemeSafe();
+
   return (
     <Animated.View entering={FadeInUp.duration(300).delay(index * 50)}>
-      <TouchableOpacity style={styles.completedRow} onPress={onPress} activeOpacity={0.9}>
+      <TouchableOpacity style={[styles.completedRow, { backgroundColor: palette.cardBg }]} onPress={onPress} activeOpacity={0.9}>
         <View style={[styles.completedIcon, { backgroundColor: chapter.cover_color + '20' }]}>
           <Ionicons
             name={chapter.icon as keyof typeof Ionicons.glyphMap || 'checkmark-circle'}
@@ -514,12 +520,12 @@ function CompletedChapterRow({
           />
         </View>
         <View style={styles.completedContent}>
-          <Text style={styles.completedTitle}>{chapter.title}</Text>
-          <Text style={styles.completedDate}>
+          <Text style={[styles.completedTitle, { color: palette.textSecondary }]}>{chapter.title}</Text>
+          <Text style={[styles.completedDate, { color: palette.textTertiary }]}>
             Completed {new Date(chapter.updated_at).toLocaleDateString()}
           </Text>
         </View>
-        <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+        <Ionicons name="checkmark-circle" size={20} color={palette.success} />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -535,6 +541,8 @@ function ChapterPreview({
   color: string;
   icon: string;
 }) {
+  const { palette } = useThemeSafe();
+
   return (
     <View style={styles.previewCard}>
       <LinearGradient
@@ -545,10 +553,10 @@ function ChapterPreview({
           <Ionicons
             name={icon as keyof typeof Ionicons.glyphMap || 'flag'}
             size={28}
-            color={Colors.white}
+            color={palette.textInverse}
           />
         </View>
-        <Text style={styles.previewTitle} numberOfLines={2}>
+        <Text style={[styles.previewTitle, { color: palette.textInverse }]} numberOfLines={2}>
           {title}
         </Text>
       </LinearGradient>
@@ -569,7 +577,6 @@ function lightenColor(hex: string, percent: number): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   header: {
     flexDirection: 'row',
@@ -578,7 +585,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   backButton: {
     width: 40,
@@ -593,18 +599,15 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   headerSubtitle: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
   addButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -617,7 +620,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.lg,
   },
 
@@ -662,7 +664,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.white,
     marginBottom: Spacing.md,
   },
   chapterProgress: {
@@ -684,7 +685,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xl,
@@ -693,13 +693,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.md,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
@@ -711,7 +709,6 @@ const styles = StyleSheet.create({
   completedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     marginBottom: Spacing.sm,
@@ -731,11 +728,9 @@ const styles = StyleSheet.create({
   completedTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
   },
   completedDate: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
   bottomSpacer: {
@@ -745,7 +740,6 @@ const styles = StyleSheet.create({
   // Modal
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -754,7 +748,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   modalCloseButton: {
     width: 40,
@@ -765,7 +758,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
   },
   modalContent: {
     flex: 1,
@@ -801,7 +793,6 @@ const styles = StyleSheet.create({
   previewTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     textAlign: 'center',
   },
   inputSection: {
@@ -810,22 +801,17 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     marginBottom: Spacing.sm,
   },
   inputHint: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: Spacing.sm,
   },
   input: {
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     ...Shadows.subtle,
   },
   textArea: {
@@ -845,9 +831,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  colorOptionSelected: {
-    borderColor: Colors.burnishedGold,
-  },
   iconPicker: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -857,22 +840,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconOptionSelected: {
-    backgroundColor: Colors.midnightEmerald,
   },
   primaryToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.cardBg,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   primaryToggleContent: {
     flexDirection: 'row',
@@ -886,11 +863,9 @@ const styles = StyleSheet.create({
   primaryToggleTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
   },
   primaryToggleHint: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
   checkbox: {
@@ -898,18 +873,12 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: Colors.success,
-    borderColor: Colors.success,
   },
   modalFooter: {
     padding: Spacing.xxl,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
   },
 });

@@ -13,7 +13,8 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Typography, Spacing, Radius } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface GoldPulseIndicatorProps {
   coachName?: string;
@@ -22,6 +23,7 @@ interface GoldPulseIndicatorProps {
 
 // Single pulsing orb
 function PulsingOrb({ delay, size }: { delay: number; size: number }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(0.6);
   const opacity = useSharedValue(0.3);
 
@@ -60,7 +62,13 @@ function PulsingOrb({ delay, size }: { delay: number; size: number }) {
     <Animated.View
       style={[
         styles.orb,
-        { width: size, height: size, borderRadius: size / 2 },
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: palette.accent,
+          shadowColor: palette.accent,
+        },
         animatedStyle,
       ]}
     />
@@ -69,6 +77,7 @@ function PulsingOrb({ delay, size }: { delay: number; size: number }) {
 
 // Shimmer bar effect
 function ShimmerBar() {
+  const { palette } = useThemeSafe();
   const translateX = useSharedValue(-100);
 
   useEffect(() => {
@@ -85,10 +94,10 @@ function ShimmerBar() {
 
   return (
     <View style={styles.shimmerContainer}>
-      <View style={styles.shimmerTrack}>
+      <View style={[styles.shimmerTrack, { backgroundColor: palette.accentMuted }]}>
         <Animated.View style={[styles.shimmerGradient, shimmerStyle]}>
           <LinearGradient
-            colors={['transparent', Colors.goldShimmer, Colors.burnishedGold, Colors.goldShimmer, 'transparent']}
+            colors={['transparent', palette.accentShimmer, palette.accent, palette.accentShimmer, 'transparent']}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={styles.shimmerGradientInner}
@@ -101,6 +110,7 @@ function ShimmerBar() {
 
 // Floating dust particles
 function DustParticle({ index }: { index: number }) {
+  const { palette } = useThemeSafe();
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(0);
@@ -186,6 +196,8 @@ function DustParticle({ index }: { index: number }) {
           borderRadius: size / 2,
           left: `${left}%`,
           bottom: 5,
+          backgroundColor: palette.accent,
+          shadowColor: palette.accent,
         },
         particleStyle,
       ]}
@@ -197,6 +209,7 @@ export function GoldPulseIndicator({
   coachName = 'Coach',
   variant = 'pulse',
 }: GoldPulseIndicatorProps) {
+  const { palette } = useThemeSafe();
   const textOpacity = useSharedValue(0.6);
 
   useEffect(() => {
@@ -243,7 +256,7 @@ export function GoldPulseIndicator({
       <View style={styles.indicatorWrapper}>
         {renderIndicator()}
       </View>
-      <Animated.Text style={[styles.text, textStyle]}>
+      <Animated.Text style={[styles.text, { color: palette.textTertiary }, textStyle]}>
         {coachName} is reflecting...
       </Animated.Text>
     </View>
@@ -270,8 +283,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   orb: {
-    backgroundColor: Colors.burnishedGold,
-    shadowColor: Colors.burnishedGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 8,
@@ -285,7 +296,6 @@ const styles = StyleSheet.create({
   },
   shimmerTrack: {
     flex: 1,
-    backgroundColor: Colors.goldMuted,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -305,8 +315,6 @@ const styles = StyleSheet.create({
   },
   dustParticle: {
     position: 'absolute',
-    backgroundColor: Colors.burnishedGold,
-    shadowColor: Colors.burnishedGold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 4,
@@ -314,7 +322,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
     fontFamily: Typography.fonts.serif,
   },

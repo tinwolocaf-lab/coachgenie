@@ -22,7 +22,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Typography, Spacing, Radius } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { getSessionWithMessages } from '@/lib/supabase-archive';
 import { EnhancedSession, EnhancedMessage } from '@/types';
 import { getCoachById } from '@/data/coaches';
@@ -31,6 +32,7 @@ import { CoachIcon } from '@/components/ui/CoachIcon';
 export default function SessionReviewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<EnhancedSession | null>(null);
   const [messages, setMessages] = useState<EnhancedMessage[]>([]);
@@ -62,10 +64,10 @@ export default function SessionReviewScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.burnishedGold} />
-          <Text style={styles.loadingText}>Opening session...</Text>
+          <ActivityIndicator size="large" color={palette.accent} />
+          <Text style={[styles.loadingText, { color: palette.textTertiary }]}>Opening session...</Text>
         </View>
       </SafeAreaView>
     );
@@ -73,12 +75,12 @@ export default function SessionReviewScreen() {
 
   if (!session) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={Colors.stoneGray} />
-          <Text style={styles.errorText}>Session not found</Text>
-          <TouchableOpacity style={styles.backButtonError} onPress={handleBackPress}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+          <Ionicons name="alert-circle-outline" size={48} color={palette.textTertiary} />
+          <Text style={[styles.errorText, { color: palette.textSecondary }]}>Session not found</Text>
+          <TouchableOpacity style={[styles.backButtonError, { backgroundColor: palette.accent }]} onPress={handleBackPress}>
+            <Text style={[styles.backButtonText, { color: palette.textInverse }]}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -100,14 +102,14 @@ export default function SessionReviewScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { borderBottomColor: palette.borderLight }]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Ionicons name="chevron-back" size={24} color={Colors.midnightEmerald} />
+          <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerLabel}>Session Transcript</Text>
+          <Text style={[styles.headerLabel, { color: palette.textTertiary }]}>Session Transcript</Text>
         </View>
         <View style={styles.headerRight} />
       </Animated.View>
@@ -119,35 +121,35 @@ export default function SessionReviewScreen() {
       >
         {/* Editorial Header */}
         <Animated.View entering={FadeInDown.duration(500)} style={styles.editorialHeader}>
-          <View style={styles.dateBadge}>
-            <Text style={styles.dateText}>{formattedDate}</Text>
-            <Text style={styles.timeText}>{formattedTime}</Text>
+          <View style={[styles.dateBadge, { backgroundColor: palette.accentMuted }]}>
+            <Text style={[styles.dateText, { color: palette.accent }]}>{formattedDate}</Text>
+            <Text style={[styles.timeText, { color: palette.textTertiary }]}>{formattedTime}</Text>
           </View>
 
-          <Text style={styles.sessionTitle}>{session.title}</Text>
+          <Text style={[styles.sessionTitle, { color: palette.textPrimary }]}>{session.title}</Text>
 
           <View style={styles.coachInfo}>
             <CoachIcon
               iconName={coach?.icon_name || 'person'}
-              color={coach?.color || Colors.burnishedGold}
+              color={coach?.color || palette.accent}
               size="md"
             />
             <View style={styles.coachDetails}>
-              <Text style={styles.coachLabel}>In conversation with</Text>
-              <Text style={styles.coachName}>{coach?.name || 'Coach'}</Text>
+              <Text style={[styles.coachLabel, { color: palette.textTertiary }]}>In conversation with</Text>
+              <Text style={[styles.coachName, { color: palette.textSecondary }]}>{coach?.name || 'Coach'}</Text>
             </View>
           </View>
 
           {session.status === 'completed' && session.breakthrough_summary && (
             <View style={styles.breakthroughBanner}>
               <LinearGradient
-                colors={[Colors.goldMuted, 'rgba(197, 160, 89, 0.05)']}
+                colors={[palette.accentMuted, 'rgba(197, 160, 89, 0.05)']}
                 style={styles.breakthroughGradient}
               >
-                <Ionicons name="star" size={16} color={Colors.burnishedGold} />
+                <Ionicons name="star" size={16} color={palette.accent} />
                 <View style={styles.breakthroughContent}>
-                  <Text style={styles.breakthroughLabel}>Breakthrough</Text>
-                  <Text style={styles.breakthroughText}>{session.breakthrough_summary}</Text>
+                  <Text style={[styles.breakthroughLabel, { color: palette.accent }]}>Breakthrough</Text>
+                  <Text style={[styles.breakthroughText, { color: palette.textSecondary }]}>{session.breakthrough_summary}</Text>
                 </View>
               </LinearGradient>
             </View>
@@ -156,9 +158,9 @@ export default function SessionReviewScreen() {
 
         {/* Divider */}
         <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Ionicons name="chatbubbles" size={16} color={Colors.stoneGray} />
-          <View style={styles.dividerLine} />
+          <View style={[styles.dividerLine, { backgroundColor: palette.borderLight }]} />
+          <Ionicons name="chatbubbles" size={16} color={palette.textTertiary} />
+          <View style={[styles.dividerLine, { backgroundColor: palette.borderLight }]} />
         </View>
 
         {/* Transcript */}
@@ -178,13 +180,13 @@ export default function SessionReviewScreen() {
         {session.summary && (
           <Animated.View
             entering={FadeInUp.duration(500).delay(messages.length * 50)}
-            style={styles.summarySection}
+            style={[styles.summarySection, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
           >
             <View style={styles.summaryHeader}>
-              <Ionicons name="document-text" size={16} color={Colors.burnishedGold} />
-              <Text style={styles.summaryLabel}>Session Summary</Text>
+              <Ionicons name="document-text" size={16} color={palette.accent} />
+              <Text style={[styles.summaryLabel, { color: palette.accent }]}>Session Summary</Text>
             </View>
-            <Text style={styles.summaryText}>{session.summary}</Text>
+            <Text style={[styles.summaryText, { color: palette.textSecondary }]}>{session.summary}</Text>
           </Animated.View>
         )}
 
@@ -202,6 +204,7 @@ interface MessageBlockProps {
 }
 
 function MessageBlock({ message, index, coachName, isLastMessage }: MessageBlockProps) {
+  const { palette } = useThemeSafe();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
 
@@ -227,35 +230,37 @@ function MessageBlock({ message, index, coachName, isLastMessage }: MessageBlock
     <Animated.View
       style={[
         styles.messageBlock,
-        isUser ? styles.messageBlockUser : styles.messageBlockCoach,
+        isUser
+          ? [styles.messageBlockUser, { borderLeftColor: palette.textPrimary }]
+          : [styles.messageBlockCoach, { borderLeftColor: palette.accent }],
         animatedStyle,
       ]}
     >
       {/* Speaker Label */}
       <View style={styles.speakerRow}>
-        <Text style={[styles.speakerName, isUser && styles.speakerNameUser]}>
+        <Text style={[styles.speakerName, { color: palette.accent }, isUser && { color: palette.textPrimary }]}>
           {isUser ? 'You' : coachName}
         </Text>
-        <Text style={styles.messageTimestamp}>{timestamp}</Text>
+        <Text style={[styles.messageTimestamp, { color: palette.textTertiary }]}>{timestamp}</Text>
       </View>
 
       {/* Message Content */}
-      <Text style={[styles.messageText, isUser && styles.messageTextUser]}>
+      <Text style={[styles.messageText, { color: palette.textSecondary }]}>
         {message.content}
       </Text>
 
       {/* Insight Marker */}
       {message.is_insight && (
-        <View style={styles.insightMarker}>
-          <Ionicons name="sparkles" size={12} color={Colors.burnishedGold} />
-          <Text style={styles.insightLabel}>
+        <View style={[styles.insightMarker, { backgroundColor: palette.accentMuted }]}>
+          <Ionicons name="sparkles" size={12} color={palette.accent} />
+          <Text style={[styles.insightLabel, { color: palette.accent }]}>
             {message.insight_title || 'Key Insight'}
           </Text>
         </View>
       )}
 
       {/* Decorative line between messages */}
-      {!isLastMessage && <View style={styles.messageConnector} />}
+      {!isLastMessage && <View style={[styles.messageConnector, { backgroundColor: palette.borderLight }]} />}
     </Animated.View>
   );
 }
@@ -263,7 +268,6 @@ function MessageBlock({ message, index, coachName, isLastMessage }: MessageBlock
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   loadingContainer: {
     flex: 1,
@@ -272,7 +276,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.lg,
   },
   errorContainer: {
@@ -285,20 +288,17 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
     marginTop: Spacing.lg,
   },
   backButtonError: {
     marginTop: Spacing.xl,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.burnishedGold,
     borderRadius: Radius.pill,
   },
   backButtonText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
   },
   header: {
     flexDirection: 'row',
@@ -306,7 +306,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   backButton: {
     width: 40,
@@ -321,7 +320,6 @@ const styles = StyleSheet.create({
   headerLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
   },
@@ -339,7 +337,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   dateBadge: {
-    backgroundColor: Colors.goldMuted,
     alignSelf: 'flex-start',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
@@ -349,18 +346,15 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
   timeText: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
   sessionTitle: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     lineHeight: Typography.sizes.display * Typography.lineHeights.tight,
     marginBottom: Spacing.xl,
   },
@@ -375,14 +369,12 @@ const styles = StyleSheet.create({
   },
   coachLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: 2,
   },
   coachName: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
   },
   breakthroughBanner: {
     borderRadius: Radius.lg,
@@ -401,7 +393,6 @@ const styles = StyleSheet.create({
   breakthroughLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
     marginBottom: Spacing.xs,
@@ -409,7 +400,6 @@ const styles = StyleSheet.create({
   breakthroughText: {
     fontSize: Typography.sizes.body,
     fontStyle: 'italic',
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
   divider: {
@@ -421,7 +411,6 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.borderLight,
   },
   transcript: {
     marginBottom: Spacing.xxl,
@@ -433,12 +422,10 @@ const styles = StyleSheet.create({
   messageBlockUser: {
     paddingLeft: Spacing.lg,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.midnightEmerald,
   },
   messageBlockCoach: {
     paddingLeft: Spacing.lg,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.burnishedGold,
   },
   speakerRow: {
     flexDirection: 'row',
@@ -449,30 +436,20 @@ const styles = StyleSheet.create({
   speakerName: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
-  speakerNameUser: {
-    color: Colors.midnightEmerald,
-  },
   messageTimestamp: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
   },
   messageText: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
-  },
-  messageTextUser: {
-    fontStyle: 'normal',
   },
   insightMarker: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.goldMuted,
     alignSelf: 'flex-start',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
@@ -482,7 +459,6 @@ const styles = StyleSheet.create({
   insightLabel: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
   messageConnector: {
     position: 'absolute',
@@ -490,14 +466,11 @@ const styles = StyleSheet.create({
     bottom: -Spacing.xl,
     width: 1,
     height: Spacing.xl,
-    backgroundColor: Colors.borderLight,
   },
   summarySection: {
-    backgroundColor: Colors.cream,
     padding: Spacing.xl,
     borderRadius: Radius.squircle,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     marginTop: Spacing.lg,
   },
   summaryHeader: {
@@ -509,13 +482,11 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
   summaryText: {
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
   bottomSpacer: {

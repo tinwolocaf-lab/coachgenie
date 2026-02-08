@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, PanResponder, ViewStyle } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
-import { Colors, Radius, Typography, Spacing } from '@/constants/theme';
+import { Radius, Typography, Spacing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface SliderProps {
   value: number;
@@ -24,6 +25,7 @@ export function Slider({
   label,
   style,
 }: SliderProps) {
+  const { palette } = useThemeSafe();
   const sliderWidth = useSharedValue(300);
   const percentage = ((value - minValue) / (maxValue - minValue)) * 100;
 
@@ -54,19 +56,29 @@ export function Slider({
 
   return (
     <View style={[styles.container, style]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: palette.textSecondary }]}>{label}</Text>}
       <View
-        style={styles.track}
+        style={[styles.track, { backgroundColor: palette.border }]}
         onLayout={handleLayout}
         {...panResponder.panHandlers}
       >
-        <View style={[styles.fill, { width: `${percentage}%` }]} />
-        <View style={[styles.thumb, { left: `${percentage}%` }]} />
+        <View style={[styles.fill, { width: `${percentage}%`, backgroundColor: palette.accent }]} />
+        <View
+          style={[
+            styles.thumb,
+            {
+              left: `${percentage}%`,
+              backgroundColor: palette.cardBg,
+              borderColor: palette.accent,
+              shadowColor: palette.shadowColor,
+            },
+          ]}
+        />
       </View>
       {(leftLabel || rightLabel) && (
         <View style={styles.labels}>
-          <Text style={styles.labelText}>{leftLabel}</Text>
-          <Text style={styles.labelText}>{rightLabel}</Text>
+          <Text style={[styles.labelText, { color: palette.textTertiary }]}>{leftLabel}</Text>
+          <Text style={[styles.labelText, { color: palette.textTertiary }]}>{rightLabel}</Text>
         </View>
       )}
     </View>
@@ -80,12 +92,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.slateCharcoal,
     marginBottom: Spacing.md,
   },
   track: {
     height: 8,
-    backgroundColor: Colors.border,
     borderRadius: Radius.full,
     position: 'relative',
   },
@@ -94,7 +104,6 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     height: '100%',
-    backgroundColor: Colors.electricIndigo,
     borderRadius: Radius.full,
   },
   thumb: {
@@ -103,11 +112,8 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     marginLeft: -12,
-    backgroundColor: Colors.white,
     borderRadius: Radius.full,
     borderWidth: 3,
-    borderColor: Colors.electricIndigo,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -120,7 +126,6 @@ const styles = StyleSheet.create({
   },
   labelText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.slateGray,
   },
 });
 

@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Typography, Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -117,14 +117,14 @@ export default function VaultScreen() {
           <Card style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>Core Values</Text>
-                <Text style={styles.sectionSubtitle}>
+                <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Core Values</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
                   What drives your decisions
                 </Text>
               </View>
               {editingSection !== 'values' && (
                 <TouchableOpacity onPress={handleEditValues}>
-                  <Ionicons name="pencil" size={20} color={Colors.electricIndigo} />
+                  <Ionicons name="pencil" size={20} color={palette.accent} />
                 </TouchableOpacity>
               )}
             </View>
@@ -161,8 +161,8 @@ export default function VaultScreen() {
             ) : (
               <View style={styles.valuesDisplay}>
                 {vault.values.map((value) => (
-                  <View key={value} style={styles.valueBadge}>
-                    <Text style={styles.valueBadgeText}>{value}</Text>
+                  <View key={value} style={[styles.valueBadge, { backgroundColor: palette.accent + '15' }]}>
+                    <Text style={[styles.valueBadgeText, { color: palette.accent }]}>{value}</Text>
                   </View>
                 ))}
               </View>
@@ -175,8 +175,8 @@ export default function VaultScreen() {
           <Card style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>Goals</Text>
-                <Text style={styles.sectionSubtitle}>
+                <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Goals</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
                   What you&apos;re working toward
                 </Text>
               </View>
@@ -191,7 +191,7 @@ export default function VaultScreen() {
                 />
               ))}
               {vault.goals.length === 0 && (
-                <Text style={styles.emptyText}>No goals set yet</Text>
+                <Text style={[styles.emptyText, { color: palette.textTertiary }]}>No goals set yet</Text>
               )}
             </View>
           </Card>
@@ -202,8 +202,8 @@ export default function VaultScreen() {
           <Card style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>Constraints</Text>
-                <Text style={styles.sectionSubtitle}>
+                <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Constraints</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
                   Your time and energy limits
                 </Text>
               </View>
@@ -236,8 +236,8 @@ export default function VaultScreen() {
           <Card style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>Coaching Style</Text>
-                <Text style={styles.sectionSubtitle}>
+                <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Coaching Style</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
                   How you like to be coached
                 </Text>
               </View>
@@ -257,9 +257,9 @@ export default function VaultScreen() {
                 rightLabel="Challenging"
               />
               <View style={styles.responseLengthItem}>
-                <Text style={styles.prefLabel}>Response length</Text>
-                <View style={styles.responseLengthBadge}>
-                  <Text style={styles.responseLengthText}>
+                <Text style={[styles.prefLabel, { color: palette.textSecondary }]}>Response length</Text>
+                <View style={[styles.responseLengthBadge, { backgroundColor: palette.backgroundSecondary }]}>
+                  <Text style={[styles.responseLengthText, { color: palette.textSecondary }]}>
                     {vault.preferences.response_length.charAt(0).toUpperCase() +
                       vault.preferences.response_length.slice(1)}
                   </Text>
@@ -271,7 +271,7 @@ export default function VaultScreen() {
 
         {/* Last Updated */}
         <Animated.View entering={FadeIn.duration(300).delay(500)}>
-          <Text style={styles.lastUpdated}>
+          <Text style={[styles.lastUpdated, { color: palette.textTertiary }]}>
             Last updated:{' '}
             {new Date(vault.updated_at).toLocaleDateString('en-US', {
               month: 'short',
@@ -293,22 +293,23 @@ function GoalItem({
   goal: Goal;
   onUpdate: (updates: Partial<Goal>) => void;
 }) {
+  const { palette } = useThemeSafe();
   return (
-    <View style={styles.goalItem}>
+    <View style={[styles.goalItem, { backgroundColor: palette.backgroundSecondary }]}>
       <View style={styles.goalHeader}>
         {goal.is_30_day_focus && (
           <Ionicons
             name="star"
             size={16}
-            color={Colors.warning}
+            color={palette.warning}
             style={styles.goalStar}
           />
         )}
-        <Text style={styles.goalTitle}>{goal.title}</Text>
+        <Text style={[styles.goalTitle, { color: palette.textSecondary }]}>{goal.title}</Text>
       </View>
       {goal.is_30_day_focus && (
-        <View style={styles.focusBadge}>
-          <Text style={styles.focusBadgeText}>30-Day Focus</Text>
+        <View style={[styles.focusBadge, { backgroundColor: palette.warningLight }]}>
+          <Text style={[styles.focusBadgeText, { color: palette.warning }]}>30-Day Focus</Text>
         </View>
       )}
     </View>
@@ -324,11 +325,12 @@ function ConstraintItem({
   label: string;
   value: string;
 }) {
+  const { palette } = useThemeSafe();
   return (
     <View style={styles.constraintItem}>
-      <Ionicons name={icon} size={20} color={Colors.slateGray} />
-      <Text style={styles.constraintLabel}>{label}</Text>
-      <Text style={styles.constraintValue}>{value}</Text>
+      <Ionicons name={icon} size={20} color={palette.textTertiary} />
+      <Text style={[styles.constraintLabel, { color: palette.textTertiary }]}>{label}</Text>
+      <Text style={[styles.constraintValue, { color: palette.textSecondary }]}>{value}</Text>
     </View>
   );
 }
@@ -344,15 +346,16 @@ function PreferenceItem({
   leftLabel: string;
   rightLabel: string;
 }) {
+  const { palette } = useThemeSafe();
   return (
     <View style={styles.preferenceItem}>
-      <Text style={styles.prefLabel}>{label}</Text>
+      <Text style={[styles.prefLabel, { color: palette.textSecondary }]}>{label}</Text>
       <View style={styles.prefBarContainer}>
-        <Text style={styles.prefBarLabel}>{leftLabel}</Text>
-        <View style={styles.prefBar}>
-          <View style={[styles.prefBarFill, { width: `${value}%` }]} />
+        <Text style={[styles.prefBarLabel, { color: palette.textTertiary }]}>{leftLabel}</Text>
+        <View style={[styles.prefBar, { backgroundColor: palette.border }]}>
+          <View style={[styles.prefBarFill, { width: `${value}%`, backgroundColor: palette.accent }]} />
         </View>
-        <Text style={styles.prefBarLabel}>{rightLabel}</Text>
+        <Text style={[styles.prefBarLabel, { color: palette.textTertiary }]}>{rightLabel}</Text>
       </View>
     </View>
   );
@@ -361,7 +364,6 @@ function PreferenceItem({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.offWhite,
   },
   loading: {
     flex: 1,
@@ -370,7 +372,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
   },
   scrollContent: {
     paddingHorizontal: Spacing.xl,
@@ -382,12 +383,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
-    color: Colors.slateCharcoal,
     marginBottom: Spacing.xs,
   },
   headerSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
   },
   sectionCard: {
     marginBottom: Spacing.lg,
@@ -401,11 +400,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.subtitle,
     fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
   },
   sectionSubtitle: {
     fontSize: Typography.sizes.caption,
-    color: Colors.slateLight,
     marginTop: Spacing.xs,
   },
   chipsContainer: {
@@ -424,7 +421,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   valueBadge: {
-    backgroundColor: Colors.electricIndigo + '15',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.full,
@@ -432,13 +428,11 @@ const styles = StyleSheet.create({
   valueBadgeText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.electricIndigo,
   },
   goalsList: {
     gap: Spacing.md,
   },
   goalItem: {
-    backgroundColor: Colors.inputBg,
     padding: Spacing.md,
     borderRadius: Radius.lg,
   },
@@ -452,11 +446,9 @@ const styles = StyleSheet.create({
   goalTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.slateCharcoal,
     flex: 1,
   },
   focusBadge: {
-    backgroundColor: Colors.warningLight,
     alignSelf: 'flex-start',
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
@@ -466,11 +458,9 @@ const styles = StyleSheet.create({
   focusBadgeText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.warning,
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateLight,
     fontStyle: 'italic',
   },
   constraintsList: {
@@ -483,13 +473,11 @@ const styles = StyleSheet.create({
   constraintLabel: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
     marginLeft: Spacing.md,
   },
   constraintValue: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
   },
   preferencesList: {
     gap: Spacing.lg,
@@ -498,7 +486,6 @@ const styles = StyleSheet.create({
   prefLabel: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.slateCharcoal,
     marginBottom: Spacing.sm,
   },
   prefBarContainer: {
@@ -507,20 +494,17 @@ const styles = StyleSheet.create({
   },
   prefBarLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.slateLight,
     width: 70,
   },
   prefBar: {
     flex: 1,
     height: 6,
-    backgroundColor: Colors.border,
     borderRadius: 3,
     marginHorizontal: Spacing.sm,
     overflow: 'hidden',
   },
   prefBarFill: {
     height: '100%',
-    backgroundColor: Colors.electricIndigo,
     borderRadius: 3,
   },
   responseLengthItem: {
@@ -529,7 +513,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   responseLengthBadge: {
-    backgroundColor: Colors.inputBg,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.full,
@@ -537,11 +520,9 @@ const styles = StyleSheet.create({
   responseLengthText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.slateCharcoal,
   },
   lastUpdated: {
     fontSize: Typography.sizes.caption,
-    color: Colors.slateLight,
     textAlign: 'center',
     marginTop: Spacing.lg,
   },

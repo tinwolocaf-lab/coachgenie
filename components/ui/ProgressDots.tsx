@@ -4,7 +4,8 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors, Spacing, Timing } from '@/constants/theme';
+import { Spacing, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface ProgressDotsProps {
   total: number;
@@ -13,10 +14,12 @@ interface ProgressDotsProps {
 }
 
 function Dot({ active }: { active: boolean }) {
+  const { palette } = useThemeSafe();
+
   const animatedStyle = useAnimatedStyle(() => ({
     width: withSpring(active ? 24 : 8, Timing.spring),
     backgroundColor: withSpring(
-      active ? Colors.electricIndigo : Colors.border,
+      active ? palette.accent : palette.border,
       Timing.spring
     ),
   }));

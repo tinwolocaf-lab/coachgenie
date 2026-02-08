@@ -20,7 +20,8 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Card } from '@/components/ui/Card';
 import { RitualCard, ActionCard } from '@/components/rituals/RitualCard';
 import { FluidProgressBar, SegmentedProgress } from '@/components/rituals/FluidProgressBar';
@@ -61,6 +62,7 @@ const getAuthHook = () => {
 export default function RitualsHubScreen() {
   const router = useRouter();
   const useAuth = getAuthHook();
+  const { palette } = useThemeSafe();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
 
@@ -183,17 +185,17 @@ export default function RitualsHubScreen() {
   // This would ideally come from actual data - simplified for now
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { borderBottomColor: palette.borderLight }]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Ionicons name="chevron-back" size={24} color={Colors.midnightEmerald} />
+          <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>The Practice</Text>
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>{practice ? 'The Practice' : 'The Practice'}</Text>
         </View>
-        <TouchableOpacity style={styles.chaptersButton} onPress={handleChaptersPress}>
-          <Ionicons name="flag" size={20} color={Colors.burnishedGold} />
+        <TouchableOpacity style={[styles.chaptersButton, { backgroundColor: palette.accentMuted }]} onPress={handleChaptersPress}>
+          <Ionicons name="flag" size={20} color={palette.accent} />
         </TouchableOpacity>
       </Animated.View>
 
@@ -205,14 +207,14 @@ export default function RitualsHubScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.burnishedGold}
+            tintColor={palette.accent}
           />
         }
       >
         {/* Hero Section - Date & Greeting */}
         <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.heroSection}>
-          <Text style={styles.dateText}>{dateString}</Text>
-          <Text style={styles.greetingText}>{greeting}</Text>
+          <Text style={[styles.dateText, { color: palette.textTertiary }]}>{dateString}</Text>
+          <Text style={[styles.greetingText, { color: palette.textPrimary }]}>{greeting}</Text>
         </Animated.View>
 
         {/* Today's Progress Card */}
@@ -220,14 +222,14 @@ export default function RitualsHubScreen() {
           <Card variant="elevated" style={styles.progressCard}>
             <View style={styles.progressHeader}>
               <View>
-                <Text style={styles.progressTitle}>Today&apos;s Progress</Text>
-                <Text style={styles.progressSubtitle}>
+                <Text style={[styles.progressTitle, { color: palette.textPrimary }]}>Today&apos;s Progress</Text>
+                <Text style={[styles.progressSubtitle, { color: palette.textTertiary }]}>
                   {practice?.rituals.filter(r => r.is_completed_today).length || 0} of{' '}
                   {practice?.rituals.length || 0} rituals
                 </Text>
               </View>
-              <View style={styles.progressPercent}>
-                <Text style={styles.progressPercentValue}>{practice?.overallProgress || 0}%</Text>
+              <View style={[styles.progressPercent, { backgroundColor: palette.accentMuted }]}>
+                <Text style={[styles.progressPercentValue, { color: palette.accent }]}>{practice?.overallProgress || 0}%</Text>
               </View>
             </View>
 
@@ -239,31 +241,32 @@ export default function RitualsHubScreen() {
 
             {/* Streak Info */}
             {consistency && consistency.currentStreak > 0 && (
-              <View style={styles.streakRow}>
+              <View style={[styles.streakRow, { borderTopColor: palette.borderLight }]}>
                 <View style={styles.streakItem}>
-                  <Text style={styles.streakValue}>{consistency.currentStreak}</Text>
-                  <Text style={styles.streakLabel}>Day Streak 🔥</Text>
+                  <Text style={[styles.streakValue, { color: palette.textPrimary }]}>{consistency.currentStreak}</Text>
+                  <Text style={[styles.streakLabel, { color: palette.textTertiary }]}>Day Streak 🔥</Text>
                 </View>
-                <View style={styles.streakDivider} />
+                <View style={[styles.streakDivider, { backgroundColor: palette.borderLight }]} />
                 <View style={styles.streakItem}>
-                  <Text style={styles.streakValue}>{consistency.weeklyAverage}</Text>
-                  <Text style={styles.streakLabel}>Days/Week</Text>
+                  <Text style={[styles.streakValue, { color: palette.textPrimary }]}>{consistency.weeklyAverage}</Text>
+                  <Text style={[styles.streakLabel, { color: palette.textTertiary }]}>Days/Week</Text>
                 </View>
-                <View style={styles.streakDivider} />
+                <View style={[styles.streakDivider, { backgroundColor: palette.borderLight }]} />
                 <View style={styles.streakItem}>
                   <View style={[
                     styles.trendIndicator,
-                    consistency.monthlyTrend === 'up' && styles.trendUp,
-                    consistency.monthlyTrend === 'down' && styles.trendDown,
+                    { backgroundColor: palette.textTertiary },
+                    consistency.monthlyTrend === 'up' && { backgroundColor: palette.success },
+                    consistency.monthlyTrend === 'down' && { backgroundColor: palette.error },
                   ]}>
                     <Ionicons
                       name={consistency.monthlyTrend === 'up' ? 'trending-up' :
                         consistency.monthlyTrend === 'down' ? 'trending-down' : 'remove'}
                       size={16}
-                      color={Colors.white}
+                      color={palette.textInverse}
                     />
                   </View>
-                  <Text style={styles.streakLabel}>Trend</Text>
+                  <Text style={[styles.streakLabel, { color: palette.textTertiary }]}>Trend</Text>
                 </View>
               </View>
             )}
@@ -318,9 +321,9 @@ export default function RitualsHubScreen() {
         {practice?.activeChapter && (
           <Animated.View entering={FadeInUp.duration(400).delay(400)} style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Active Chapter</Text>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Active Chapter</Text>
               <TouchableOpacity onPress={handleChaptersPress}>
-                <Text style={styles.seeAllText}>All Chapters</Text>
+                <Text style={[styles.seeAllText, { color: palette.accent }]}>All Chapters</Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -337,16 +340,16 @@ export default function RitualsHubScreen() {
                     <Ionicons
                       name={practice.activeChapter.icon as keyof typeof Ionicons.glyphMap || 'flag'}
                       size={24}
-                      color={Colors.white}
+                      color={palette.textInverse}
                     />
                   </View>
                   <View style={styles.chapterText}>
-                    <Text style={styles.chapterTitle}>{practice.activeChapter.title}</Text>
+                    <Text style={[styles.chapterTitle, { color: palette.textInverse }]}>{practice.activeChapter.title}</Text>
                     <View style={styles.chapterProgress}>
                       <FluidProgressBar
                         progress={practice.activeChapter.progress_percentage}
                         height={4}
-                        color={Colors.white}
+                        color={palette.textInverse}
                         backgroundColor="rgba(255,255,255,0.2)"
                         showWave={false}
                       />
@@ -365,10 +368,10 @@ export default function RitualsHubScreen() {
         {/* Daily Rituals */}
         <Animated.View entering={FadeInUp.duration(400).delay(500)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Daily Rituals</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Daily Rituals</Text>
             <TouchableOpacity onPress={handleNewRitualPress} style={styles.addRitualButton}>
-              <Ionicons name="add" size={18} color={Colors.burnishedGold} />
-              <Text style={styles.addRitualText}>Add</Text>
+              <Ionicons name="add" size={18} color={palette.accent} />
+              <Text style={[styles.addRitualText, { color: palette.accent }]}>Add</Text>
             </TouchableOpacity>
           </View>
 
@@ -387,17 +390,17 @@ export default function RitualsHubScreen() {
               ))}
             </View>
           ) : (
-            <View style={styles.emptyRituals}>
-              <View style={styles.emptyIcon}>
-                <Ionicons name="sparkles-outline" size={32} color={Colors.stoneGray} />
+            <View style={[styles.emptyRituals, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}>
+              <View style={[styles.emptyIcon, { backgroundColor: palette.backgroundSecondary }]}>
+                <Ionicons name="sparkles-outline" size={32} color={palette.textTertiary} />
               </View>
-              <Text style={styles.emptyTitle}>No rituals yet</Text>
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyTitle, { color: palette.textSecondary }]}>No rituals yet</Text>
+              <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
                 Create your first daily ritual to build consistent habits
               </Text>
-              <TouchableOpacity style={styles.emptyButton} onPress={handleNewRitualPress}>
-                <Ionicons name="add" size={18} color={Colors.burnishedGold} />
-                <Text style={styles.emptyButtonText}>Create Ritual</Text>
+              <TouchableOpacity style={[styles.emptyButton, { backgroundColor: palette.accentMuted }]} onPress={handleNewRitualPress}>
+                <Ionicons name="add" size={18} color={palette.accent} />
+                <Text style={[styles.emptyButtonText, { color: palette.accent }]}>Create Ritual</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -419,6 +422,7 @@ function NudgeCard({
   index: number;
   onPress: () => void;
 }) {
+  const { palette } = useThemeSafe();
   const iconName = nudge.nudge_type === 'encouragement' ? 'heart' :
     nudge.nudge_type === 'alignment' ? 'compass' :
     nudge.nudge_type === 'milestone' ? 'trophy' : 'bulb';
@@ -427,14 +431,14 @@ function NudgeCard({
     <Animated.View entering={FadeInDown.duration(300).delay(index * 100)}>
       <TouchableOpacity style={styles.nudgeCard} onPress={onPress} activeOpacity={0.9}>
         <LinearGradient
-          colors={[Colors.goldMuted, Colors.warmOatmeal]}
-          style={styles.nudgeGradient}
+          colors={[palette.accentMuted, palette.background]}
+          style={[styles.nudgeGradient, { borderColor: palette.borderAccent }]}
         >
-          <View style={styles.nudgeIcon}>
-            <Ionicons name={iconName} size={18} color={Colors.burnishedGold} />
+          <View style={[styles.nudgeIcon, { backgroundColor: palette.accentMuted }]}>
+            <Ionicons name={iconName} size={18} color={palette.accent} />
           </View>
-          <Text style={styles.nudgeTitle}>{nudge.title}</Text>
-          <Text style={styles.nudgeContent} numberOfLines={2}>{nudge.content}</Text>
+          <Text style={[styles.nudgeTitle, { color: palette.textSecondary }]}>{nudge.title}</Text>
+          <Text style={[styles.nudgeContent, { color: palette.textTertiary }]} numberOfLines={2}>{nudge.content}</Text>
         </LinearGradient>
       </TouchableOpacity>
     </Animated.View>
@@ -454,7 +458,6 @@ function lightenColor(hex: string, percent: number): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   header: {
     flexDirection: 'row',
@@ -463,7 +466,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   backButton: {
     width: 40,
@@ -478,13 +480,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   chaptersButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -503,7 +503,6 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
     marginBottom: Spacing.xs,
   },
@@ -511,7 +510,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.light,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
 
   // Progress Card
@@ -529,15 +527,12 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
   },
   progressSubtitle: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
   progressPercent: {
-    backgroundColor: Colors.goldMuted,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.pill,
@@ -546,7 +541,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.burnishedGold,
   },
   streakRow: {
     flexDirection: 'row',
@@ -555,7 +549,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
   },
   streakItem: {
     alignItems: 'center',
@@ -564,11 +557,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   streakLabel: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
     marginTop: 2,
@@ -576,21 +567,13 @@ const styles = StyleSheet.create({
   streakDivider: {
     width: 1,
     height: 30,
-    backgroundColor: Colors.borderLight,
   },
   trendIndicator: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.stoneGray,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  trendUp: {
-    backgroundColor: Colors.success,
-  },
-  trendDown: {
-    backgroundColor: Colors.error,
   },
 
   // Action Section
@@ -615,14 +598,12 @@ const styles = StyleSheet.create({
   nudgeGradient: {
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.borderGold,
     borderRadius: Radius.squircle,
   },
   nudgeIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
@@ -630,12 +611,10 @@ const styles = StyleSheet.create({
   nudgeTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     marginBottom: Spacing.xs,
   },
   nudgeContent: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -653,11 +632,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
   },
   seeAllText: {
     fontSize: Typography.sizes.body,
-    color: Colors.burnishedGold,
     fontWeight: Typography.weights.medium,
   },
 
@@ -693,7 +670,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.white,
     marginBottom: Spacing.xs,
   },
   chapterProgress: {
@@ -717,7 +693,6 @@ const styles = StyleSheet.create({
   },
   addRitualText: {
     fontSize: Typography.sizes.body,
-    color: Colors.burnishedGold,
     fontWeight: Typography.weights.medium,
   },
 
@@ -725,17 +700,14 @@ const styles = StyleSheet.create({
   emptyRituals: {
     alignItems: 'center',
     padding: Spacing.xxxl,
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.squircle,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     borderStyle: 'dashed',
   },
   emptyIcon: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
@@ -743,12 +715,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     marginBottom: Spacing.xs,
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
     marginBottom: Spacing.lg,
@@ -759,12 +729,10 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.goldMuted,
     borderRadius: Radius.pill,
   },
   emptyButtonText: {
     fontSize: Typography.sizes.body,
-    color: Colors.burnishedGold,
     fontWeight: Typography.weights.medium,
   },
 

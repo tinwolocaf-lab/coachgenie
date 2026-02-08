@@ -2,7 +2,8 @@ import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Radius } from '@/constants/theme';
+import { Radius } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface CoachIconProps {
   iconName: string;
@@ -33,18 +34,20 @@ const sizeMap = {
 
 export function CoachIcon({
   iconName,
-  color = Colors.burnishedGold,
+  color,
   size = 'md',
   style,
   variant = 'default',
 }: CoachIconProps) {
+  const { palette } = useThemeSafe();
+  const resolvedColor = color ?? palette.accent;
   const resolvedIcon = iconMap[iconName] || iconMap.default;
   const dimensions = sizeMap[size];
 
   if (variant === 'gradient') {
     return (
       <LinearGradient
-        colors={[color, `${color}CC`]}
+        colors={[resolvedColor, `${resolvedColor}CC`]}
         style={[
           styles.container,
           {
@@ -58,7 +61,7 @@ export function CoachIcon({
         <Ionicons
           name={resolvedIcon}
           size={dimensions.icon}
-          color={Colors.white}
+          color={palette.textInverse}
         />
       </LinearGradient>
     );
@@ -73,7 +76,7 @@ export function CoachIcon({
             width: dimensions.container,
             height: dimensions.container,
             borderRadius: dimensions.radius,
-            backgroundColor: color,
+            backgroundColor: resolvedColor,
           },
           style,
         ]}
@@ -81,7 +84,7 @@ export function CoachIcon({
         <Ionicons
           name={resolvedIcon}
           size={dimensions.icon}
-          color={Colors.white}
+          color={palette.textInverse}
         />
       </View>
     );
@@ -95,9 +98,9 @@ export function CoachIcon({
           width: dimensions.container,
           height: dimensions.container,
           borderRadius: dimensions.radius,
-          backgroundColor: `${color}15`,
+          backgroundColor: `${resolvedColor}15`,
           borderWidth: 1,
-          borderColor: `${color}30`,
+          borderColor: `${resolvedColor}30`,
         },
         style,
       ]}
@@ -105,7 +108,7 @@ export function CoachIcon({
       <Ionicons
         name={resolvedIcon}
         size={dimensions.icon}
-        color={color}
+        color={resolvedColor}
       />
     </View>
   );

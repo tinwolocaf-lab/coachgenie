@@ -19,7 +19,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -250,11 +251,13 @@ function SignUpUI({
   onGoogleSignIn,
   onAppleSignIn,
 }: SignUpUIProps) {
+  const { palette } = useThemeSafe();
+
   // Show premium loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.loadingContainer, { backgroundColor: palette.background }]}>
           <GoldDustLoader
             message="Creating your account"
             subMessage="Setting up your personalized experience..."
@@ -268,49 +271,49 @@ function SignUpUI({
   // Show verification pending screen
   if (pendingVerification) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
         <View style={styles.verificationContainer}>
           <Animated.View entering={FadeIn.duration(600)} style={styles.verificationContent}>
             <View style={styles.verificationIconContainer}>
               <LinearGradient
-                colors={[Colors.burnishedGold, Colors.goldLight]}
+                colors={[palette.accent, palette.accentLight]}
                 style={styles.verificationIconBg}
               >
-                <Ionicons name="mail" size={40} color={Colors.white} />
+                <Ionicons name="mail" size={40} color={palette.textInverse} />
               </LinearGradient>
             </View>
-            <Text style={styles.verificationTitle}>Verify Your Email</Text>
-            <Text style={styles.verificationText}>
+            <Text style={[styles.verificationTitle, { color: palette.textPrimary }]}>Verify Your Email</Text>
+            <Text style={[styles.verificationText, { color: palette.textTertiary }]}>
               We&apos;ve sent a verification link to
             </Text>
-            <Text style={styles.verificationEmail}>{email}</Text>
-            <View style={styles.verificationInstructions}>
+            <Text style={[styles.verificationEmail, { color: palette.textSecondary }]}>{email}</Text>
+            <View style={[styles.verificationInstructions, { backgroundColor: palette.cardBg }]}>
               <View style={styles.instructionItem}>
-                <View style={styles.instructionNumber}>
-                  <Text style={styles.instructionNumberText}>1</Text>
+                <View style={[styles.instructionNumber, { backgroundColor: palette.accentMuted }]}>
+                  <Text style={[styles.instructionNumberText, { color: palette.accent }]}>1</Text>
                 </View>
-                <Text style={styles.instructionText}>Open your email inbox</Text>
+                <Text style={[styles.instructionText, { color: palette.textSecondary }]}>Open your email inbox</Text>
               </View>
               <View style={styles.instructionItem}>
-                <View style={styles.instructionNumber}>
-                  <Text style={styles.instructionNumberText}>2</Text>
+                <View style={[styles.instructionNumber, { backgroundColor: palette.accentMuted }]}>
+                  <Text style={[styles.instructionNumberText, { color: palette.accent }]}>2</Text>
                 </View>
-                <Text style={styles.instructionText}>Click the verification link</Text>
+                <Text style={[styles.instructionText, { color: palette.textSecondary }]}>Click the verification link</Text>
               </View>
               <View style={styles.instructionItem}>
-                <View style={styles.instructionNumber}>
-                  <Text style={styles.instructionNumberText}>3</Text>
+                <View style={[styles.instructionNumber, { backgroundColor: palette.accentMuted }]}>
+                  <Text style={[styles.instructionNumberText, { color: palette.accent }]}>3</Text>
                 </View>
-                <Text style={styles.instructionText}>Return here to sign in</Text>
+                <Text style={[styles.instructionText, { color: palette.textSecondary }]}>Return here to sign in</Text>
               </View>
             </View>
-            <Text style={styles.verificationNote}>
+            <Text style={[styles.verificationNote, { color: palette.textTertiary }]}>
               Can&apos;t find it? Check your spam folder.
             </Text>
             <Link href="/(auth)/login" asChild>
               <TouchableOpacity style={styles.backToLoginButton}>
-                <Ionicons name="arrow-back" size={16} color={Colors.burnishedGold} />
-                <Text style={styles.backToLoginText}>Back to Sign In</Text>
+                <Ionicons name="arrow-back" size={16} color={palette.accent} />
+                <Text style={[styles.backToLoginText, { color: palette.accent }]}>Back to Sign In</Text>
               </TouchableOpacity>
             </Link>
           </Animated.View>
@@ -320,7 +323,7 @@ function SignUpUI({
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -333,13 +336,13 @@ function SignUpUI({
           {/* Header */}
           <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
             <Link href="/(auth)/login" asChild>
-              <TouchableOpacity style={styles.backButton}>
-                <Ionicons name="arrow-back" size={22} color={Colors.charcoal} />
+              <TouchableOpacity style={[styles.backButton, { backgroundColor: palette.cardBg }]}>
+                <Ionicons name="arrow-back" size={22} color={palette.textSecondary} />
               </TouchableOpacity>
             </Link>
             <View style={styles.headerTextContainer}>
-              <Text style={styles.title}>Begin Your Journey</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, { color: palette.textPrimary }]}>Begin Your Journey</Text>
+              <Text style={[styles.subtitle, { color: palette.textTertiary }]}>
                 Create an account to unlock personalized AI coaching
               </Text>
             </View>
@@ -348,33 +351,33 @@ function SignUpUI({
           {/* OAuth Buttons */}
           <Animated.View entering={FadeIn.duration(500).delay(100)} style={styles.oauthSection}>
             <TouchableOpacity
-              style={styles.oauthButton}
+              style={[styles.oauthButton, { backgroundColor: palette.cardBg, borderColor: palette.border }]}
               onPress={onGoogleSignIn}
               disabled={isLoading}
               activeOpacity={0.85}
             >
-              <View style={styles.oauthIconContainer}>
-                <Ionicons name="logo-google" size={20} color={Colors.charcoal} />
+              <View style={[styles.oauthIconContainer, { backgroundColor: palette.backgroundSecondary }]}>
+                <Ionicons name="logo-google" size={20} color={palette.textSecondary} />
               </View>
-              <Text style={styles.oauthButtonText}>Continue with Google</Text>
-              <View style={styles.oauthArrow}>
-                <Ionicons name="arrow-forward" size={16} color={Colors.stoneGray} />
+              <Text style={[styles.oauthButtonText, { color: palette.textSecondary }]}>Continue with Google</Text>
+              <View style={[styles.oauthArrow, { backgroundColor: palette.backgroundSecondary }]}>
+                <Ionicons name="arrow-forward" size={16} color={palette.textTertiary} />
               </View>
             </TouchableOpacity>
 
             {Platform.OS === 'ios' && (
               <TouchableOpacity
-                style={styles.oauthButton}
+                style={[styles.oauthButton, { backgroundColor: palette.cardBg, borderColor: palette.border }]}
                 onPress={onAppleSignIn}
                 disabled={isLoading}
                 activeOpacity={0.85}
               >
-                <View style={styles.oauthIconContainer}>
-                  <Ionicons name="logo-apple" size={20} color={Colors.charcoal} />
+                <View style={[styles.oauthIconContainer, { backgroundColor: palette.backgroundSecondary }]}>
+                  <Ionicons name="logo-apple" size={20} color={palette.textSecondary} />
                 </View>
-                <Text style={styles.oauthButtonText}>Continue with Apple</Text>
-                <View style={styles.oauthArrow}>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.stoneGray} />
+                <Text style={[styles.oauthButtonText, { color: palette.textSecondary }]}>Continue with Apple</Text>
+                <View style={[styles.oauthArrow, { backgroundColor: palette.backgroundSecondary }]}>
+                  <Ionicons name="arrow-forward" size={16} color={palette.textTertiary} />
                 </View>
               </TouchableOpacity>
             )}
@@ -382,21 +385,21 @@ function SignUpUI({
 
           {/* Divider */}
           <Animated.View entering={FadeIn.duration(400).delay(200)} style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or sign up with email</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: palette.border }]} />
+            <Text style={[styles.dividerText, { color: palette.textTertiary }]}>or sign up with email</Text>
+            <View style={[styles.dividerLine, { backgroundColor: palette.border }]} />
           </Animated.View>
 
           {/* Email Form */}
           <Animated.View entering={FadeInDown.duration(500).delay(300)} style={styles.form}>
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={18} color={Colors.stoneGray} style={styles.inputIcon} />
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Email</Text>
+              <View style={[styles.inputContainer, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+                <Ionicons name="mail-outline" size={18} color={palette.textTertiary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: palette.textSecondary }]}
                   placeholder="your@email.com"
-                  placeholderTextColor={Colors.stoneGray}
+                  placeholderTextColor={palette.textTertiary}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -408,13 +411,13 @@ function SignUpUI({
             </View>
 
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={18} color={Colors.stoneGray} style={styles.inputIcon} />
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Password</Text>
+              <View style={[styles.inputContainer, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+                <Ionicons name="lock-closed-outline" size={18} color={palette.textTertiary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: palette.textSecondary }]}
                   placeholder="Create a password"
-                  placeholderTextColor={Colors.stoneGray}
+                  placeholderTextColor={palette.textTertiary}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -429,20 +432,20 @@ function SignUpUI({
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={18}
-                    color={Colors.stoneGray}
+                    color={palette.textTertiary}
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Confirm Password</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="shield-checkmark-outline" size={18} color={Colors.stoneGray} style={styles.inputIcon} />
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Confirm Password</Text>
+              <View style={[styles.inputContainer, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+                <Ionicons name="shield-checkmark-outline" size={18} color={palette.textTertiary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: palette.textSecondary }]}
                   placeholder="Confirm your password"
-                  placeholderTextColor={Colors.stoneGray}
+                  placeholderTextColor={palette.textTertiary}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
@@ -453,16 +456,16 @@ function SignUpUI({
             </View>
 
             <View style={styles.passwordHintContainer}>
-              <Ionicons name="information-circle-outline" size={14} color={Colors.stoneGray} />
-              <Text style={styles.passwordHint}>
+              <Ionicons name="information-circle-outline" size={14} color={palette.textTertiary} />
+              <Text style={[styles.passwordHint, { color: palette.textTertiary }]}>
                 Password must be at least 8 characters
               </Text>
             </View>
 
             {error && (
-              <Animated.View entering={FadeIn.duration(300)} style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={16} color={Colors.error} />
-                <Text style={styles.errorText}>{error}</Text>
+              <Animated.View entering={FadeIn.duration(300)} style={[styles.errorContainer, { backgroundColor: palette.errorLight }]}>
+                <Ionicons name="alert-circle" size={16} color={palette.error} />
+                <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
               </Animated.View>
             )}
 
@@ -480,21 +483,21 @@ function SignUpUI({
 
           {/* Sign In Link */}
           <Animated.View entering={FadeIn.duration(400).delay(400)} style={styles.signInContainer}>
-            <Text style={styles.signInText}>Already have an account?</Text>
+            <Text style={[styles.signInText, { color: palette.textTertiary }]}>Already have an account?</Text>
             <Link href="/(auth)/login" asChild>
               <TouchableOpacity style={styles.signInButton}>
-                <Text style={styles.signInLink}>Sign In</Text>
-                <Ionicons name="arrow-forward" size={14} color={Colors.burnishedGold} />
+                <Text style={[styles.signInLink, { color: palette.accent }]}>Sign In</Text>
+                <Ionicons name="arrow-forward" size={14} color={palette.accent} />
               </TouchableOpacity>
             </Link>
           </Animated.View>
 
           {/* Terms */}
           <Animated.View entering={FadeIn.duration(400).delay(500)} style={styles.termsContainer}>
-            <Text style={styles.termsText}>
+            <Text style={[styles.termsText, { color: palette.textTertiary }]}>
               By creating an account, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
+              <Text style={{ color: palette.accent, fontWeight: Typography.weights.medium }}>Terms of Service</Text> and{' '}
+              <Text style={{ color: palette.accent, fontWeight: Typography.weights.medium }}>Privacy Policy</Text>
             </Text>
           </Animated.View>
         </ScrollView>
@@ -506,7 +509,6 @@ function SignUpUI({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   keyboardView: {
     flex: 1,
@@ -521,7 +523,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Header
@@ -532,7 +533,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xl,
@@ -544,12 +544,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   subtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -561,19 +559,16 @@ const styles = StyleSheet.create({
   oauthButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     ...Shadows.subtle,
   },
   oauthIconContainer: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -581,14 +576,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
     marginLeft: Spacing.md,
   },
   oauthArrow: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -602,11 +595,9 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
   },
   dividerText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginHorizontal: Spacing.lg,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
@@ -622,7 +613,6 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
@@ -630,10 +620,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.lg,
   },
   inputIcon: {
@@ -643,7 +631,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: Spacing.lg,
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
   },
   passwordToggle: {
     padding: Spacing.sm,
@@ -656,13 +643,11 @@ const styles = StyleSheet.create({
   },
   passwordHint: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.errorLight,
     padding: Spacing.md,
     borderRadius: Radius.md,
     marginBottom: Spacing.md,
@@ -670,7 +655,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: Typography.sizes.body,
-    color: Colors.error,
     flex: 1,
   },
   signUpButton: {
@@ -687,7 +671,6 @@ const styles = StyleSheet.create({
   },
   signInText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
   },
   signInButton: {
     flexDirection: 'row',
@@ -697,7 +680,6 @@ const styles = StyleSheet.create({
   signInLink: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
 
   // Terms
@@ -706,13 +688,8 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     textAlign: 'center',
     lineHeight: 18,
-  },
-  termsLink: {
-    color: Colors.burnishedGold,
-    fontWeight: Typography.weights.medium,
   },
 
   // Verification screen
@@ -740,25 +717,21 @@ const styles = StyleSheet.create({
   verificationTitle: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.md,
   },
   verificationText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
   },
   verificationEmail: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     marginTop: Spacing.xs,
     marginBottom: Spacing.xl,
   },
   verificationInstructions: {
     width: '100%',
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
     padding: Spacing.xl,
     marginBottom: Spacing.xl,
@@ -774,23 +747,19 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   instructionNumberText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
   instructionText: {
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     flex: 1,
   },
   verificationNote: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
     marginBottom: Spacing.xxl,
   },
@@ -804,6 +773,5 @@ const styles = StyleSheet.create({
   backToLoginText: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
 });

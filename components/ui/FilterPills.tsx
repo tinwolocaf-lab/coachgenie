@@ -14,7 +14,8 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface FilterCategory {
   id: string;
@@ -40,6 +41,7 @@ function FilterPill({
   onPress: () => void;
   index: number;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0);
   const translateX = useSharedValue(-20);
@@ -74,13 +76,21 @@ function FilterPill({
         activeOpacity={0.8}
         style={[
           styles.pill,
-          isSelected && styles.pillSelected,
+          {
+            backgroundColor: palette.cardBg,
+            borderColor: palette.border,
+          },
+          isSelected && {
+            backgroundColor: palette.textPrimary,
+            borderColor: palette.textPrimary,
+          },
         ]}
       >
         <Text
           style={[
             styles.pillText,
-            isSelected && styles.pillTextSelected,
+            { color: palette.textSecondary },
+            isSelected && { color: palette.textInverse },
           ]}
         >
           {category.label}
@@ -89,13 +99,15 @@ function FilterPill({
           <View
             style={[
               styles.countBadge,
+              { backgroundColor: palette.backgroundSecondary },
               isSelected && styles.countBadgeSelected,
             ]}
           >
             <Text
               style={[
                 styles.countText,
-                isSelected && styles.countTextSelected,
+                { color: palette.textTertiary },
+                isSelected && { color: palette.accentLight },
               ]}
             >
               {category.count}
@@ -163,25 +175,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.cardBg,
     borderWidth: 1,
-    borderColor: Colors.border,
     gap: Spacing.xs,
-  },
-  pillSelected: {
-    backgroundColor: Colors.midnightEmerald,
-    borderColor: Colors.midnightEmerald,
   },
   pillText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
-  },
-  pillTextSelected: {
-    color: Colors.white,
   },
   countBadge: {
-    backgroundColor: Colors.warmOatmealDark,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.pill,
@@ -192,9 +193,5 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.semibold,
-    color: Colors.stoneGray,
-  },
-  countTextSelected: {
-    color: Colors.goldLight,
   },
 });

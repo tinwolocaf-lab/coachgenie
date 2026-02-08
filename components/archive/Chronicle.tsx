@@ -11,7 +11,8 @@ import Animated, {
   withSpring,
   FadeInDown,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { EnhancedSession } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
@@ -23,6 +24,7 @@ interface ChronicleProps {
 }
 
 export function Chronicle({ sessions, onSessionPress, maxItems = 10 }: ChronicleProps) {
+  const { palette } = useThemeSafe();
   const displaySessions = sessions.slice(0, maxItems);
 
   // Group sessions by date
@@ -31,9 +33,9 @@ export function Chronicle({ sessions, onSessionPress, maxItems = 10 }: Chronicle
   if (displaySessions.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="time-outline" size={40} color={Colors.stoneGray} />
-        <Text style={styles.emptyText}>Your journey begins</Text>
-        <Text style={styles.emptySubtext}>
+        <Ionicons name="time-outline" size={40} color={palette.textTertiary} />
+        <Text style={[styles.emptyText, { color: palette.textSecondary }]}>Your journey begins</Text>
+        <Text style={[styles.emptySubtext, { color: palette.textTertiary }]}>
           Completed sessions will form your chronicle
         </Text>
       </View>
@@ -49,9 +51,9 @@ export function Chronicle({ sessions, onSessionPress, maxItems = 10 }: Chronicle
             entering={FadeInDown.duration(400).delay(groupIndex * 150)}
             style={styles.dateStamp}
           >
-            <View style={styles.dateStampInner}>
-              <Text style={styles.dateDay}>{group.day}</Text>
-              <Text style={styles.dateMonthYear}>{group.monthYear}</Text>
+            <View style={[styles.dateStampInner, { backgroundColor: palette.accentMuted }]}>
+              <Text style={[styles.dateDay, { color: palette.textPrimary }]}>{group.day}</Text>
+              <Text style={[styles.dateMonthYear, { color: palette.textTertiary }]}>{group.monthYear}</Text>
             </View>
           </Animated.View>
 
@@ -81,6 +83,7 @@ interface SessionEntryProps {
 }
 
 function SessionEntry({ session, index, isLast, onPress }: SessionEntryProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(0.9);
   const opacity = useSharedValue(0);
   const translateX = useSharedValue(-20);
@@ -117,20 +120,21 @@ function SessionEntry({ session, index, isLast, onPress }: SessionEntryProps) {
         <View
           style={[
             styles.timelineDot,
-            session.status === 'completed' && styles.timelineDotCompleted,
+            { backgroundColor: palette.textTertiary, borderColor: palette.background },
+            session.status === 'completed' && { backgroundColor: palette.accent },
           ]}
         >
           {session.breakthrough_summary && (
-            <Ionicons name="star" size={8} color={Colors.white} />
+            <Ionicons name="star" size={8} color={palette.textInverse} />
           )}
         </View>
 
         {/* Connecting line */}
-        {!isLast && <View style={styles.timelineLine} />}
+        {!isLast && <View style={[styles.timelineLine, { backgroundColor: palette.borderLight }]} />}
       </View>
 
       <TouchableOpacity
-        style={styles.entryCard}
+        style={[styles.entryCard, { backgroundColor: palette.cardBg }]}
         activeOpacity={0.9}
         onPress={handlePress}
       >
@@ -138,7 +142,7 @@ function SessionEntry({ session, index, isLast, onPress }: SessionEntryProps) {
         <View style={styles.coachAvatar}>
           <CoachIcon
             iconName={coach?.icon_name || 'person'}
-            color={coach?.color || Colors.burnishedGold}
+            color={coach?.color || palette.accent}
             size="sm"
           />
         </View>
@@ -146,23 +150,23 @@ function SessionEntry({ session, index, isLast, onPress }: SessionEntryProps) {
         {/* Content */}
         <View style={styles.entryContent}>
           <View style={styles.entryHeader}>
-            <Text style={styles.coachName}>{coach?.name || 'Coach'}</Text>
-            <Text style={styles.timeText}>{time}</Text>
+            <Text style={[styles.coachName, { color: palette.accent }]}>{coach?.name || 'Coach'}</Text>
+            <Text style={[styles.timeText, { color: palette.textTertiary }]}>{time}</Text>
           </View>
 
-          <Text style={styles.sessionTitle} numberOfLines={2}>
+          <Text style={[styles.sessionTitle, { color: palette.textSecondary }]} numberOfLines={2}>
             {session.title}
           </Text>
 
           {session.breakthrough_summary && (
-            <View style={styles.breakthroughBadge}>
-              <Ionicons name="sparkles" size={10} color={Colors.burnishedGold} />
-              <Text style={styles.breakthroughText}>Breakthrough</Text>
+            <View style={[styles.breakthroughBadge, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="sparkles" size={10} color={palette.accent} />
+              <Text style={[styles.breakthroughText, { color: palette.accent }]}>Breakthrough</Text>
             </View>
           )}
 
           {session.summary && !session.breakthrough_summary && (
-            <Text style={styles.sessionSummary} numberOfLines={2}>
+            <Text style={[styles.sessionSummary, { color: palette.textTertiary }]} numberOfLines={2}>
               {session.summary}
             </Text>
           )}
@@ -172,7 +176,7 @@ function SessionEntry({ session, index, isLast, onPress }: SessionEntryProps) {
         <Ionicons
           name="chevron-forward"
           size={18}
-          color={Colors.stoneGray}
+          color={palette.textTertiary}
           style={styles.arrow}
         />
       </TouchableOpacity>
@@ -225,13 +229,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
     marginTop: Spacing.lg,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
     textAlign: 'center',
   },
@@ -246,7 +248,6 @@ const styles = StyleSheet.create({
   },
   dateStampInner: {
     alignItems: 'center',
-    backgroundColor: Colors.goldMuted,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.md,
@@ -255,11 +256,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   dateMonthYear: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
@@ -279,28 +278,21 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.stoneGray,
     borderWidth: 2,
-    borderColor: Colors.warmOatmeal,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
-  },
-  timelineDotCompleted: {
-    backgroundColor: Colors.burnishedGold,
   },
   timelineLine: {
     position: 'absolute',
     top: 16,
     bottom: -Spacing.md,
     width: 2,
-    backgroundColor: Colors.borderLight,
   },
   entryCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.cardBg,
     padding: Spacing.lg,
     borderRadius: Radius.squircle,
     ...Shadows.sm,
@@ -320,24 +312,20 @@ const styles = StyleSheet.create({
   coachName: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
   timeText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   sessionTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.medium,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.snug,
   },
   sessionSummary: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.xs,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
@@ -345,7 +333,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.goldMuted,
     alignSelf: 'flex-start',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
@@ -355,7 +342,6 @@ const styles = StyleSheet.create({
   breakthroughText: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
   },
   arrow: {

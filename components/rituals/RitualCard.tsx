@@ -20,7 +20,8 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { BloomEffect, ParticleBloom } from './BloomEffect';
 import { RitualWithStatus } from '@/types';
 
@@ -45,6 +46,7 @@ export function RitualCard({
   showLinkedInsight = true,
   compact = false,
 }: RitualCardProps) {
+  const { palette } = useThemeSafe();
   const [showBloom, setShowBloom] = useState(false);
   const scale = useSharedValue(1);
   const checkProgress = useSharedValue(ritual.is_completed_today ? 1 : 0);
@@ -99,7 +101,7 @@ export function RitualCard({
     backgroundColor: interpolateColor(
       cardBackground.value,
       [0, 1],
-      [Colors.cardBg, Colors.successLight]
+      [palette.cardBg, palette.successLight]
     ),
   }));
 
@@ -108,12 +110,12 @@ export function RitualCard({
     borderColor: interpolateColor(
       checkProgress.value,
       [0, 1],
-      [Colors.border, Colors.success]
+      [palette.border, palette.success]
     ),
     backgroundColor: interpolateColor(
       checkProgress.value,
       [0, 1],
-      ['transparent', Colors.success]
+      ['transparent', palette.success]
     ),
   }));
 
@@ -133,22 +135,22 @@ export function RitualCard({
   if (compact) {
     return (
       <AnimatedPressable
-        style={[styles.compactCard, cardStyle]}
+        style={[styles.compactCard, { borderColor: palette.borderLight }, cardStyle]}
         onPress={handleToggle}
         onLongPress={handleLongPress}
       >
         <View style={styles.compactContent}>
           <Animated.View style={[styles.compactCheckbox, checkboxStyle]}>
             <Animated.View style={checkmarkStyle}>
-              <Ionicons name="checkmark" size={12} color={Colors.white} />
+              <Ionicons name="checkmark" size={12} color={palette.textInverse} />
             </Animated.View>
           </Animated.View>
-          <Animated.Text style={[styles.compactTitle, titleStyle]} numberOfLines={1}>
+          <Animated.Text style={[styles.compactTitle, { color: palette.textSecondary }, titleStyle]} numberOfLines={1}>
             {ritual.title}
           </Animated.Text>
           {showStreak && ritual.streak_count && ritual.streak_count > 0 && (
             <View style={styles.compactStreak}>
-              <Text style={styles.compactStreakText}>{ritual.streak_count}</Text>
+              <Text style={[styles.compactStreakText, { color: palette.textSecondary }]}>{ritual.streak_count}</Text>
               <Text style={styles.fireEmoji}>🔥</Text>
             </View>
           )}
@@ -159,7 +161,7 @@ export function RitualCard({
 
   return (
     <AnimatedPressable
-      style={[styles.card, cardStyle]}
+      style={[styles.card, { borderColor: palette.borderLight }, cardStyle]}
       onPress={handlePress}
       onLongPress={handleLongPress}
     >
@@ -178,32 +180,32 @@ export function RitualCard({
         >
           <Animated.View style={[styles.checkbox, checkboxStyle]}>
             <Animated.View style={checkmarkStyle}>
-              <Ionicons name="checkmark" size={18} color={Colors.white} />
+              <Ionicons name="checkmark" size={18} color={palette.textInverse} />
             </Animated.View>
           </Animated.View>
-          <View style={[styles.iconBadge, { backgroundColor: ritual.color + '20' }]}>
+          <View style={[styles.iconBadge, { backgroundColor: ritual.color + '20', borderColor: palette.cardBg }]}>
             <Ionicons
               name={ritual.icon as keyof typeof Ionicons.glyphMap || 'star'}
               size={16}
-              color={ritual.color || Colors.burnishedGold}
+              color={ritual.color || palette.accent}
             />
           </View>
         </TouchableOpacity>
 
         {/* Center: Title and description */}
         <View style={styles.textContent}>
-          <Animated.Text style={[styles.title, titleStyle]} numberOfLines={1}>
+          <Animated.Text style={[styles.title, { color: palette.textSecondary }, titleStyle]} numberOfLines={1}>
             {ritual.title}
           </Animated.Text>
           {ritual.description && (
-            <Text style={styles.description} numberOfLines={1}>
+            <Text style={[styles.description, { color: palette.textTertiary }]} numberOfLines={1}>
               {ritual.description}
             </Text>
           )}
           {showLinkedInsight && ritual.linked_insight_id && (
             <View style={styles.linkedBadge}>
-              <Ionicons name="link" size={10} color={Colors.burnishedGold} />
-              <Text style={styles.linkedText}>From insight</Text>
+              <Ionicons name="link" size={10} color={palette.accent} />
+              <Text style={[styles.linkedText, { color: palette.accent }]}>From insight</Text>
             </View>
           )}
         </View>
@@ -213,18 +215,18 @@ export function RitualCard({
           <View style={styles.streakContainer}>
             {ritual.streak_count && ritual.streak_count > 0 ? (
               <>
-                <Text style={styles.streakCount}>{ritual.streak_count}</Text>
+                <Text style={[styles.streakCount, { color: palette.textSecondary }]}>{ritual.streak_count}</Text>
                 <Text style={styles.fireEmoji}>🔥</Text>
               </>
             ) : (
-              <Ionicons name="flame-outline" size={18} color={Colors.stoneGray} />
+              <Ionicons name="flame-outline" size={18} color={palette.textTertiary} />
             )}
           </View>
         )}
       </View>
 
       {/* Premium paper edge effect */}
-      <View style={styles.paperEdge} />
+      <View style={[styles.paperEdge, { backgroundColor: palette.accent }]} />
     </AnimatedPressable>
   );
 }
@@ -247,6 +249,7 @@ export function ActionCard({
   isCompleted,
   onPress,
 }: ActionCardProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const handlePress = () => {
@@ -264,17 +267,17 @@ export function ActionCard({
 
   const isMorning = type === 'morning';
   const gradientColors: [string, string] = isMorning
-    ? [Colors.goldMuted, Colors.warmOatmeal]
-    : [Colors.midnightEmerald + '15', Colors.warmOatmeal];
+    ? [palette.accentMuted, palette.background]
+    : [palette.textPrimary + '15', palette.background];
 
   const iconName = isMorning ? 'sunny' : 'moon';
-  const iconColor = isMorning ? Colors.burnishedGold : Colors.midnightEmerald;
+  const iconColor = isMorning ? palette.accent : palette.textPrimary;
 
   return (
     <AnimatedPressable onPress={handlePress} style={cardStyle}>
       <LinearGradient
         colors={gradientColors}
-        style={[styles.actionCard, isCompleted && styles.actionCardCompleted]}
+        style={[styles.actionCard, { borderColor: palette.borderLight }, isCompleted && styles.actionCardCompleted]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
@@ -283,30 +286,30 @@ export function ActionCard({
             <Ionicons name={iconName} size={24} color={iconColor} />
           </View>
           {isCompleted && (
-            <View style={styles.completedBadge}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+            <View style={[styles.completedBadge, { backgroundColor: palette.successLight }]}>
+              <Ionicons name="checkmark-circle" size={20} color={palette.success} />
             </View>
           )}
         </View>
 
         <View style={styles.actionContent}>
-          <Text style={styles.actionTitle}>{title}</Text>
-          <Text style={styles.actionSubtitle}>{subtitle}</Text>
+          <Text style={[styles.actionTitle, { color: palette.textPrimary }]}>{title}</Text>
+          <Text style={[styles.actionSubtitle, { color: palette.textTertiary }]}>{subtitle}</Text>
         </View>
 
         {prompt && !isCompleted && (
-          <View style={styles.promptContainer}>
-            <Text style={styles.promptText} numberOfLines={2}>
+          <View style={[styles.promptContainer, { borderTopColor: palette.borderLight }]}>
+            <Text style={[styles.promptText, { color: palette.textSecondary }]} numberOfLines={2}>
               &ldquo;{prompt}&rdquo;
             </Text>
           </View>
         )}
 
-        <View style={styles.actionArrow}>
+        <View style={[styles.actionArrow, { backgroundColor: palette.backgroundSecondary }]}>
           <Ionicons
             name={isCompleted ? 'eye-outline' : 'arrow-forward'}
             size={18}
-            color={isCompleted ? Colors.stoneGray : iconColor}
+            color={isCompleted ? palette.textTertiary : iconColor}
           />
         </View>
       </LinearGradient>
@@ -318,12 +321,10 @@ const styles = StyleSheet.create({
   // Standard Card
   card: {
     borderRadius: Radius.squircle,
-    backgroundColor: Colors.cardBg,
     marginBottom: Spacing.md,
     overflow: 'hidden',
     ...Shadows.sm,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   content: {
     flexDirection: 'row',
@@ -353,7 +354,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: Colors.cardBg,
   },
   textContent: {
     flex: 1,
@@ -361,12 +361,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
     letterSpacing: Typography.letterSpacing.normal,
   },
   description: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: 2,
   },
   linkedBadge: {
@@ -377,7 +375,6 @@ const styles = StyleSheet.create({
   },
   linkedText: {
     fontSize: Typography.sizes.micro,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
@@ -389,7 +386,6 @@ const styles = StyleSheet.create({
   streakCount: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.bold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
   },
   fireEmoji: {
@@ -402,7 +398,6 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 4,
-    backgroundColor: Colors.burnishedGold,
     opacity: 0.3,
   },
   bloomContainer: {
@@ -420,13 +415,11 @@ const styles = StyleSheet.create({
   // Compact Card
   compactCard: {
     borderRadius: Radius.lg,
-    backgroundColor: Colors.cardBg,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     marginRight: Spacing.sm,
     ...Shadows.subtle,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   compactContent: {
     flexDirection: 'row',
@@ -444,7 +437,6 @@ const styles = StyleSheet.create({
   compactTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
     maxWidth: 120,
   },
   compactStreak: {
@@ -454,7 +446,6 @@ const styles = StyleSheet.create({
   compactStreakText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.bold,
-    color: Colors.charcoal,
   },
 
   // Action Card
@@ -464,7 +455,6 @@ const styles = StyleSheet.create({
     minHeight: 140,
     ...Shadows.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   actionCardCompleted: {
     opacity: 0.8,
@@ -483,7 +473,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   completedBadge: {
-    backgroundColor: Colors.successLight,
     borderRadius: 12,
     padding: 4,
   },
@@ -494,23 +483,19 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.xs,
   },
   actionSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
   },
   promptContainer: {
     marginTop: Spacing.md,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
   },
   promptText: {
     fontSize: Typography.sizes.body,
     fontStyle: 'italic',
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
   actionArrow: {
@@ -520,7 +505,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
   },

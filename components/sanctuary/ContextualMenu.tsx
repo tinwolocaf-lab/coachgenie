@@ -22,7 +22,8 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { EnhancedMessage } from '@/types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -56,6 +57,7 @@ export function ContextualMenu({
   onSaveInsight,
   onCopy,
 }: ContextualMenuProps) {
+  const { palette } = useThemeSafe();
   const menuScale = useSharedValue(0.9);
   const menuOpacity = useSharedValue(0);
 
@@ -84,7 +86,7 @@ export function ContextualMenu({
         id: 'reflect',
         label: 'Reflect Further',
         icon: 'chatbubble-ellipses-outline' as keyof typeof Ionicons.glyphMap,
-        color: Colors.burnishedGold,
+        color: palette.accent,
         onPress: () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           onReflectFurther(message);
@@ -95,7 +97,7 @@ export function ContextualMenu({
         id: 'highlight',
         label: message.is_insight ? 'Remove Highlight' : 'Highlight',
         icon: message.is_insight ? 'bookmark' : 'bookmark-outline' as keyof typeof Ionicons.glyphMap,
-        color: Colors.burnishedGold,
+        color: palette.accent,
         onPress: () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           onHighlight(message);
@@ -106,7 +108,7 @@ export function ContextualMenu({
         id: 'save',
         label: 'Save to Journal',
         icon: 'journal-outline' as keyof typeof Ionicons.glyphMap,
-        color: Colors.success,
+        color: palette.success,
         onPress: () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           onSaveInsight(message);
@@ -118,7 +120,7 @@ export function ContextualMenu({
       id: 'copy',
       label: 'Copy Text',
       icon: 'copy-outline' as keyof typeof Ionicons.glyphMap,
-      color: Colors.slate,
+      color: palette.textTertiary,
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onCopy(message);
@@ -152,7 +154,7 @@ export function ContextualMenu({
         <Animated.View
           style={[
             styles.menuContainer,
-            { left: menuX, top: menuY },
+            { left: menuX, top: menuY, backgroundColor: palette.cardBg },
             menuStyle,
           ]}
         >
@@ -161,6 +163,7 @@ export function ContextualMenu({
               key={action.id}
               style={[
                 styles.menuItem,
+                { borderBottomColor: palette.borderLight },
                 index === 0 && styles.menuItemFirst,
                 index === actions.length - 1 && styles.menuItemLast,
               ]}
@@ -170,7 +173,7 @@ export function ContextualMenu({
               <View style={[styles.menuIconContainer, { backgroundColor: `${action.color}15` }]}>
                 <Ionicons name={action.icon} size={20} color={action.color} />
               </View>
-              <Text style={styles.menuItemText}>{action.label}</Text>
+              <Text style={[styles.menuItemText, { color: palette.textSecondary }]}>{action.label}</Text>
             </TouchableOpacity>
           ))}
         </Animated.View>
@@ -201,6 +204,8 @@ export function ReflectFurtherModal({
   onClose,
   onAddToConversation,
 }: ReflectFurtherModalProps) {
+  const { palette } = useThemeSafe();
+
   if (!message) return null;
 
   return (
@@ -214,24 +219,24 @@ export function ReflectFurtherModal({
         <Animated.View
           entering={SlideInDown.springify()}
           exiting={SlideOutDown}
-          style={styles.reflectContainer}
+          style={[styles.reflectContainer, { backgroundColor: palette.background }]}
         >
           {/* Header */}
-          <View style={styles.reflectHeader}>
+          <View style={[styles.reflectHeader, { borderBottomColor: palette.borderLight }]}>
             <TouchableOpacity onPress={onClose} style={styles.reflectClose}>
-              <Ionicons name="chevron-down" size={28} color={Colors.stoneGray} />
+              <Ionicons name="chevron-down" size={28} color={palette.textTertiary} />
             </TouchableOpacity>
             <View style={styles.reflectHeaderCenter}>
               <View style={[styles.reflectCoachDot, { backgroundColor: coachColor }]} />
-              <Text style={styles.reflectTitle}>Reflecting Deeper</Text>
+              <Text style={[styles.reflectTitle, { color: palette.textPrimary }]}>Reflecting Deeper</Text>
             </View>
             <View style={styles.reflectHeaderSpacer} />
           </View>
 
           {/* Original message */}
-          <View style={styles.reflectOriginal}>
-            <Text style={styles.reflectOriginalLabel}>You asked about:</Text>
-            <Text style={styles.reflectOriginalText} numberOfLines={3}>
+          <View style={[styles.reflectOriginal, { backgroundColor: palette.backgroundSecondary }]}>
+            <Text style={[styles.reflectOriginalLabel, { color: palette.textTertiary }]}>You asked about:</Text>
+            <Text style={[styles.reflectOriginalText, { color: palette.textSecondary }]} numberOfLines={3}>
               "{message.content}"
             </Text>
           </View>
@@ -240,12 +245,12 @@ export function ReflectFurtherModal({
           <View style={styles.reflectContent}>
             {isLoading ? (
               <View style={styles.reflectLoading}>
-                <Text style={styles.reflectLoadingText}>
+                <Text style={[styles.reflectLoadingText, { color: palette.textTertiary }]}>
                   {coachName} is contemplating...
                 </Text>
               </View>
             ) : (
-              <Text style={styles.reflectExpandedText}>
+              <Text style={[styles.reflectExpandedText, { color: palette.textSecondary }]}>
                 {expandedContent}
               </Text>
             )}
@@ -255,11 +260,11 @@ export function ReflectFurtherModal({
           {!isLoading && expandedContent && (
             <View style={styles.reflectActions}>
               <TouchableOpacity
-                style={styles.addToConversationButton}
+                style={[styles.addToConversationButton, { backgroundColor: palette.textPrimary }]}
                 onPress={onAddToConversation}
               >
-                <Ionicons name="add-circle-outline" size={20} color={Colors.white} />
-                <Text style={styles.addToConversationText}>
+                <Ionicons name="add-circle-outline" size={20} color={palette.textInverse} />
+                <Text style={[styles.addToConversationText, { color: palette.textInverse }]}>
                   Continue in Conversation
                 </Text>
               </TouchableOpacity>
@@ -278,7 +283,6 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     position: 'absolute',
-    backgroundColor: Colors.white,
     borderRadius: Radius.xl,
     minWidth: 220,
     ...Shadows.xl,
@@ -290,7 +294,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   menuItemFirst: {
     paddingTop: Spacing.lg,
@@ -310,7 +313,6 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
   },
 
   // Reflect Further Modal
@@ -320,7 +322,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   reflectContainer: {
-    backgroundColor: Colors.warmOatmeal,
     borderTopLeftRadius: Radius.squircle,
     borderTopRightRadius: Radius.squircle,
     maxHeight: SCREEN_HEIGHT * 0.8,
@@ -332,7 +333,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   reflectClose: {
     padding: Spacing.xs,
@@ -352,7 +352,6 @@ const styles = StyleSheet.create({
   reflectTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   reflectHeaderSpacer: {
@@ -360,18 +359,15 @@ const styles = StyleSheet.create({
   },
   reflectOriginal: {
     padding: Spacing.xl,
-    backgroundColor: Colors.warmOatmealDark,
     margin: Spacing.lg,
     borderRadius: Radius.lg,
   },
   reflectOriginalLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: Spacing.xs,
   },
   reflectOriginalText: {
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     fontStyle: 'italic',
   },
   reflectContent: {
@@ -385,12 +381,10 @@ const styles = StyleSheet.create({
   },
   reflectLoadingText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
   },
   reflectExpandedText: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
   },
@@ -402,7 +396,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.midnightEmerald,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
     borderRadius: Radius.pill,
@@ -411,7 +404,6 @@ const styles = StyleSheet.create({
   addToConversationText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
   },
 });
 

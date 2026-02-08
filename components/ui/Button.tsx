@@ -15,7 +15,8 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 export interface ButtonProps {
   title: string;
@@ -48,6 +49,7 @@ export function Button({
   icon,
   iconPosition = 'left',
 }: ButtonProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -69,9 +71,53 @@ export function Button({
     onPress();
   };
 
+  const variantStyles: Record<string, ViewStyle> = {
+    primary: {
+      backgroundColor: palette.textPrimary,
+      borderRadius: Radius.pill,
+      ...Shadows.md,
+    },
+    secondary: {
+      backgroundColor: palette.backgroundSecondary,
+      borderRadius: Radius.pill,
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+    },
+    outline: {
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: palette.textPrimary,
+      borderRadius: Radius.pill,
+    },
+    gold: {
+      backgroundColor: palette.accent,
+      borderRadius: Radius.pill,
+      ...Shadows.gold,
+    },
+  };
+
+  const textVariantStyles: Record<string, TextStyle> = {
+    text_primary: {
+      color: palette.textInverse,
+    },
+    text_secondary: {
+      color: palette.textSecondary,
+    },
+    text_ghost: {
+      color: palette.textPrimary,
+    },
+    text_outline: {
+      color: palette.textPrimary,
+    },
+    text_gold: {
+      color: palette.textInverse,
+    },
+  };
+
   const buttonStyles: StyleProp<ViewStyle>[] = [
     styles.base,
-    styles[variant as keyof typeof styles] as ViewStyle,
+    variantStyles[variant],
     styles[`size_${size}` as keyof typeof styles] as ViewStyle,
     fullWidth && styles.fullWidth,
     (disabled || loading) && styles.disabled,
@@ -81,7 +127,7 @@ export function Button({
 
   const textStyles: StyleProp<TextStyle>[] = [
     styles.text,
-    styles[`text_${variant}` as keyof typeof styles] as TextStyle,
+    textVariantStyles[`text_${variant}`],
     styles[`textSize_${size}` as keyof typeof styles] as TextStyle,
     (disabled || loading) && styles.textDisabled,
     textStyle,
@@ -91,7 +137,7 @@ export function Button({
     if (loading) {
       return (
         <ActivityIndicator
-          color={variant === 'ghost' || variant === 'outline' ? Colors.midnightEmerald : Colors.white}
+          color={variant === 'ghost' || variant === 'outline' ? palette.textPrimary : palette.textInverse}
           size="small"
         />
       );
@@ -129,31 +175,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  // Variants
-  primary: {
-    backgroundColor: Colors.midnightEmerald,
-    borderRadius: Radius.pill,
-    ...Shadows.md,
-  },
-  secondary: {
-    backgroundColor: Colors.warmOatmealDark,
-    borderRadius: Radius.pill,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: Colors.midnightEmerald,
-    borderRadius: Radius.pill,
-  },
-  gold: {
-    backgroundColor: Colors.burnishedGold,
-    borderRadius: Radius.pill,
-    ...Shadows.gold,
   },
 
   // Sizes
@@ -199,21 +220,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     textAlign: 'center',
     letterSpacing: Typography.letterSpacing.wide,
-  },
-  text_primary: {
-    color: Colors.white,
-  },
-  text_secondary: {
-    color: Colors.charcoal,
-  },
-  text_ghost: {
-    color: Colors.midnightEmerald,
-  },
-  text_outline: {
-    color: Colors.midnightEmerald,
-  },
-  text_gold: {
-    color: Colors.white,
   },
 
   // Text Sizes

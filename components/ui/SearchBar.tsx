@@ -16,7 +16,8 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface SearchBarProps {
   value: string;
@@ -35,6 +36,7 @@ export function SearchBar({
   onFocus,
   onBlur,
 }: SearchBarProps) {
+  const { palette } = useThemeSafe();
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
@@ -78,7 +80,7 @@ export function SearchBar({
       [1, 2],
       Extrapolation.CLAMP
     ),
-    borderColor: focusProgress.value > 0.5 ? Colors.burnishedGold : Colors.border,
+    borderColor: focusProgress.value > 0.5 ? palette.accent : palette.border,
     shadowOpacity: interpolate(
       focusProgress.value,
       [0, 1],
@@ -107,7 +109,7 @@ export function SearchBar({
   }));
 
   return (
-    <Animated.View style={[styles.container, containerStyle]}>
+    <Animated.View style={[styles.container, { backgroundColor: palette.cardBg }, containerStyle]}>
       <AnimatedTouchable
         onPress={handleIconPress}
         style={[styles.iconWrapper, iconStyle]}
@@ -116,17 +118,17 @@ export function SearchBar({
         <Ionicons
           name="search"
           size={20}
-          color={isFocused ? Colors.burnishedGold : Colors.stoneGray}
+          color={isFocused ? palette.accent : palette.textTertiary}
         />
       </AnimatedTouchable>
 
       <TextInput
         ref={inputRef}
-        style={styles.input}
+        style={[styles.input, { color: palette.textSecondary }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={Colors.stoneGray}
+        placeholderTextColor={palette.textTertiary}
         onFocus={handleFocus}
         onBlur={handleBlur}
         returnKeyType="search"
@@ -140,7 +142,7 @@ export function SearchBar({
           style={styles.clearButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="close-circle" size={18} color={Colors.stoneGray} />
+          <Ionicons name="close-circle" size={18} color={palette.textTertiary} />
         </TouchableOpacity>
       </Animated.View>
     </Animated.View>
@@ -151,7 +153,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -163,7 +164,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     padding: 0,
     height: 24,
   },

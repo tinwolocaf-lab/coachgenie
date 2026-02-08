@@ -23,7 +23,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Breakthrough, Coach } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
@@ -55,6 +56,7 @@ export function BreakthroughView({
   onShare,
 }: BreakthroughViewProps) {
   const insets = useSafeAreaInsets();
+  const { palette } = useThemeSafe();
 
   // Animated values
   const headerScale = useSharedValue(0.9);
@@ -93,14 +95,14 @@ export function BreakthroughView({
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: palette.background }]}>
       {/* Close button */}
       <TouchableOpacity
         onPress={onClose}
         style={styles.closeButton}
         hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
       >
-        <Ionicons name="close" size={28} color={Colors.stoneGray} />
+        <Ionicons name="close" size={28} color={palette.textTertiary} />
       </TouchableOpacity>
 
       <ScrollView
@@ -113,7 +115,7 @@ export function BreakthroughView({
           {/* Gold accent line */}
           <Animated.View style={[styles.goldAccentLine, goldLineStyle]}>
             <LinearGradient
-              colors={['transparent', Colors.burnishedGold, 'transparent']}
+              colors={['transparent', palette.accent, 'transparent']}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.goldAccentGradient}
@@ -121,13 +123,13 @@ export function BreakthroughView({
           </Animated.View>
 
           {/* Title */}
-          <Text style={styles.label}>TODAY'S BREAKTHROUGH</Text>
-          <Text style={styles.title}>{breakthrough.title}</Text>
+          <Text style={[styles.label, { color: palette.accent }]}>TODAY'S BREAKTHROUGH</Text>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>{breakthrough.title}</Text>
 
           {/* Gold accent line bottom */}
           <Animated.View style={[styles.goldAccentLine, goldLineStyle]}>
             <LinearGradient
-              colors={['transparent', Colors.burnishedGold, 'transparent']}
+              colors={['transparent', palette.accent, 'transparent']}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.goldAccentGradient}
@@ -138,25 +140,25 @@ export function BreakthroughView({
         {/* Coach Attribution */}
         <Animated.View
           entering={FadeInUp.delay(300).duration(500)}
-          style={styles.coachAttribution}
+          style={[styles.coachAttribution, { borderBottomColor: palette.borderLight }]}
         >
           <CoachIcon iconName={coach.icon_name} color={coach.color} size="md" />
           <View style={styles.coachInfo}>
-            <Text style={styles.guidedBy}>Guided by</Text>
-            <Text style={styles.coachName}>{coach.name}</Text>
+            <Text style={[styles.guidedBy, { color: palette.textTertiary }]}>Guided by</Text>
+            <Text style={[styles.coachName, { color: palette.textPrimary }]}>{coach.name}</Text>
           </View>
           {(sessionDuration || messagesCount) && (
             <View style={styles.sessionStats}>
               {sessionDuration && (
                 <View style={styles.stat}>
-                  <Ionicons name="time-outline" size={14} color={Colors.stoneGray} />
-                  <Text style={styles.statText}>{formatDuration(sessionDuration)}</Text>
+                  <Ionicons name="time-outline" size={14} color={palette.textTertiary} />
+                  <Text style={[styles.statText, { color: palette.textTertiary }]}>{formatDuration(sessionDuration)}</Text>
                 </View>
               )}
               {messagesCount && (
                 <View style={styles.stat}>
-                  <Ionicons name="chatbubbles-outline" size={14} color={Colors.stoneGray} />
-                  <Text style={styles.statText}>{messagesCount} exchanges</Text>
+                  <Ionicons name="chatbubbles-outline" size={14} color={palette.textTertiary} />
+                  <Text style={[styles.statText, { color: palette.textTertiary }]}>{messagesCount} exchanges</Text>
                 </View>
               )}
             </View>
@@ -165,8 +167,8 @@ export function BreakthroughView({
 
         {/* Summary */}
         <Animated.View style={contentStyle}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summary}>{breakthrough.summary}</Text>
+          <View style={[styles.summaryCard, { backgroundColor: palette.cardBg, borderColor: palette.borderAccent }]}>
+            <Text style={[styles.summary, { color: palette.textSecondary }]}>{breakthrough.summary}</Text>
           </View>
         </Animated.View>
 
@@ -177,10 +179,10 @@ export function BreakthroughView({
             style={styles.section}
           >
             <View style={styles.sectionHeader}>
-              <View style={styles.sectionIcon}>
-                <Ionicons name="bulb-outline" size={20} color={Colors.burnishedGold} />
+              <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+                <Ionicons name="bulb-outline" size={20} color={palette.accent} />
               </View>
-              <Text style={styles.sectionTitle}>Key Realizations</Text>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Key Realizations</Text>
             </View>
 
             <View style={styles.takeawaysContainer}>
@@ -192,11 +194,11 @@ export function BreakthroughView({
                 >
                   <View style={styles.takeawayBullet}>
                     <LinearGradient
-                      colors={[Colors.burnishedGold, Colors.goldLight]}
+                      colors={[palette.accent, palette.accentLight]}
                       style={styles.takeawayBulletGradient}
                     />
                   </View>
-                  <Text style={styles.takeawayText}>{takeaway}</Text>
+                  <Text style={[styles.takeawayText, { color: palette.textSecondary }]}>{takeaway}</Text>
                 </Animated.View>
               ))}
             </View>
@@ -210,10 +212,10 @@ export function BreakthroughView({
             style={styles.section}
           >
             <View style={styles.sectionHeader}>
-              <View style={styles.sectionIcon}>
-                <Ionicons name="checkbox-outline" size={20} color={Colors.success} />
+              <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+                <Ionicons name="checkbox-outline" size={20} color={palette.success} />
               </View>
-              <Text style={styles.sectionTitle}>Committed Actions</Text>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Committed Actions</Text>
             </View>
 
             <View style={styles.actionsContainer}>
@@ -221,12 +223,12 @@ export function BreakthroughView({
                 <Animated.View
                   key={action.id}
                   entering={FadeInUp.delay(800 + index * 100).duration(400)}
-                  style={styles.actionItem}
+                  style={[styles.actionItem, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
                 >
-                  <View style={styles.actionNumber}>
-                    <Text style={styles.actionNumberText}>{index + 1}</Text>
+                  <View style={[styles.actionNumber, { backgroundColor: palette.successLight }]}>
+                    <Text style={[styles.actionNumberText, { color: palette.success }]}>{index + 1}</Text>
                   </View>
-                  <Text style={styles.actionText}>{action.title}</Text>
+                  <Text style={[styles.actionText, { color: palette.textSecondary }]}>{action.title}</Text>
                 </Animated.View>
               ))}
             </View>
@@ -238,8 +240,8 @@ export function BreakthroughView({
           entering={FadeIn.delay(1000).duration(600)}
           style={styles.signatureSection}
         >
-          <View style={styles.signatureLine} />
-          <Text style={styles.signatureText}>
+          <View style={[styles.signatureLine, { backgroundColor: palette.border }]} />
+          <Text style={[styles.signatureText, { color: palette.textTertiary }]}>
             Committed on {new Date().toLocaleDateString('en-US', {
               weekday: 'long',
               year: 'numeric',
@@ -259,16 +261,16 @@ export function BreakthroughView({
         style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}
       >
         <LinearGradient
-          colors={['transparent', Colors.warmOatmeal]}
+          colors={['transparent', palette.background]}
           style={styles.footerGradient}
         >
           <View style={styles.footerButtons}>
             {onShare && (
               <TouchableOpacity
-                style={styles.shareButton}
+                style={[styles.shareButton, { backgroundColor: palette.cardBg, borderColor: palette.border }]}
                 onPress={onShare}
               >
-                <Ionicons name="share-outline" size={22} color={Colors.midnightEmerald} />
+                <Ionicons name="share-outline" size={22} color={palette.textPrimary} />
               </TouchableOpacity>
             )}
             <Button
@@ -288,7 +290,6 @@ export function BreakthroughView({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   closeButton: {
     position: 'absolute',
@@ -320,14 +321,12 @@ const styles = StyleSheet.create({
   label: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.widest,
     marginBottom: Spacing.md,
   },
   title: {
     fontSize: Typography.sizes.hero,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     textAlign: 'center',
     lineHeight: Typography.sizes.hero * Typography.lineHeights.tight,
@@ -340,7 +339,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xxxl,
     paddingBottom: Spacing.xxl,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   coachInfo: {
     flex: 1,
@@ -348,14 +346,12 @@ const styles = StyleSheet.create({
   },
   guidedBy: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wide,
   },
   coachName: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
   sessionStats: {
@@ -369,22 +365,18 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
 
   // Summary
   summaryCard: {
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.xxl,
     marginBottom: Spacing.xxxl,
     borderWidth: 1,
-    borderColor: Colors.borderGold,
     ...Shadows.md,
   },
   summary: {
     fontSize: Typography.sizes.subtitle,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.subtitle * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
     fontStyle: 'italic',
@@ -404,7 +396,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -412,7 +403,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
   },
 
@@ -438,7 +428,6 @@ const styles = StyleSheet.create({
   takeawayText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -449,18 +438,15 @@ const styles = StyleSheet.create({
   actionItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.white,
     borderRadius: Radius.xl,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     ...Shadows.subtle,
   },
   actionNumber: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -468,12 +454,10 @@ const styles = StyleSheet.create({
   actionNumberText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.success,
   },
   actionText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -485,12 +469,10 @@ const styles = StyleSheet.create({
   signatureLine: {
     width: 200,
     height: 1,
-    backgroundColor: Colors.border,
     marginBottom: Spacing.md,
   },
   signatureText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
   },
 
@@ -514,11 +496,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
     ...Shadows.sm,
   },
   planButton: {

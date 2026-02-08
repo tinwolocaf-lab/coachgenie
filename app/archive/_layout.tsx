@@ -1,13 +1,14 @@
 // Archive Layout - Premium editorial navigation
 import { Stack } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 export default function ArchiveLayout() {
+  const { palette } = useThemeSafe();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: Colors.warmOatmeal },
+        contentStyle: { backgroundColor: palette.background },
         animation: 'fade',
       }}
     >

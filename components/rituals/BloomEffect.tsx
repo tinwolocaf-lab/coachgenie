@@ -11,7 +11,8 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
-import { Colors, Timing } from '@/constants/theme';
+import { Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface BloomEffectProps {
   isActive: boolean;
@@ -24,10 +25,12 @@ interface BloomEffectProps {
 export function BloomEffect({
   isActive,
   size = 60,
-  color = Colors.burnishedGold,
+  color,
   duration = 600,
   style,
 }: BloomEffectProps) {
+  const { palette } = useThemeSafe();
+  const resolvedColor = color ?? palette.accent;
   const scale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
   const innerScale = useSharedValue(0.8);
@@ -88,7 +91,7 @@ export function BloomEffect({
             width: size * 2,
             height: size * 2,
             borderRadius: size,
-            backgroundColor: color,
+            backgroundColor: resolvedColor,
           },
           glowStyle,
           style,
@@ -104,7 +107,7 @@ export function BloomEffect({
             width: size * 1.6,
             height: size * 1.6,
             borderRadius: size * 0.8,
-            borderColor: color,
+            borderColor: resolvedColor,
           },
           outerRingStyle,
           style,
@@ -121,7 +124,7 @@ export function BloomEffect({
             width: size * 1.3,
             height: size * 1.3,
             borderRadius: size * 0.65,
-            borderColor: color,
+            borderColor: resolvedColor,
           },
           innerRingStyle,
           style,
@@ -137,16 +140,18 @@ export function ParticleBloom({
   isActive,
   size = 80,
   particleCount = 8,
-  color = Colors.burnishedGold,
+  color,
 }: {
   isActive: boolean;
   size?: number;
   particleCount?: number;
   color?: string;
 }) {
+  const { palette } = useThemeSafe();
+  const resolvedColor = color ?? palette.accent;
   const particles = Array.from({ length: particleCount }, (_, i) => {
     const angle = (i * 360) / particleCount;
-    return <BloomParticle key={i} angle={angle} isActive={isActive} size={size} color={color} />;
+    return <BloomParticle key={i} angle={angle} isActive={isActive} size={size} color={resolvedColor} />;
   });
 
   return <>{particles}</>;

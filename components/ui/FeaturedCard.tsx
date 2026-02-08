@@ -10,7 +10,8 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { CoachIcon } from './CoachIcon';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -33,11 +34,13 @@ export function FeaturedCard({
   subtitle,
   description,
   iconName,
-  accentColor = Colors.burnishedGold,
+  accentColor,
   badge,
   onPress,
   delay = 0,
 }: FeaturedCardProps) {
+  const { palette } = useThemeSafe();
+  const resolvedAccentColor = accentColor ?? palette.accent;
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(40);
   const scale = useSharedValue(1);
@@ -81,18 +84,18 @@ export function FeaturedCard({
     switch (type) {
       case 'coach':
         return iconName ? (
-          <CoachIcon iconName={iconName} color={Colors.white} size="xl" variant="solid" style={{ backgroundColor: accentColor }} />
+          <CoachIcon iconName={iconName} color={palette.textInverse} size="xl" variant="solid" style={{ backgroundColor: resolvedAccentColor }} />
         ) : null;
       case 'lesson':
         return (
-          <View style={[styles.typeIcon, { backgroundColor: accentColor }]}>
-            <Ionicons name="play-circle" size={40} color={Colors.white} />
+          <View style={[styles.typeIcon, { backgroundColor: resolvedAccentColor }]}>
+            <Ionicons name="play-circle" size={40} color={palette.textInverse} />
           </View>
         );
       case 'insight':
         return (
-          <View style={[styles.typeIcon, { backgroundColor: accentColor }]}>
-            <Ionicons name="sparkles" size={40} color={Colors.white} />
+          <View style={[styles.typeIcon, { backgroundColor: resolvedAccentColor }]}>
+            <Ionicons name="sparkles" size={40} color={palette.textInverse} />
           </View>
         );
     }
@@ -119,23 +122,23 @@ export function FeaturedCard({
       >
         <View style={styles.cardOuter}>
           <LinearGradient
-            colors={[Colors.midnightEmerald, '#0D1A11']}
+            colors={[palette.textPrimary, '#0D1A11']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.card}
           >
             {/* Accent bar */}
-            <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
+            <View style={[styles.accentBar, { backgroundColor: resolvedAccentColor }]} />
 
             {/* Badge */}
             {badge && (
               <View style={styles.badgeContainer}>
                 <LinearGradient
-                  colors={[Colors.burnishedGold, Colors.goldLight]}
+                  colors={[palette.accent, palette.accentLight]}
                   style={styles.badge}
                 >
-                  <Ionicons name="diamond" size={10} color={Colors.white} />
-                  <Text style={styles.badgeText}>{badge}</Text>
+                  <Ionicons name="diamond" size={10} color={palette.textInverse} />
+                  <Text style={[styles.badgeText, { color: palette.textInverse }]}>{badge}</Text>
                 </LinearGradient>
               </View>
             )}
@@ -146,15 +149,15 @@ export function FeaturedCard({
               <View style={styles.headerSection}>
                 {renderTypeIcon()}
                 <View style={styles.headerMeta}>
-                  <Text style={styles.typeLabel}>{getTypeLabel()}</Text>
+                  <Text style={[styles.typeLabel, { color: palette.accentLight }]}>{getTypeLabel()}</Text>
                   <View style={styles.divider} />
                 </View>
               </View>
 
               {/* Title section */}
               <View style={styles.titleSection}>
-                <Text style={styles.title}>{title}</Text>
-                <Text style={styles.subtitle}>{subtitle}</Text>
+                <Text style={[styles.title, { color: palette.textInverse }]}>{title}</Text>
+                <Text style={[styles.subtitle, { color: palette.accentLight }]}>{subtitle}</Text>
                 {description && (
                   <Text style={styles.description} numberOfLines={2}>
                     {description}
@@ -165,10 +168,10 @@ export function FeaturedCard({
               {/* Action section */}
               <View style={styles.actionSection}>
                 <View style={styles.actionButton}>
-                  <Text style={styles.actionText}>
+                  <Text style={[styles.actionText, { color: palette.accent }]}>
                     {type === 'coach' ? 'Begin Session' : type === 'lesson' ? 'Start Lesson' : 'Read More'}
                   </Text>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.burnishedGold} />
+                  <Ionicons name="arrow-forward" size={16} color={palette.accent} />
                 </View>
               </View>
             </View>
@@ -215,7 +218,6 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.bold,
-    color: Colors.white,
     letterSpacing: Typography.letterSpacing.wider,
   },
   content: {
@@ -242,7 +244,6 @@ const styles = StyleSheet.create({
   typeLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.goldLight,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.widest,
     marginBottom: Spacing.sm,
@@ -258,13 +259,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.xs,
   },
   subtitle: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.goldLight,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
     marginBottom: Spacing.sm,
   },
@@ -287,7 +286,6 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
   cornerDecoration: {
     position: 'absolute',

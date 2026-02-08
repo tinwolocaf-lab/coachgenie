@@ -1,8 +1,9 @@
 // Sanctuary Layout - Full-screen presentation
 import { Stack } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 export default function SanctuaryLayout() {
+  const { palette } = useThemeSafe();
   return (
     <Stack
       screenOptions={{
@@ -10,7 +11,7 @@ export default function SanctuaryLayout() {
         presentation: 'fullScreenModal',
         animation: 'fade',
         contentStyle: {
-          backgroundColor: Colors.midnightEmerald,
+          backgroundColor: palette.textPrimary,
         },
       }}
     >

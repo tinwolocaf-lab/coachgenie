@@ -23,7 +23,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { QuerySource, HistoryQuery } from '@/types';
 
 interface AskHistoryProps {
@@ -33,6 +34,7 @@ interface AskHistoryProps {
 }
 
 export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = false }: AskHistoryProps) {
+  const { palette } = useThemeSafe();
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<{ answer: string; sources: QuerySource[] } | null>(null);
   const [searching, setSearching] = useState(false);
@@ -79,10 +81,10 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Ionicons name="search" size={20} color={Colors.burnishedGold} />
-          <Text style={styles.title}>Ask Your History</Text>
+          <Ionicons name="search" size={20} color={palette.accent} />
+          <Text style={[styles.title, { color: palette.textPrimary }]}>Ask Your History</Text>
         </View>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.subtitle, { color: palette.textTertiary }]}>
           Query your past sessions and insights with natural language
         </Text>
       </View>
@@ -90,13 +92,13 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
       {/* Search Input */}
       <Animated.View style={[styles.inputContainer, inputContainerStyle]}>
         <LinearGradient
-          colors={[Colors.cream, Colors.warmOatmeal]}
-          style={styles.inputGradient}
+          colors={[palette.cardBg, palette.background]}
+          style={[styles.inputGradient, { borderColor: palette.borderAccent }]}
         >
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: palette.textSecondary }]}
             placeholder="e.g., What did my coach say about my goals?"
-            placeholderTextColor={Colors.stoneGray}
+            placeholderTextColor={palette.textTertiary}
             value={query}
             onChangeText={setQuery}
             onFocus={handleFocus}
@@ -110,15 +112,16 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (!query.trim() || searching) && styles.submitButtonDisabled,
+              { backgroundColor: palette.accent },
+              (!query.trim() || searching) && { backgroundColor: palette.textTertiary, shadowOpacity: 0 },
             ]}
             onPress={handleSubmit}
             disabled={!query.trim() || searching}
           >
             {searching ? (
-              <ActivityIndicator size="small" color={Colors.white} />
+              <ActivityIndicator size="small" color={palette.textInverse} />
             ) : (
-              <Ionicons name="arrow-forward" size={20} color={Colors.white} />
+              <Ionicons name="arrow-forward" size={20} color={palette.textInverse} />
             )}
           </TouchableOpacity>
         </LinearGradient>
@@ -130,18 +133,18 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
           entering={FadeIn.duration(300)}
           style={styles.suggestionsContainer}
         >
-          <Text style={styles.suggestionsLabel}>Try asking:</Text>
+          <Text style={[styles.suggestionsLabel, { color: palette.textTertiary }]}>Try asking:</Text>
           <View style={styles.suggestions}>
             {suggestedQueries.map((suggestion, index) => (
               <TouchableOpacity
                 key={index}
-                style={styles.suggestionChip}
+                style={[styles.suggestionChip, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setQuery(suggestion);
                 }}
               >
-                <Text style={styles.suggestionText}>{suggestion}</Text>
+                <Text style={[styles.suggestionText, { color: palette.textSecondary }]}>{suggestion}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -159,7 +162,7 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
             <LoadingDot delay={200} />
             <LoadingDot delay={400} />
           </View>
-          <Text style={styles.loadingText}>Searching your wisdom...</Text>
+          <Text style={[styles.loadingText, { color: palette.textTertiary }]}>Searching your wisdom...</Text>
         </Animated.View>
       )}
 
@@ -167,18 +170,18 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
       {result && !searching && (
         <Animated.View
           entering={FadeInDown.duration(400)}
-          style={styles.resultContainer}
+          style={[styles.resultContainer, { backgroundColor: palette.cardBg }]}
         >
           <View style={styles.resultHeader}>
-            <Ionicons name="sparkles" size={16} color={Colors.burnishedGold} />
-            <Text style={styles.resultLabel}>From Your History</Text>
+            <Ionicons name="sparkles" size={16} color={palette.accent} />
+            <Text style={[styles.resultLabel, { color: palette.accent }]}>From Your History</Text>
           </View>
 
-          <Text style={styles.resultAnswer}>{result.answer}</Text>
+          <Text style={[styles.resultAnswer, { color: palette.textSecondary }]}>{result.answer}</Text>
 
           {result.sources.length > 0 && (
-            <View style={styles.sourcesContainer}>
-              <Text style={styles.sourcesLabel}>Sources:</Text>
+            <View style={[styles.sourcesContainer, { borderTopColor: palette.borderLight }]}>
+              <Text style={[styles.sourcesLabel, { color: palette.textTertiary }]}>Sources:</Text>
               {result.sources.slice(0, 5).map((source, index) => (
                 <SourceBadge key={index} source={source} />
               ))}
@@ -194,7 +197,7 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
               setQuery('');
             }}
           >
-            <Text style={styles.askAnotherText}>Ask another question</Text>
+            <Text style={[styles.askAnotherText, { color: palette.accent }]}>Ask another question</Text>
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -202,18 +205,18 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
       {/* Recent Queries */}
       {recentQueries.length > 0 && !result && !searching && (
         <View style={styles.recentContainer}>
-          <Text style={styles.recentLabel}>Recent Queries</Text>
+          <Text style={[styles.recentLabel, { color: palette.textTertiary }]}>Recent Queries</Text>
           {recentQueries.slice(0, 3).map((q, index) => (
             <TouchableOpacity
               key={q.id}
-              style={styles.recentItem}
+              style={[styles.recentItem, { borderBottomColor: palette.borderLight }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setQuery(q.query);
               }}
             >
-              <Ionicons name="time-outline" size={14} color={Colors.stoneGray} />
-              <Text style={styles.recentQuery} numberOfLines={1}>
+              <Ionicons name="time-outline" size={14} color={palette.textTertiary} />
+              <Text style={[styles.recentQuery, { color: palette.textSecondary }]} numberOfLines={1}>
                 {q.query}
               </Text>
             </TouchableOpacity>
@@ -225,6 +228,7 @@ export function AskHistory({ onSubmitQuery, recentQueries = [], isLoading = fals
 }
 
 function LoadingDot({ delay }: { delay: number }) {
+  const { palette } = useThemeSafe();
   const opacity = useSharedValue(0.3);
 
   useEffect(() => {
@@ -248,10 +252,11 @@ function LoadingDot({ delay }: { delay: number }) {
     opacity: opacity.value,
   }));
 
-  return <Animated.View style={[styles.loadingDot, style]} />;
+  return <Animated.View style={[styles.loadingDot, { backgroundColor: palette.accent }, style]} />;
 }
 
 function SourceBadge({ source }: { source: QuerySource }) {
+  const { palette } = useThemeSafe();
   const typeIcons = {
     session: 'chatbubble-outline',
     insight: 'bulb-outline',
@@ -268,12 +273,12 @@ function SourceBadge({ source }: { source: QuerySource }) {
       <Ionicons
         name={typeIcons[source.type] as keyof typeof Ionicons.glyphMap}
         size={12}
-        color={Colors.stoneGray}
+        color={palette.textTertiary}
       />
-      <Text style={styles.sourceTitle} numberOfLines={1}>
+      <Text style={[styles.sourceTitle, { color: palette.textSecondary }]} numberOfLines={1}>
         {source.title}
       </Text>
-      <Text style={styles.sourceDate}>{date}</Text>
+      <Text style={[styles.sourceDate, { color: palette.textTertiary }]}>{date}</Text>
     </View>
   );
 }
@@ -294,11 +299,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   subtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.xs,
   },
   inputContainer: {
@@ -311,13 +314,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderGold,
     borderRadius: Radius.squircle,
   },
   input: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.sm,
     minHeight: 44,
@@ -327,21 +328,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.burnishedGold,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.gold,
-  },
-  submitButtonDisabled: {
-    backgroundColor: Colors.stoneGray,
-    shadowOpacity: 0,
   },
   suggestionsContainer: {
     marginTop: Spacing.lg,
   },
   suggestionsLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: Spacing.sm,
   },
   suggestions: {
@@ -350,16 +345,13 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   suggestionChip: {
-    backgroundColor: Colors.cream,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   suggestionText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.charcoal,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -374,16 +366,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.burnishedGold,
   },
   loadingText: {
     fontSize: Typography.sizes.body,
     fontStyle: 'italic',
-    color: Colors.stoneGray,
   },
   resultContainer: {
     marginTop: Spacing.xl,
-    backgroundColor: Colors.cardBg,
     padding: Spacing.xl,
     borderRadius: Radius.squircle,
     ...Shadows.md,
@@ -397,24 +386,20 @@ const styles = StyleSheet.create({
   resultLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
     textTransform: 'uppercase',
   },
   resultAnswer: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
   },
   sourcesContainer: {
     marginTop: Spacing.lg,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
   },
   sourcesLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: Spacing.sm,
   },
   sourceBadge: {
@@ -426,11 +411,9 @@ const styles = StyleSheet.create({
   sourceTitle: {
     flex: 1,
     fontSize: Typography.sizes.caption,
-    color: Colors.charcoal,
   },
   sourceDate: {
     fontSize: Typography.sizes.micro,
-    color: Colors.stoneGray,
   },
   askAnotherButton: {
     marginTop: Spacing.lg,
@@ -438,7 +421,6 @@ const styles = StyleSheet.create({
   },
   askAnotherText: {
     fontSize: Typography.sizes.body,
-    color: Colors.burnishedGold,
     fontWeight: Typography.weights.medium,
   },
   recentContainer: {
@@ -446,7 +428,6 @@ const styles = StyleSheet.create({
   },
   recentLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginBottom: Spacing.sm,
   },
   recentItem: {
@@ -455,11 +436,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   recentQuery: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
   },
 });

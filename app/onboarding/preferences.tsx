@@ -16,11 +16,11 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   useSharedValue,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { Preferences } from '@/types';
 import { getOnboardingState, updatePreferences } from '@/store/onboarding';
@@ -49,6 +49,7 @@ const RESPONSE_LENGTH_OPTIONS = [
 
 export default function PreferencesScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const [preferences, setPreferences] = useState<Preferences>({
     tone: 50,
     directness: 50,
@@ -97,13 +98,13 @@ export default function PreferencesScreen() {
   const selectedStyle = STYLE_POSITIONS.find((p) => p.id === selectedStyleId);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       {/* Progress indicator */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <Animated.View style={[styles.progressFill, { width: '60%' }]} />
+        <View style={[styles.progressBar, { backgroundColor: palette.border }]}>
+          <Animated.View style={[styles.progressFill, { width: '60%', backgroundColor: palette.accent }]} />
         </View>
-        <Text style={styles.progressText}>3 of 5</Text>
+        <Text style={[styles.progressText, { color: palette.textTertiary }]}>3 of 5</Text>
       </View>
 
       <ScrollView
@@ -113,8 +114,8 @@ export default function PreferencesScreen() {
       >
         {/* Question Header */}
         <Animated.View entering={FadeInUp.duration(800)} style={styles.questionContainer}>
-          <Text style={styles.question}>How should we speak?</Text>
-          <Text style={styles.questionSubtitle}>
+          <Text style={[styles.question, { color: palette.textPrimary }]}>How should we speak?</Text>
+          <Text style={[styles.questionSubtitle, { color: palette.textTertiary }]}>
             Choose the communication style that resonates with you. This shapes every interaction.
           </Text>
         </Animated.View>
@@ -124,18 +125,18 @@ export default function PreferencesScreen() {
           <View style={styles.gridContainer}>
             {/* Y-Axis Label */}
             <View style={styles.yAxisLabel}>
-              <Text style={styles.axisLabelText}>DIRECT</Text>
-              <View style={styles.axisLine} />
-              <Text style={styles.axisLabelText}>GENTLE</Text>
+              <Text style={[styles.axisLabelText, { color: palette.textTertiary }]}>DIRECT</Text>
+              <View style={[styles.axisLine, { backgroundColor: palette.border }]} />
+              <Text style={[styles.axisLabelText, { color: palette.textTertiary }]}>GENTLE</Text>
             </View>
 
             {/* Grid */}
             <View style={styles.grid}>
               {/* X-Axis Label Top */}
               <View style={styles.xAxisLabel}>
-                <Text style={styles.axisLabelText}>NURTURING</Text>
-                <View style={styles.axisLineHorizontal} />
-                <Text style={styles.axisLabelText}>CHALLENGING</Text>
+                <Text style={[styles.axisLabelText, { color: palette.textTertiary }]}>NURTURING</Text>
+                <View style={[styles.axisLineHorizontal, { backgroundColor: palette.border }]} />
+                <Text style={[styles.axisLabelText, { color: palette.textTertiary }]}>CHALLENGING</Text>
               </View>
 
               {/* Grid Cells */}
@@ -156,18 +157,18 @@ export default function PreferencesScreen() {
           {/* Selected Style Display */}
           <Animated.View entering={FadeIn.duration(400).delay(600)} style={styles.selectedStyleCard}>
             <LinearGradient
-              colors={[Colors.midnightEmerald, '#0D1A11']}
+              colors={[palette.gradientStart, palette.gradientEnd]}
               style={styles.selectedStyleGradient}
             >
               <View style={styles.selectedStyleIcon}>
-                <Ionicons name={selectedStyle?.icon as any || 'scale-outline'} size={24} color={Colors.burnishedGold} />
+                <Ionicons name={selectedStyle?.icon as any || 'scale-outline'} size={24} color={palette.accent} />
               </View>
               <View style={styles.selectedStyleInfo}>
                 <Text style={styles.selectedStyleLabel}>Your Style</Text>
-                <Text style={styles.selectedStyleName}>{selectedStyle?.label}</Text>
+                <Text style={[styles.selectedStyleName, { color: palette.textInverse }]}>{selectedStyle?.label}</Text>
               </View>
               <View style={styles.selectedStyleBadge}>
-                <Ionicons name="checkmark-circle" size={20} color={Colors.burnishedGold} />
+                <Ionicons name="checkmark-circle" size={20} color={palette.accent} />
               </View>
             </LinearGradient>
           </Animated.View>
@@ -176,10 +177,10 @@ export default function PreferencesScreen() {
         {/* Response Length Section */}
         <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Ionicons name="chatbubbles-outline" size={18} color={Colors.burnishedGold} />
+            <View style={[styles.sectionIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="chatbubbles-outline" size={18} color={palette.accent} />
             </View>
-            <Text style={styles.sectionTitle}>Response depth</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Response depth</Text>
           </View>
           <View style={styles.lengthGrid}>
             {RESPONSE_LENGTH_OPTIONS.map((option, index) => (
@@ -196,17 +197,17 @@ export default function PreferencesScreen() {
 
         {/* Preview Card */}
         <Animated.View entering={FadeInUp.duration(600).delay(600)} style={styles.previewSection}>
-          <View style={styles.previewCard}>
+          <View style={[styles.previewCard, { backgroundColor: palette.cardBg, borderLeftColor: palette.accent }]}>
             <View style={styles.previewHeader}>
-              <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.burnishedGold} />
-              <Text style={styles.previewLabel}>Sample Response</Text>
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color={palette.accent} />
+              <Text style={[styles.previewLabel, { color: palette.accent }]}>Sample Response</Text>
             </View>
-            <Text style={styles.previewText}>
+            <Text style={[styles.previewText, { color: palette.textSecondary }]}>
               {getPreviewText(preferences)}
             </Text>
-            <View style={styles.previewSignature}>
-              <View style={styles.previewDot} />
-              <Text style={styles.previewSignatureText}>Your Coach</Text>
+            <View style={[styles.previewSignature, { borderTopColor: palette.border }]}>
+              <View style={[styles.previewDot, { backgroundColor: palette.accent }]} />
+              <Text style={[styles.previewSignatureText, { color: palette.textTertiary }]}>Your Coach</Text>
             </View>
           </View>
         </Animated.View>
@@ -242,6 +243,7 @@ function StyleGridCell({
   onPress: () => void;
   index: number;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -265,7 +267,7 @@ function StyleGridCell({
       style={[styles.gridCellWrapper, animatedStyle]}
     >
       <TouchableOpacity
-        style={[styles.gridCell, selected && styles.gridCellSelected]}
+        style={[styles.gridCell, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -273,14 +275,14 @@ function StyleGridCell({
       >
         {selected ? (
           <LinearGradient
-            colors={[Colors.burnishedGold, Colors.goldLight]}
+            colors={[palette.accent, palette.accentLight]}
             style={styles.gridCellGradient}
           >
-            <Ionicons name={position.icon as any} size={22} color={Colors.white} />
+            <Ionicons name={position.icon as any} size={22} color={palette.textInverse} />
           </LinearGradient>
         ) : (
           <View style={styles.gridCellContent}>
-            <Ionicons name={position.icon as any} size={22} color={Colors.stoneGray} />
+            <Ionicons name={position.icon as any} size={22} color={palette.textTertiary} />
           </View>
         )}
       </TouchableOpacity>
@@ -299,6 +301,7 @@ function LengthOption({
   onPress: () => void;
   index: number;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -319,23 +322,23 @@ function LengthOption({
       style={[{ flex: 1 }, animatedStyle]}
     >
       <TouchableOpacity
-        style={[styles.lengthOption, selected && styles.lengthOptionSelected]}
+        style={[styles.lengthOption, { backgroundColor: palette.cardBg }, selected && { borderColor: palette.accent }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={1}
       >
-        <View style={[styles.lengthIcon, selected && styles.lengthIconSelected]}>
+        <View style={[styles.lengthIcon, { backgroundColor: palette.backgroundSecondary }, selected && { backgroundColor: palette.accent }]}>
           <Ionicons
             name={option.icon}
             size={20}
-            color={selected ? Colors.white : Colors.stoneGray}
+            color={selected ? palette.textInverse : palette.textTertiary}
           />
         </View>
-        <Text style={[styles.lengthLabel, selected && styles.lengthLabelSelected]}>
+        <Text style={[styles.lengthLabel, { color: palette.textSecondary }, selected && { color: palette.accent }]}>
           {option.label}
         </Text>
-        <Text style={styles.lengthDescription}>{option.description}</Text>
+        <Text style={[styles.lengthDescription, { color: palette.textTertiary }]}>{option.description}</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -365,7 +368,6 @@ const CELL_SIZE = (SCREEN_WIDTH - Spacing.xxl * 2 - 80) / 3;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Progress
@@ -379,18 +381,15 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: Colors.border,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.burnishedGold,
     borderRadius: 2,
   },
   progressText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontWeight: Typography.weights.medium,
   },
 
@@ -410,13 +409,11 @@ const styles = StyleSheet.create({
   question: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.md,
   },
   questionSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -437,7 +434,6 @@ const styles = StyleSheet.create({
   axisLabelText: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.medium,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wider,
     transform: [{ rotate: '-90deg' }],
     width: 60,
@@ -446,7 +442,6 @@ const styles = StyleSheet.create({
   axisLine: {
     flex: 1,
     width: 1,
-    backgroundColor: Colors.border,
     marginVertical: Spacing.sm,
   },
   grid: {
@@ -462,7 +457,6 @@ const styles = StyleSheet.create({
   axisLineHorizontal: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
     marginHorizontal: Spacing.sm,
   },
   gridCells: {
@@ -479,14 +473,9 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: Radius.xl,
     overflow: 'hidden',
-    backgroundColor: Colors.white,
     borderWidth: 2,
     borderColor: 'transparent',
     ...Shadows.sm,
-  },
-  gridCellSelected: {
-    borderColor: Colors.burnishedGold,
-    ...Shadows.gold,
   },
   gridCellContent: {
     flex: 1,
@@ -532,7 +521,6 @@ const styles = StyleSheet.create({
   selectedStyleName: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     fontFamily: Typography.fonts.serif,
     marginTop: Spacing.xs,
   },
@@ -553,7 +541,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -561,7 +548,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
   },
 
@@ -571,7 +557,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   lengthOption: {
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.lg,
     alignItems: 'center',
@@ -579,34 +564,22 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     ...Shadows.sm,
   },
-  lengthOptionSelected: {
-    borderColor: Colors.burnishedGold,
-  },
   lengthIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  lengthIconSelected: {
-    backgroundColor: Colors.burnishedGold,
-  },
   lengthLabel: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.xs,
   },
-  lengthLabelSelected: {
-    color: Colors.burnishedGold,
-  },
   lengthDescription: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     textAlign: 'center',
   },
 
@@ -615,11 +588,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   previewCard: {
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.xl,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.burnishedGold,
     ...Shadows.sm,
   },
   previewHeader: {
@@ -630,14 +601,12 @@ const styles = StyleSheet.create({
   previewLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.burnishedGold,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wide,
     marginLeft: Spacing.sm,
   },
   previewText: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
     lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
     fontStyle: 'italic',
@@ -648,18 +617,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
   },
   previewDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.burnishedGold,
     marginRight: Spacing.sm,
   },
   previewSignatureText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
   },
 

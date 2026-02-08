@@ -8,19 +8,20 @@ import Animated, {
   FadeIn,
   FadeInUp,
   FadeInDown,
-  useAnimatedStyle,
+  useSharedValue,
   withRepeat,
   withTiming,
-  useSharedValue,
   Easing,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const shimmerPosition = useSharedValue(0);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       <View style={styles.content}>
         {/* Header with elegant branding */}
         <Animated.View
@@ -48,17 +49,17 @@ export default function WelcomeScreen() {
         >
           <View style={styles.logoContainer}>
             <LinearGradient
-              colors={[Colors.burnishedGold, Colors.goldLight]}
+              colors={[palette.accent, palette.accentLight]}
               style={styles.logoGradient}
             >
-              <Ionicons name="compass" size={40} color={Colors.white} />
+              <Ionicons name="compass" size={40} color={palette.textInverse} />
             </LinearGradient>
           </View>
 
-          <Text style={styles.brandName}>Coachgenie</Text>
+          <Text style={[styles.brandName, { color: palette.textPrimary }]}>Coachgenie</Text>
           <View style={styles.taglineContainer}>
-            <Text style={styles.tagline}>Your personal guide to</Text>
-            <Text style={styles.taglineEmphasis}>exceptional growth</Text>
+            <Text style={[styles.tagline, { color: palette.textTertiary }]}>Your personal guide to</Text>
+            <Text style={[styles.taglineEmphasis, { color: palette.textPrimary }]}>exceptional growth</Text>
           </View>
         </Animated.View>
 
@@ -104,8 +105,8 @@ export default function WelcomeScreen() {
           />
 
           <View style={styles.durationBadge}>
-            <Ionicons name="time-outline" size={14} color={Colors.stoneGray} />
-            <Text style={styles.durationText}>3 minutes to complete</Text>
+            <Ionicons name="time-outline" size={14} color={palette.textTertiary} />
+            <Text style={[styles.durationText, { color: palette.textTertiary }]}>3 minutes to complete</Text>
           </View>
         </Animated.View>
       </View>
@@ -126,16 +127,18 @@ function FeatureCard({
   delay: number;
   fullWidth?: boolean;
 }) {
+  const { palette } = useThemeSafe();
+
   return (
     <Animated.View
       entering={FadeInUp.duration(600).delay(delay)}
-      style={[styles.featureCard, fullWidth && styles.featureCardFull]}
+      style={[styles.featureCard, fullWidth && styles.featureCardFull, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
     >
-      <View style={styles.featureIconContainer}>
-        <Ionicons name={icon} size={24} color={Colors.burnishedGold} />
+      <View style={[styles.featureIconContainer, { backgroundColor: palette.accentMuted }]}>
+        <Ionicons name={icon} size={24} color={palette.accent} />
       </View>
-      <Text style={styles.featureTitle}>{title}</Text>
-      <Text style={styles.featureSubtitle}>{subtitle}</Text>
+      <Text style={[styles.featureTitle, { color: palette.textPrimary }]}>{title}</Text>
+      <Text style={[styles.featureSubtitle, { color: palette.textTertiary }]}>{subtitle}</Text>
     </Animated.View>
   );
 }
@@ -143,7 +146,6 @@ function FeatureCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   content: {
     flex: 1,
@@ -171,7 +173,6 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: Typography.sizes.giant,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     letterSpacing: Typography.letterSpacing.tight,
     marginBottom: Spacing.md,
@@ -181,13 +182,11 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
   },
   taglineEmphasis: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.medium,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     fontStyle: 'italic',
     marginTop: Spacing.xs,
@@ -203,11 +202,9 @@ const styles = StyleSheet.create({
   },
   featureCard: {
     flex: 1,
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     ...Shadows.sm,
   },
   featureCardFull: {
@@ -217,7 +214,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
@@ -225,13 +221,11 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.xs,
     fontFamily: Typography.fonts.serif,
   },
   featureSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -247,7 +241,6 @@ const styles = StyleSheet.create({
   },
   durationText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     letterSpacing: Typography.letterSpacing.wide,
   },
 });

@@ -13,7 +13,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Radius, Shadows, Timing } from '@/constants/theme';
+import { Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface FluidProgressBarProps {
   progress: number; // 0-100
@@ -29,11 +30,14 @@ export function FluidProgressBar({
   progress,
   height = 8,
   showWave = true,
-  color = Colors.burnishedGold,
-  backgroundColor = Colors.goldMuted,
+  color,
+  backgroundColor,
   style,
   animated = true,
 }: FluidProgressBarProps) {
+  const { palette } = useThemeSafe();
+  const resolvedColor = color ?? palette.accent;
+  const resolvedBg = backgroundColor ?? palette.accentMuted;
   const progressWidth = useSharedValue(0);
   const waveOffset = useSharedValue(0);
   const shimmerOffset = useSharedValue(0);
@@ -94,10 +98,10 @@ export function FluidProgressBar({
   }));
 
   return (
-    <View style={[styles.container, { height, backgroundColor }, style]}>
+    <View style={[styles.container, { height, backgroundColor: resolvedBg }, style]}>
       <Animated.View style={[styles.progress, progressStyle]}>
         <LinearGradient
-          colors={[color, lightenColor(color, 20)]}
+          colors={[resolvedColor, lightenColor(resolvedColor, 20)]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradient}
@@ -106,8 +110,8 @@ export function FluidProgressBar({
         {/* Wave effect at the edge */}
         {showWave && progress > 0 && progress < 100 && (
           <Animated.View style={[styles.wave, waveStyle]}>
-            <View style={[styles.waveBubble, { backgroundColor: color }]} />
-            <View style={[styles.waveBubble, styles.waveBubbleSmall, { backgroundColor: color }]} />
+            <View style={[styles.waveBubble, { backgroundColor: resolvedColor }]} />
+            <View style={[styles.waveBubble, styles.waveBubbleSmall, { backgroundColor: resolvedColor }]} />
           </Animated.View>
         )}
 
@@ -141,12 +145,15 @@ export function FluidProgressRing({
   progress,
   size = 100,
   strokeWidth = 8,
-  color = Colors.burnishedGold,
-  backgroundColor = Colors.goldMuted,
+  color,
+  backgroundColor,
   showLabel = true,
   labelPrefix,
   style,
 }: FluidProgressRingProps) {
+  const { palette } = useThemeSafe();
+  const resolvedColor = color ?? palette.accent;
+  const resolvedBg = backgroundColor ?? palette.accentMuted;
   const progressValue = useSharedValue(0);
   const pulseScale = useSharedValue(1);
 
@@ -191,7 +198,7 @@ export function FluidProgressRing({
               height: size,
               borderRadius: size / 2,
               borderWidth: strokeWidth,
-              borderColor: backgroundColor,
+              borderColor: resolvedBg,
               borderBottomColor: 'transparent',
               borderLeftColor: 'transparent',
             },
@@ -214,7 +221,7 @@ export function FluidProgressRing({
               height: size,
               borderRadius: size / 2,
               borderWidth: strokeWidth,
-              borderColor: color,
+              borderColor: resolvedColor,
               borderBottomColor: 'transparent',
               borderLeftColor: 'transparent',
             },
@@ -226,7 +233,7 @@ export function FluidProgressRing({
       {/* Center label */}
       {showLabel && (
         <View style={[styles.ringLabel, { top: strokeWidth }]}>
-          <Animated.Text style={styles.ringLabelText}>
+          <Animated.Text style={[styles.ringLabelText, { color: palette.textPrimary }]}>
             {labelPrefix}{Math.round(progress)}%
           </Animated.Text>
         </View>
@@ -248,11 +255,14 @@ interface SegmentedProgressProps {
 export function SegmentedProgress({
   segments,
   height = 6,
-  color = Colors.burnishedGold,
-  emptyColor = Colors.goldMuted,
+  color,
+  emptyColor,
   gap = 3,
   style,
 }: SegmentedProgressProps) {
+  const { palette } = useThemeSafe();
+  const resolvedColor = color ?? palette.accent;
+  const resolvedEmpty = emptyColor ?? palette.accentMuted;
   return (
     <View style={[styles.segmentedContainer, { gap }, style]}>
       {segments.map((isComplete, index) => (
@@ -260,8 +270,8 @@ export function SegmentedProgress({
           key={index}
           isComplete={isComplete}
           height={height}
-          color={color}
-          emptyColor={emptyColor}
+          color={resolvedColor}
+          emptyColor={resolvedEmpty}
           delay={index * 50}
         />
       ))}
@@ -408,7 +418,6 @@ const styles = StyleSheet.create({
   ringLabelText: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.midnightEmerald,
   },
   segmentedContainer: {
     flexDirection: 'row',

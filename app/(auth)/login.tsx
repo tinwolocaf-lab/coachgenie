@@ -20,7 +20,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -261,11 +262,13 @@ function LoginUI({
   showGuestMode,
   onContinueAsGuest,
 }: LoginUIProps) {
+  const { palette } = useThemeSafe();
+
   // Show premium loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.loadingContainer, { backgroundColor: palette.background }]}>
           <GoldDustLoader
             message="Authenticating"
             subMessage="Preparing your coaching experience..."
@@ -277,7 +280,7 @@ function LoginUI({
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -291,20 +294,20 @@ function LoginUI({
           <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.header}>
             <View style={styles.logoContainer}>
               <LinearGradient
-                colors={[Colors.burnishedGold, Colors.goldLight]}
+                colors={[palette.accent, palette.accentLight]}
                 style={styles.logoGradient}
               >
-                <Ionicons name="sparkles" size={32} color={Colors.white} />
+                <Ionicons name="sparkles" size={32} color={palette.textInverse} />
               </LinearGradient>
             </View>
-            <Text style={styles.brandName}>Coachgenie</Text>
-            <Text style={styles.tagline}>Personal growth, elevated.</Text>
+            <Text style={[styles.brandName, { color: palette.textPrimary }]}>Coachgenie</Text>
+            <Text style={[styles.tagline, { color: palette.textTertiary }]}>Personal growth, elevated.</Text>
           </Animated.View>
 
           {/* Welcome Text */}
           <Animated.View entering={FadeIn.duration(500).delay(200)} style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>Welcome back</Text>
-            <Text style={styles.welcomeSubtitle}>
+            <Text style={[styles.welcomeTitle, { color: palette.textPrimary }]}>Welcome back</Text>
+            <Text style={[styles.welcomeSubtitle, { color: palette.textTertiary }]}>
               Continue your journey with personalized AI coaching
             </Text>
           </Animated.View>
@@ -312,33 +315,33 @@ function LoginUI({
           {/* OAuth Buttons */}
           <Animated.View entering={FadeIn.duration(500).delay(300)} style={styles.oauthSection}>
             <TouchableOpacity
-              style={styles.oauthButton}
+              style={[styles.oauthButton, { backgroundColor: palette.cardBg, borderColor: palette.border }]}
               onPress={onGoogleSignIn}
               disabled={isLoading}
               activeOpacity={0.85}
             >
-              <View style={styles.oauthIconContainer}>
-                <Ionicons name="logo-google" size={20} color={Colors.charcoal} />
+              <View style={[styles.oauthIconContainer, { backgroundColor: palette.backgroundSecondary }]}>
+                <Ionicons name="logo-google" size={20} color={palette.textSecondary} />
               </View>
-              <Text style={styles.oauthButtonText}>Continue with Google</Text>
-              <View style={styles.oauthArrow}>
-                <Ionicons name="arrow-forward" size={16} color={Colors.stoneGray} />
+              <Text style={[styles.oauthButtonText, { color: palette.textSecondary }]}>Continue with Google</Text>
+              <View style={[styles.oauthArrow, { backgroundColor: palette.backgroundSecondary }]}>
+                <Ionicons name="arrow-forward" size={16} color={palette.textTertiary} />
               </View>
             </TouchableOpacity>
 
             {Platform.OS === 'ios' && (
               <TouchableOpacity
-                style={styles.oauthButton}
+                style={[styles.oauthButton, { backgroundColor: palette.cardBg, borderColor: palette.border }]}
                 onPress={onAppleSignIn}
                 disabled={isLoading}
                 activeOpacity={0.85}
               >
-                <View style={styles.oauthIconContainer}>
-                  <Ionicons name="logo-apple" size={20} color={Colors.charcoal} />
+                <View style={[styles.oauthIconContainer, { backgroundColor: palette.backgroundSecondary }]}>
+                  <Ionicons name="logo-apple" size={20} color={palette.textSecondary} />
                 </View>
-                <Text style={styles.oauthButtonText}>Continue with Apple</Text>
-                <View style={styles.oauthArrow}>
-                  <Ionicons name="arrow-forward" size={16} color={Colors.stoneGray} />
+                <Text style={[styles.oauthButtonText, { color: palette.textSecondary }]}>Continue with Apple</Text>
+                <View style={[styles.oauthArrow, { backgroundColor: palette.backgroundSecondary }]}>
+                  <Ionicons name="arrow-forward" size={16} color={palette.textTertiary} />
                 </View>
               </TouchableOpacity>
             )}
@@ -346,21 +349,21 @@ function LoginUI({
 
           {/* Divider */}
           <Animated.View entering={FadeIn.duration(400).delay(400)} style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or sign in with email</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: palette.border }]} />
+            <Text style={[styles.dividerText, { color: palette.textTertiary }]}>or sign in with email</Text>
+            <View style={[styles.dividerLine, { backgroundColor: palette.border }]} />
           </Animated.View>
 
           {/* Email Form */}
           <Animated.View entering={FadeInDown.duration(500).delay(500)} style={styles.form}>
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={18} color={Colors.stoneGray} style={styles.inputIcon} />
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Email</Text>
+              <View style={[styles.inputContainer, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+                <Ionicons name="mail-outline" size={18} color={palette.textTertiary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: palette.textSecondary }]}
                   placeholder="your@email.com"
-                  placeholderTextColor={Colors.stoneGray}
+                  placeholderTextColor={palette.textTertiary}
                   value={email}
                   onChangeText={(value) => {
                     clearErrors();
@@ -375,13 +378,13 @@ function LoginUI({
             </View>
 
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={18} color={Colors.stoneGray} style={styles.inputIcon} />
+              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Password</Text>
+              <View style={[styles.inputContainer, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+                <Ionicons name="lock-closed-outline" size={18} color={palette.textTertiary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: palette.textSecondary }]}
                   placeholder="Enter your password"
-                  placeholderTextColor={Colors.stoneGray}
+                  placeholderTextColor={palette.textTertiary}
                   value={password}
                   onChangeText={(value) => {
                     clearErrors();
@@ -399,16 +402,16 @@ function LoginUI({
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={18}
-                    color={Colors.stoneGray}
+                    color={palette.textTertiary}
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
             {error && (
-              <Animated.View entering={FadeIn.duration(300)} style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={16} color={Colors.error} />
-                <Text style={styles.errorText}>{error}</Text>
+              <Animated.View entering={FadeIn.duration(300)} style={[styles.errorContainer, { backgroundColor: palette.errorLight }]}>
+                <Ionicons name="alert-circle" size={16} color={palette.error} />
+                <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text>
               </Animated.View>
             )}
 
@@ -425,19 +428,19 @@ function LoginUI({
 
             <Link href="/(auth)/forgot-password" asChild>
               <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+                <Text style={[styles.forgotPasswordText, { color: palette.accent }]}>Forgot your password?</Text>
               </TouchableOpacity>
             </Link>
           </Animated.View>
 
           {/* Sign Up Link */}
           <Animated.View entering={FadeIn.duration(400).delay(600)} style={styles.signUpContainer}>
-            <View style={styles.signUpDivider} />
-            <Text style={styles.signUpText}>New to Coachgenie?</Text>
+            <View style={[styles.signUpDivider, { backgroundColor: palette.border }]} />
+            <Text style={[styles.signUpText, { color: palette.textTertiary }]}>New to Coachgenie?</Text>
             <Link href="/(auth)/signup" asChild>
               <TouchableOpacity style={styles.signUpButton}>
-                <Text style={styles.signUpLink}>Create an account</Text>
-                <Ionicons name="arrow-forward" size={14} color={Colors.burnishedGold} />
+                <Text style={[styles.signUpLink, { color: palette.accent }]}>Create an account</Text>
+                <Ionicons name="arrow-forward" size={14} color={palette.accent} />
               </TouchableOpacity>
             </Link>
           </Animated.View>
@@ -446,7 +449,7 @@ function LoginUI({
           {showGuestMode && (
             <Animated.View entering={FadeIn.duration(400).delay(700)} style={styles.guestContainer}>
               <TouchableOpacity onPress={onContinueAsGuest} style={styles.guestButton}>
-                <Text style={styles.guestText}>Explore without an account</Text>
+                <Text style={[styles.guestText, { color: palette.textTertiary }]}>Explore without an account</Text>
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -459,7 +462,6 @@ function LoginUI({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   keyboardView: {
     flex: 1,
@@ -474,7 +476,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Header
@@ -496,13 +497,11 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.bold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     letterSpacing: Typography.letterSpacing.tight,
   },
   tagline: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     fontStyle: 'italic',
     marginTop: Spacing.xs,
   },
@@ -514,13 +513,11 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.xs,
   },
   welcomeSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -532,19 +529,16 @@ const styles = StyleSheet.create({
   oauthButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     ...Shadows.subtle,
   },
   oauthIconContainer: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -552,14 +546,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
     marginLeft: Spacing.md,
   },
   oauthArrow: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -573,11 +565,9 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
   },
   dividerText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     marginHorizontal: Spacing.lg,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
@@ -593,7 +583,6 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wider,
@@ -601,10 +590,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.lg,
   },
   inputIcon: {
@@ -614,7 +601,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: Spacing.lg,
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.charcoal,
   },
   passwordToggle: {
     padding: Spacing.sm,
@@ -622,7 +608,6 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.errorLight,
     padding: Spacing.md,
     borderRadius: Radius.md,
     marginBottom: Spacing.md,
@@ -630,7 +615,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: Typography.sizes.body,
-    color: Colors.error,
     flex: 1,
   },
   signInButton: {
@@ -642,7 +626,6 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: Typography.sizes.body,
-    color: Colors.burnishedGold,
     fontWeight: Typography.weights.medium,
   },
 
@@ -654,12 +637,10 @@ const styles = StyleSheet.create({
   signUpDivider: {
     width: 40,
     height: 1,
-    backgroundColor: Colors.border,
     marginBottom: Spacing.lg,
   },
   signUpText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginBottom: Spacing.sm,
   },
   signUpButton: {
@@ -671,7 +652,6 @@ const styles = StyleSheet.create({
   signUpLink: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
   },
 
   // Guest Mode
@@ -685,7 +665,6 @@ const styles = StyleSheet.create({
   },
   guestText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textDecorationLine: 'underline',
   },
 });

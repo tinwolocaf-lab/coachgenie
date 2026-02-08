@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { isOnboardingComplete } from '@/store/onboarding';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
@@ -20,6 +20,7 @@ const getAuthHook = () => {
 
 // Authenticated index - uses useAuth hook
 function AuthenticatedIndex() {
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth ? useAuth() : null;
@@ -47,8 +48,8 @@ function AuthenticatedIndex() {
   // Wait for both local state and auth state
   if (isLoading || authLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={Colors.electricIndigo} />
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
+        <ActivityIndicator size="large" color={palette.accent} />
       </View>
     );
   }
@@ -69,6 +70,7 @@ function AuthenticatedIndex() {
 
 // Guest index - no auth hook needed
 function GuestIndex() {
+  const { palette } = useThemeSafe();
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
@@ -89,8 +91,8 @@ function GuestIndex() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={Colors.electricIndigo} />
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
+        <ActivityIndicator size="large" color={palette.accent} />
       </View>
     );
   }
@@ -117,6 +119,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.offWhite,
   },
 });

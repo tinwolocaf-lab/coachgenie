@@ -16,7 +16,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Typography, Spacing, Radius } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { SessionResult, Action } from '@/types';
 
@@ -36,6 +37,7 @@ export function ActionDrawer({
   onUpdatePlan,
 }: ActionDrawerProps) {
   const insets = useSafeAreaInsets();
+  const { palette } = useThemeSafe();
   const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [checkedActions, setCheckedActions] = useState<Set<string>>(new Set());
 
@@ -63,7 +65,7 @@ export function ActionDrawer({
       <Animated.View
         entering={FadeIn.duration(200)}
         exiting={FadeOut.duration(200)}
-        style={styles.overlay}
+        style={[styles.overlay, { backgroundColor: palette.overlay }]}
       >
         <Pressable style={styles.overlayPress} onPress={onClose} />
       </Animated.View>
@@ -71,23 +73,23 @@ export function ActionDrawer({
       <Animated.View
         entering={SlideInDown.springify().damping(20)}
         exiting={SlideOutDown.duration(300)}
-        style={[styles.drawer, { paddingBottom: insets.bottom + Spacing.lg }]}
+        style={[styles.drawer, { paddingBottom: insets.bottom + Spacing.lg, backgroundColor: palette.cardBg }]}
       >
         {/* Handle */}
         <View style={styles.handleContainer}>
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: palette.border }]} />
         </View>
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Action Drawer</Text>
+          <Text style={[styles.title, { color: palette.textSecondary }]}>Action Drawer</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={Colors.slateGray} />
+            <Ionicons name="close" size={24} color={palette.textTertiary} />
           </TouchableOpacity>
         </View>
 
         {/* Tabs */}
-        <View style={styles.tabs}>
+        <View style={[styles.tabs, { borderBottomColor: palette.border }]}>
           <TabButton
             label="Summary"
             active={activeTab === 'summary'}
@@ -142,12 +144,14 @@ function TabButton({
   active: boolean;
   onPress: () => void;
 }) {
+  const { palette } = useThemeSafe();
+
   return (
     <TouchableOpacity
-      style={[styles.tab, active && styles.tabActive]}
+      style={[styles.tab, active && { borderBottomWidth: 2, borderBottomColor: palette.accent }]}
       onPress={onPress}
     >
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>
+      <Text style={[styles.tabText, { color: palette.textTertiary }, active && { color: palette.accent }]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -155,11 +159,13 @@ function TabButton({
 }
 
 function SummaryTab({ summary }: { summary?: string }) {
+  const { palette } = useThemeSafe();
+
   if (!summary) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="document-text-outline" size={40} color={Colors.slateLight} />
-        <Text style={styles.emptyText}>
+        <Ionicons name="document-text-outline" size={40} color={palette.textTertiary} />
+        <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
           Complete a session to see your summary here.
         </Text>
       </View>
@@ -168,7 +174,7 @@ function SummaryTab({ summary }: { summary?: string }) {
 
   return (
     <View>
-      <Text style={styles.summaryText}>{summary}</Text>
+      <Text style={[styles.summaryText, { color: palette.textSecondary }]}>{summary}</Text>
     </View>
   );
 }
@@ -182,11 +188,13 @@ function ActionsTab({
   checkedActions: Set<string>;
   onToggle: (id: string) => void;
 }) {
+  const { palette } = useThemeSafe();
+
   if (actions.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="checkbox-outline" size={40} color={Colors.slateLight} />
-        <Text style={styles.emptyText}>
+        <Ionicons name="checkbox-outline" size={40} color={palette.textTertiary} />
+        <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
           Your next actions from the session will appear here.
         </Text>
       </View>
@@ -206,17 +214,19 @@ function ActionsTab({
             <View
               style={[
                 styles.actionCheckbox,
-                isChecked && styles.actionCheckboxChecked,
+                { borderColor: palette.border },
+                isChecked && { backgroundColor: palette.accent, borderColor: palette.accent },
               ]}
             >
               {isChecked && (
-                <Ionicons name="checkmark" size={14} color={Colors.white} />
+                <Ionicons name="checkmark" size={14} color={palette.textInverse} />
               )}
             </View>
             <Text
               style={[
                 styles.actionText,
-                isChecked && styles.actionTextChecked,
+                { color: palette.textSecondary },
+                isChecked && { textDecorationLine: 'line-through', color: palette.textTertiary },
               ]}
             >
               {action.title}
@@ -235,18 +245,19 @@ function PlanTab({
   planUpdates?: SessionResult['plan_updates'];
   onUpdatePlan?: () => void;
 }) {
+  const { palette } = useThemeSafe();
   const hasUpdates = planUpdates && planUpdates.length > 0;
 
   return (
     <View>
       {hasUpdates ? (
         <>
-          <Text style={styles.planDescription}>
+          <Text style={[styles.planDescription, { color: palette.textTertiary }]}>
             Your coach has suggested the following updates to your plan:
           </Text>
           {planUpdates?.map((update, index) => (
-            <View key={index} style={styles.planUpdateItem}>
-              <Text style={styles.planUpdateDate}>
+            <View key={index} style={[styles.planUpdateItem, { backgroundColor: palette.backgroundSecondary }]}>
+              <Text style={[styles.planUpdateDate, { color: palette.textSecondary }]}>
                 {new Date(update.date).toLocaleDateString('en-US', {
                   weekday: 'short',
                   month: 'short',
@@ -254,7 +265,7 @@ function PlanTab({
                 })}
               </Text>
               {update.priorities?.map((priority) => (
-                <Text key={priority.id} style={styles.planUpdatePriority}>
+                <Text key={priority.id} style={[styles.planUpdatePriority, { color: palette.textTertiary }]}>
                   • {priority.title}
                 </Text>
               ))}
@@ -269,8 +280,8 @@ function PlanTab({
         </>
       ) : (
         <View style={styles.emptyState}>
-          <Ionicons name="calendar-outline" size={40} color={Colors.slateLight} />
-          <Text style={styles.emptyText}>
+          <Ionicons name="calendar-outline" size={40} color={palette.textTertiary} />
+          <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
             Plan updates from your coaching session will appear here.
           </Text>
         </View>
@@ -282,7 +293,6 @@ function PlanTab({
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.overlay,
   },
   overlayPress: {
     flex: 1,
@@ -292,7 +302,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
     borderTopLeftRadius: Radius.xxl,
     borderTopRightRadius: Radius.xxl,
     maxHeight: '70%',
@@ -305,7 +314,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
@@ -317,7 +325,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: Typography.sizes.subtitle,
     fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
   },
   closeButton: {
     padding: Spacing.xs,
@@ -326,24 +333,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   tab: {
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     marginRight: Spacing.sm,
   },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.electricIndigo,
-  },
   tabText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.slateGray,
-  },
-  tabTextActive: {
-    color: Colors.electricIndigo,
   },
   content: {
     flex: 1,
@@ -357,14 +355,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateLight,
     textAlign: 'center',
     marginTop: Spacing.md,
     lineHeight: 22,
   },
   summaryText: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateCharcoal,
     lineHeight: 24,
   },
   actionsList: {
@@ -379,34 +375,22 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: Colors.border,
     marginRight: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
   },
-  actionCheckboxChecked: {
-    backgroundColor: Colors.electricIndigo,
-    borderColor: Colors.electricIndigo,
-  },
   actionText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.slateCharcoal,
     lineHeight: 22,
-  },
-  actionTextChecked: {
-    textDecorationLine: 'line-through',
-    color: Colors.slateLight,
   },
   planDescription: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
     marginBottom: Spacing.lg,
     lineHeight: 22,
   },
   planUpdateItem: {
-    backgroundColor: Colors.inputBg,
     padding: Spacing.md,
     borderRadius: Radius.lg,
     marginBottom: Spacing.md,
@@ -414,12 +398,10 @@ const styles = StyleSheet.create({
   planUpdateDate: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
     marginBottom: Spacing.sm,
   },
   planUpdatePriority: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
     marginLeft: Spacing.sm,
     lineHeight: 22,
   },

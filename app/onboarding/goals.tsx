@@ -23,13 +23,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { Goal } from '@/types';
 import { getOnboardingState, updateGoals } from '@/store/onboarding';
 
 export default function GoalsScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [newGoalText, setNewGoalText] = useState('');
   const [focusGoalId, setFocusGoalId] = useState<string | null>(null);
@@ -98,13 +100,13 @@ export default function GoalsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       {/* Progress indicator */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <Animated.View style={[styles.progressFill, { width: '40%' }]} />
+        <View style={[styles.progressBar, { backgroundColor: palette.border }]}>
+          <Animated.View style={[styles.progressFill, { width: '40%', backgroundColor: palette.accent }]} />
         </View>
-        <Text style={styles.progressText}>2 of 5</Text>
+        <Text style={[styles.progressText, { color: palette.textTertiary }]}>2 of 5</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -119,22 +121,22 @@ export default function GoalsScreen() {
         >
           {/* Question Header */}
           <Animated.View entering={FadeInUp.duration(800)} style={styles.questionContainer}>
-            <Text style={styles.question}>What do you aspire to?</Text>
-            <Text style={styles.questionSubtitle}>
+            <Text style={[styles.question, { color: palette.textPrimary }]}>What do you aspire to?</Text>
+            <Text style={[styles.questionSubtitle, { color: palette.textTertiary }]}>
               Define your goals and mark one as your 30-day priority. This focuses your coaching sessions on what matters most.
             </Text>
           </Animated.View>
 
           {/* Input Section */}
           <Animated.View entering={FadeInUp.duration(600).delay(200)} style={styles.inputSection}>
-            <View style={styles.inputContainer}>
-              <View style={styles.inputIconContainer}>
-                <Ionicons name="flag-outline" size={20} color={Colors.burnishedGold} />
+            <View style={[styles.inputContainer, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+              <View style={[styles.inputIconContainer, { backgroundColor: palette.accentMuted }]}>
+                <Ionicons name="flag-outline" size={20} color={palette.accent} />
               </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: palette.textSecondary }]}
                 placeholder="Add a goal..."
-                placeholderTextColor={Colors.stoneGray}
+                placeholderTextColor={palette.textTertiary}
                 value={newGoalText}
                 onChangeText={setNewGoalText}
                 onSubmitEditing={addGoal}
@@ -146,10 +148,10 @@ export default function GoalsScreen() {
                 disabled={!newGoalText.trim()}
               >
                 <LinearGradient
-                  colors={newGoalText.trim() ? [Colors.burnishedGold, Colors.goldLight] : [Colors.border, Colors.border]}
+                  colors={newGoalText.trim() ? [palette.accent, palette.accentLight] : [palette.border, palette.border]}
                   style={styles.addButtonGradient}
                 >
-                  <Ionicons name="add" size={24} color={newGoalText.trim() ? Colors.white : Colors.stoneGray} />
+                  <Ionicons name="add" size={24} color={newGoalText.trim() ? palette.textInverse : palette.textTertiary} />
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -172,11 +174,11 @@ export default function GoalsScreen() {
           {/* Empty State */}
           {goals.length === 0 && (
             <Animated.View entering={FadeIn.duration(400).delay(400)} style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Ionicons name="rocket-outline" size={32} color={Colors.stoneGray} />
+              <View style={[styles.emptyIcon, { backgroundColor: palette.backgroundSecondary }]}>
+                <Ionicons name="rocket-outline" size={32} color={palette.textTertiary} />
               </View>
-              <Text style={styles.emptyTitle}>Your aspirations await</Text>
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyTitle, { color: palette.textSecondary }]}>Your aspirations await</Text>
+              <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
                 Add your goals above. They&apos;ll guide your coaching journey.
               </Text>
             </Animated.View>
@@ -185,10 +187,10 @@ export default function GoalsScreen() {
           {/* Hint */}
           {goals.length > 0 && (
             <Animated.View entering={FadeIn.duration(400)} style={styles.hintContainer}>
-              <View style={styles.hintIcon}>
-                <Ionicons name="star" size={14} color={Colors.burnishedGold} />
+              <View style={[styles.hintIcon, { backgroundColor: palette.accentMuted }]}>
+                <Ionicons name="star" size={14} color={palette.accent} />
               </View>
-              <Text style={styles.hintText}>
+              <Text style={[styles.hintText, { color: palette.textTertiary }]}>
                 Tap the star to set your 30-day priority focus
               </Text>
             </Animated.View>
@@ -229,6 +231,7 @@ function GoalCard({
   onSetFocus: () => void;
   index: number;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -251,7 +254,11 @@ function GoalCard({
       style={animatedStyle}
     >
       <TouchableOpacity
-        style={[styles.goalCard, isFocus && styles.goalCardFocus]}
+        style={[
+          styles.goalCard,
+          { backgroundColor: palette.cardBg },
+          isFocus && { borderColor: palette.accent, backgroundColor: palette.accentMuted },
+        ]}
         onPress={onSetFocus}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -259,30 +266,30 @@ function GoalCard({
       >
         {/* Focus Star */}
         <TouchableOpacity onPress={onSetFocus} style={styles.starButton}>
-          <View style={[styles.starContainer, isFocus && styles.starContainerFocus]}>
+          <View style={[styles.starContainer, { backgroundColor: palette.backgroundSecondary }, isFocus && { backgroundColor: palette.accent }]}>
             <Ionicons
               name={isFocus ? 'star' : 'star-outline'}
               size={18}
-              color={isFocus ? Colors.white : Colors.stoneGray}
+              color={isFocus ? palette.textInverse : palette.textTertiary}
             />
           </View>
         </TouchableOpacity>
 
         {/* Goal Content */}
         <View style={styles.goalContent}>
-          <Text style={[styles.goalText, isFocus && styles.goalTextFocus]} numberOfLines={2}>
+          <Text style={[styles.goalText, { color: palette.textSecondary }, isFocus && styles.goalTextFocus]} numberOfLines={2}>
             {goal.title}
           </Text>
           {isFocus && (
-            <View style={styles.focusBadge}>
-              <Text style={styles.focusBadgeText}>30-Day Focus</Text>
+            <View style={[styles.focusBadge, { backgroundColor: palette.accent }]}>
+              <Text style={[styles.focusBadgeText, { color: palette.textInverse }]}>30-Day Focus</Text>
             </View>
           )}
         </View>
 
         {/* Remove Button */}
-        <TouchableOpacity onPress={onRemove} style={styles.removeButton}>
-          <Ionicons name="close" size={18} color={Colors.stoneGray} />
+        <TouchableOpacity onPress={onRemove} style={[styles.removeButton, { backgroundColor: palette.backgroundSecondary }]}>
+          <Ionicons name="close" size={18} color={palette.textTertiary} />
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
@@ -292,7 +299,6 @@ function GoalCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
 
   // Progress
@@ -306,18 +312,15 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: Colors.border,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.burnishedGold,
     borderRadius: 2,
   },
   progressText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
     fontWeight: Typography.weights.medium,
   },
 
@@ -337,13 +340,11 @@ const styles = StyleSheet.create({
   question: {
     fontSize: Typography.sizes.display,
     fontWeight: Typography.weights.light,
-    color: Colors.midnightEmerald,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.md,
   },
   questionSubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
@@ -354,18 +355,15 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
     ...Shadows.sm,
   },
   inputIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.sm,
@@ -373,7 +371,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     paddingVertical: Spacing.md,
   },
   addButton: {
@@ -398,16 +395,11 @@ const styles = StyleSheet.create({
   goalCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
     borderRadius: Radius.squircle,
     padding: Spacing.md,
     borderWidth: 2,
     borderColor: 'transparent',
     ...Shadows.sm,
-  },
-  goalCardFocus: {
-    borderColor: Colors.burnishedGold,
-    backgroundColor: Colors.goldMuted,
   },
   starButton: {
     marginRight: Spacing.md,
@@ -416,19 +408,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  starContainerFocus: {
-    backgroundColor: Colors.burnishedGold,
   },
   goalContent: {
     flex: 1,
   },
   goalText: {
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
     lineHeight: Typography.sizes.body * Typography.lineHeights.normal,
   },
@@ -436,7 +423,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
   },
   focusBadge: {
-    backgroundColor: Colors.burnishedGold,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
@@ -446,7 +432,6 @@ const styles = StyleSheet.create({
   focusBadgeText: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     textTransform: 'uppercase',
     letterSpacing: Typography.letterSpacing.wide,
   },
@@ -454,7 +439,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Spacing.sm,
@@ -469,7 +453,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.warmOatmealDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
@@ -477,13 +460,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.charcoal,
     fontFamily: Typography.fonts.serif,
     marginBottom: Spacing.sm,
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
   },
 
@@ -499,13 +480,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.goldMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   hintText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
 
   // Footer

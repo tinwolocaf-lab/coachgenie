@@ -464,12 +464,18 @@ export default function HomeScreen() {
                 onPress={handleAccountPress}
                 activeOpacity={0.9}
               >
-                <LinearGradient
-                  colors={[palette.accent, palette.accentLight]}
-                  style={[styles.avatarGradient, { shadowColor: palette.accent }]}
-                >
-                  <Ionicons name="person" size={18} color={palette.textInverse} />
-                </LinearGradient>
+                {palette.useGradients ? (
+                  <LinearGradient
+                    colors={[palette.accent, palette.accentLight]}
+                    style={[styles.avatarGradient, { shadowColor: palette.accent }]}
+                  >
+                    <Ionicons name="person" size={18} color={palette.textInverse} />
+                  </LinearGradient>
+                ) : (
+                  <View style={[styles.avatarGradient, { backgroundColor: palette.accent, shadowColor: palette.accent }]}>
+                    <Ionicons name="person" size={18} color={palette.textInverse} />
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -615,26 +621,38 @@ export default function HomeScreen() {
               onPress={handleOpenChat}
               activeOpacity={0.95}
             >
-              <LinearGradient
-                colors={[palette.gradientStart, palette.gradientEnd]}
-                style={styles.coachGradient}
-              >
-                <View style={styles.coachContent}>
-                  <CoachIcon
-                    iconName={activeCoach.icon_name}
-                    color={palette.accent}
-                    size="md"
-                  />
-                  <View style={styles.coachInfo}>
-                    <Text style={[styles.coachLabel, { color: palette.accentLight }]}>Your Active Coach</Text>
-                    <Text style={[styles.coachName, { color: palette.textInverse }]}>{activeCoach.name}</Text>
+              {palette.useGradients ? (
+                <LinearGradient
+                  colors={[palette.gradientStart, palette.gradientEnd]}
+                  style={styles.coachGradient}
+                >
+                  <View style={styles.coachContent}>
+                    <CoachIcon iconName={activeCoach.icon_name} color={palette.accent} size="md" />
+                    <View style={styles.coachInfo}>
+                      <Text style={[styles.coachLabel, { color: palette.accentLight }]}>Your Active Coach</Text>
+                      <Text style={[styles.coachName, { color: palette.textInverse }]}>{activeCoach.name}</Text>
+                    </View>
+                    <View style={styles.resumeButton}>
+                      <Text style={[styles.resumeText, { color: palette.accent }]}>Resume</Text>
+                      <Ionicons name="arrow-forward" size={14} color={palette.accent} />
+                    </View>
                   </View>
-                  <View style={styles.resumeButton}>
-                    <Text style={[styles.resumeText, { color: palette.accent }]}>Resume</Text>
-                    <Ionicons name="arrow-forward" size={14} color={palette.accent} />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.coachGradient, { backgroundColor: palette.gradientStart }]}>
+                  <View style={styles.coachContent}>
+                    <CoachIcon iconName={activeCoach.icon_name} color={palette.accent} size="md" />
+                    <View style={styles.coachInfo}>
+                      <Text style={[styles.coachLabel, { color: palette.accentLight }]}>Your Active Coach</Text>
+                      <Text style={[styles.coachName, { color: palette.textInverse }]}>{activeCoach.name}</Text>
+                    </View>
+                    <View style={styles.resumeButton}>
+                      <Text style={[styles.resumeText, { color: palette.accent }]}>Resume</Text>
+                      <Ionicons name="arrow-forward" size={14} color={palette.accent} />
+                    </View>
                   </View>
                 </View>
-              </LinearGradient>
+              )}
             </TouchableOpacity>
           </StaggeredFadeIn>
         )}
@@ -796,60 +814,64 @@ function FeaturedRitualCard({
     opacity: interpolate(shimmerPhase.value, [0, 1], [0, 0.08]),
   }));
 
+  const cardContent = (
+    <>
+      {/* Shimmer overlay */}
+      <Animated.View style={[styles.featuredShimmer, shimmerOverlayStyle]} />
+
+      <View style={styles.featuredCardContent}>
+        <View style={[styles.featuredIconContainer, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+          <Ionicons name={ritual.icon} size={32} color={palette.textInverse} />
+        </View>
+        <View style={styles.featuredTextContainer}>
+          <Text style={[styles.featuredTitle, { color: palette.textInverse }]}>{ritual.title}</Text>
+          <Text style={[styles.featuredSubtitle, { color: `${palette.textInverse}BB` }]}>{ritual.subtitle}</Text>
+        </View>
+        {ritual.isCompleted ? (
+          <View style={styles.featuredCompletedBadge}>
+            <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
+            <Text style={styles.featuredCompletedText}>Complete</Text>
+          </View>
+        ) : (
+          <View style={styles.featuredActionRow}>
+            <View style={styles.featuredActionButton}>
+              <Text style={styles.featuredActionText}>Begin</Text>
+              <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.9)" />
+            </View>
+          </View>
+        )}
+      </View>
+
+      {palette.useGradients && (
+        <View style={styles.featuredThreadWrapper}>
+          <LinearGradient
+            colors={['transparent', 'rgba(255,255,255,0.2)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.featuredThread}
+          />
+        </View>
+      )}
+    </>
+  );
+
   return (
     <AnimatedPressable onPress={handlePress} style={cardAnimStyle}>
       <View style={[styles.featuredCard, { shadowColor: palette.shadowColor }]}>
-        <LinearGradient
-          colors={ritual.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.featuredCardGradient}
-        >
-          {/* Shimmer overlay */}
-          <Animated.View style={[styles.featuredShimmer, shimmerOverlayStyle]} />
-
-          <View style={styles.featuredCardContent}>
-            {/* Icon */}
-            <View style={[styles.featuredIconContainer, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-              <Ionicons name={ritual.icon} size={32} color={palette.textInverse} />
-            </View>
-
-            {/* Text */}
-            <View style={styles.featuredTextContainer}>
-              <Text style={[styles.featuredTitle, { color: palette.textInverse }]}>
-                {ritual.title}
-              </Text>
-              <Text style={[styles.featuredSubtitle, { color: `${palette.textInverse}BB` }]}>
-                {ritual.subtitle}
-              </Text>
-            </View>
-
-            {/* Status / Action */}
-            {ritual.isCompleted ? (
-              <View style={styles.featuredCompletedBadge}>
-                <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
-                <Text style={styles.featuredCompletedText}>Complete</Text>
-              </View>
-            ) : (
-              <View style={styles.featuredActionRow}>
-                <View style={styles.featuredActionButton}>
-                  <Text style={styles.featuredActionText}>Begin</Text>
-                  <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.9)" />
-                </View>
-              </View>
-            )}
+        {palette.useGradients ? (
+          <LinearGradient
+            colors={ritual.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.featuredCardGradient}
+          >
+            {cardContent}
+          </LinearGradient>
+        ) : (
+          <View style={[styles.featuredCardGradient, { backgroundColor: ritual.gradient[0] }]}>
+            {cardContent}
           </View>
-
-          {/* Golden Thread accent at bottom */}
-          <View style={styles.featuredThreadWrapper}>
-            <LinearGradient
-              colors={['transparent', 'rgba(255,255,255,0.2)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.featuredThread}
-            />
-          </View>
-        </LinearGradient>
+        )}
       </View>
     </AnimatedPressable>
   );

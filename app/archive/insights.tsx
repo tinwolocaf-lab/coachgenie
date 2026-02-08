@@ -22,7 +22,8 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import {
   getInsightsWithDetails,
@@ -57,6 +58,7 @@ const getAuthHook = () => {
 
 export default function InsightsGalleryScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -145,31 +147,31 @@ export default function InsightsGalleryScreen() {
   const groupedInsights = groupByMonth(filteredInsights);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { borderBottomColor: palette.borderLight, backgroundColor: palette.background }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-            <Ionicons name="chevron-back" size={24} color={Colors.midnightEmerald} />
+            <Ionicons name="chevron-back" size={24} color={palette.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Insight Gallery</Text>
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Insight Gallery</Text>
           <View style={styles.headerRight} />
         </View>
 
         {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={Colors.stoneGray} />
+        <View style={[styles.searchContainer, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}>
+          <Ionicons name="search" size={18} color={palette.textTertiary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: palette.textSecondary }]}
             placeholder="Search your wisdom..."
-            placeholderTextColor={Colors.stoneGray}
+            placeholderTextColor={palette.textTertiary}
             value={searchQuery}
             onChangeText={handleSearch}
             returnKeyType="search"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => handleSearch('')}>
-              <Ionicons name="close-circle" size={18} color={Colors.stoneGray} />
+              <Ionicons name="close-circle" size={18} color={palette.textTertiary} />
             </TouchableOpacity>
           )}
         </View>
@@ -193,7 +195,7 @@ export default function InsightsGalleryScreen() {
 
       {/* Results count */}
       <View style={styles.resultsBar}>
-        <Text style={styles.resultsText}>
+        <Text style={[styles.resultsText, { color: palette.textTertiary }]}>
           {filteredInsights.length} insight{filteredInsights.length !== 1 ? 's' : ''}
           {activeFilter !== 'all' && ` in ${activeFilter}`}
         </Text>
@@ -208,15 +210,15 @@ export default function InsightsGalleryScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.burnishedGold}
+            tintColor={palette.accent}
           />
         }
       >
         {filteredInsights.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={48} color={Colors.stoneGray} />
-            <Text style={styles.emptyTitle}>No insights found</Text>
-            <Text style={styles.emptySubtitle}>
+            <Ionicons name="search-outline" size={48} color={palette.textTertiary} />
+            <Text style={[styles.emptyTitle, { color: palette.textSecondary }]}>No insights found</Text>
+            <Text style={[styles.emptySubtitle, { color: palette.textTertiary }]}>
               {searchQuery ? 'Try a different search term' : 'Your insights will appear here'}
             </Text>
           </View>
@@ -225,7 +227,7 @@ export default function InsightsGalleryScreen() {
             <View key={monthYear} style={styles.monthGroup}>
               <Animated.Text
                 entering={FadeInDown.duration(300).delay(groupIndex * 50)}
-                style={styles.monthLabel}
+                style={[styles.monthLabel, { color: palette.accent }]}
               >
                 {monthYear}
               </Animated.Text>
@@ -258,6 +260,7 @@ function FilterPill({
   isActive: boolean;
   onPress: () => void;
 }) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
 
   const handlePress = () => {
@@ -275,16 +278,20 @@ function FilterPill({
   return (
     <Animated.View style={animatedStyle}>
       <TouchableOpacity
-        style={[styles.filterPill, isActive && styles.filterPillActive]}
+        style={[
+          styles.filterPill,
+          { backgroundColor: palette.cardBg, borderColor: palette.borderLight },
+          isActive && { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
+        ]}
         onPress={handlePress}
         activeOpacity={0.9}
       >
         <Ionicons
           name={category.icon}
           size={14}
-          color={isActive ? Colors.white : Colors.stoneGray}
+          color={isActive ? palette.textInverse : palette.textTertiary}
         />
-        <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>
+        <Text style={[styles.filterLabel, { color: palette.textTertiary }, isActive && { color: palette.textInverse }]}>
           {category.label}
         </Text>
       </TouchableOpacity>
@@ -299,6 +306,7 @@ interface InsightCardProps {
 }
 
 function InsightCard({ insight, index, onPress }: InsightCardProps) {
+  const { palette } = useThemeSafe();
   const scale = useSharedValue(0.95);
   const opacity = useSharedValue(0);
 
@@ -334,11 +342,11 @@ function InsightCard({ insight, index, onPress }: InsightCardProps) {
     strategy: '#2C1E1B',
     productivity: '#1A2A3A',
     systems: '#2A2A1A',
-    general: Colors.midnightEmerald,
+    general: palette.gradientStart,
   };
 
   return (
-    <Animated.View style={[styles.insightCard, animatedStyle]}>
+    <Animated.View style={[styles.insightCard, { backgroundColor: palette.cardBg }, animatedStyle]}>
       <TouchableOpacity activeOpacity={0.95} onPress={handlePress}>
         <View style={styles.insightContent}>
           {/* Category indicator */}
@@ -352,21 +360,21 @@ function InsightCard({ insight, index, onPress }: InsightCardProps) {
           <View style={styles.insightMain}>
             {/* Header */}
             <View style={styles.insightHeader}>
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>
+              <View style={[styles.categoryBadge, { backgroundColor: palette.accentMuted }]}>
+                <Text style={[styles.categoryText, { color: palette.accent }]}>
                   {insight.category.charAt(0).toUpperCase() + insight.category.slice(1)}
                 </Text>
               </View>
-              <Text style={styles.insightDate}>{formattedDate}</Text>
+              <Text style={[styles.insightDate, { color: palette.textTertiary }]}>{formattedDate}</Text>
             </View>
 
             {/* Title */}
-            <Text style={styles.insightTitle} numberOfLines={2}>
+            <Text style={[styles.insightTitle, { color: palette.textPrimary }]} numberOfLines={2}>
               {insight.title}
             </Text>
 
             {/* Excerpt */}
-            <Text style={styles.insightExcerpt} numberOfLines={2}>
+            <Text style={[styles.insightExcerpt, { color: palette.textTertiary }]} numberOfLines={2}>
               {insight.content}
             </Text>
 
@@ -376,12 +384,12 @@ function InsightCard({ insight, index, onPress }: InsightCardProps) {
                 <Ionicons
                   name={coach?.icon_name as keyof typeof Ionicons.glyphMap || 'person'}
                   size={12}
-                  color={Colors.stoneGray}
+                  color={palette.textTertiary}
                 />
-                <Text style={styles.coachName}>{coach?.name || 'Coach'}</Text>
+                <Text style={[styles.coachName, { color: palette.textTertiary }]}>{coach?.name || 'Coach'}</Text>
               </View>
               {insight.is_highlighted && (
-                <Ionicons name="star" size={14} color={Colors.burnishedGold} />
+                <Ionicons name="star" size={14} color={palette.accent} />
               )}
             </View>
           </View>
@@ -411,14 +419,11 @@ function groupByMonth(insights: KeyInsight[]): Record<string, KeyInsight[]> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   header: {
     paddingHorizontal: Spacing.xxl,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.warmOatmeal,
   },
   headerTop: {
     flexDirection: 'row',
@@ -437,7 +442,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
   },
   headerRight: {
     width: 40,
@@ -445,19 +449,16 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cream,
     borderRadius: Radius.lg,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.lg,
     gap: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
   searchInput: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.charcoal,
     paddingVertical: 4,
   },
   filtersContainer: {
@@ -471,21 +472,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.cream,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  filterPillActive: {
-    backgroundColor: Colors.midnightEmerald,
-    borderColor: Colors.midnightEmerald,
   },
   filterLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.stoneGray,
-  },
-  filterLabelActive: {
-    color: Colors.white,
   },
   resultsBar: {
     paddingHorizontal: Spacing.xxl,
@@ -493,7 +484,6 @@ const styles = StyleSheet.create({
   },
   resultsText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   content: {
     flex: 1,
@@ -509,12 +499,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.charcoal,
     marginTop: Spacing.lg,
   },
   emptySubtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     marginTop: Spacing.sm,
   },
   monthGroup: {
@@ -523,7 +511,6 @@ const styles = StyleSheet.create({
   monthLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
     marginBottom: Spacing.md,
@@ -532,7 +519,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   insightCard: {
-    backgroundColor: Colors.cardBg,
     borderRadius: Radius.squircle,
     overflow: 'hidden',
     ...Shadows.sm,
@@ -554,7 +540,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   categoryBadge: {
-    backgroundColor: Colors.goldMuted,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
@@ -562,23 +547,19 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: Typography.sizes.micro,
     fontWeight: Typography.weights.semibold,
-    color: Colors.burnishedGold,
     letterSpacing: Typography.letterSpacing.wide,
   },
   insightDate: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   insightTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    color: Colors.midnightEmerald,
     marginBottom: Spacing.xs,
   },
   insightExcerpt: {
     fontSize: Typography.sizes.body,
-    color: Colors.slate,
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
     marginBottom: Spacing.md,
   },
@@ -594,7 +575,6 @@ const styles = StyleSheet.create({
   },
   coachName: {
     fontSize: Typography.sizes.caption,
-    color: Colors.stoneGray,
   },
   bottomSpacer: {
     height: 100,

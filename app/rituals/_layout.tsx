@@ -1,13 +1,14 @@
 // Rituals Stack Layout
 import { Stack } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 export default function RitualsLayout() {
+  const { palette } = useThemeSafe();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: Colors.warmOatmeal },
+        contentStyle: { backgroundColor: palette.background },
         animation: 'slide_from_right',
       }}
     >

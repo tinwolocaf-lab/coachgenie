@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Typography, Spacing, Radius } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { SynthesisReport } from '@/components/archive/SynthesisReport';
 import { getMonthlySynthesis, getAllMonthlySyntheses } from '@/lib/supabase-archive';
@@ -34,6 +35,7 @@ const getAuthHook = () => {
 
 export default function SynthesisScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const useAuth = getAuthHook();
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
@@ -112,21 +114,21 @@ export default function SynthesisScreen() {
   const availableMonths = getAvailableMonths(allSyntheses);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(400)} style={[styles.header, { borderBottomColor: palette.borderLight }]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Ionicons name="close" size={24} color={Colors.midnightEmerald} />
+          <Ionicons name="close" size={24} color={palette.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Ionicons name="document-text" size={18} color={Colors.burnishedGold} />
-          <Text style={styles.headerTitle}>Synthesis Report</Text>
+          <Ionicons name="document-text" size={18} color={palette.accent} />
+          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Synthesis Report</Text>
         </View>
         <View style={styles.headerRight} />
       </Animated.View>
 
       {/* Month Navigator */}
-      <View style={styles.monthNavigator}>
+      <View style={[styles.monthNavigator, { borderBottomColor: palette.borderLight }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -137,20 +139,22 @@ export default function SynthesisScreen() {
               key={month}
               style={[
                 styles.monthPill,
-                currentMonth === month && styles.monthPillActive,
+                { backgroundColor: palette.cardBg, borderColor: palette.borderLight },
+                currentMonth === month && { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
               ]}
               onPress={() => handleMonthChange(month)}
             >
               <Text
                 style={[
                   styles.monthPillText,
-                  currentMonth === month && styles.monthPillTextActive,
+                  { color: palette.textSecondary },
+                  currentMonth === month && { color: palette.textInverse },
                 ]}
               >
                 {getMonthName(month)}
               </Text>
               {allSyntheses.some(s => s.month_year === month) && (
-                <View style={styles.hasSynthesisDot} />
+                <View style={[styles.hasSynthesisDot, { backgroundColor: palette.accent }]} />
               )}
             </TouchableOpacity>
           ))}
@@ -195,7 +199,6 @@ function getAvailableMonths(syntheses: MonthlySynthesis[]): string[] {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.warmOatmeal,
   },
   header: {
     flexDirection: 'row',
@@ -203,7 +206,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   backButton: {
     width: 40,
@@ -221,7 +223,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.midnightEmerald,
   },
   headerRight: {
     width: 40,
@@ -229,7 +230,6 @@ const styles = StyleSheet.create({
   monthNavigator: {
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   monthsContainer: {
     paddingHorizontal: Spacing.xxl,
@@ -241,28 +241,17 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.cream,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
     gap: Spacing.xs,
-  },
-  monthPillActive: {
-    backgroundColor: Colors.midnightEmerald,
-    borderColor: Colors.midnightEmerald,
   },
   monthPillText: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.charcoal,
-  },
-  monthPillTextActive: {
-    color: Colors.white,
   },
   hasSynthesisDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.burnishedGold,
   },
   content: {
     flex: 1,

@@ -11,7 +11,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
@@ -27,6 +28,7 @@ import {
 
 export default function CoachDetailScreen() {
   const router = useRouter();
+  const { palette } = useThemeSafe();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [coach, setCoach] = useState<Coach | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -135,21 +137,21 @@ export default function CoachDetailScreen() {
 
   if (!coach) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.loading}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: palette.textTertiary }]}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={Colors.electricIndigo} />
-          <Text style={styles.backText}>Back</Text>
+          <Ionicons name="chevron-back" size={24} color={palette.accent} />
+          <Text style={[styles.backText, { color: palette.accent }]}>Back</Text>
         </TouchableOpacity>
       </View>
 
@@ -163,27 +165,27 @@ export default function CoachDetailScreen() {
           style={styles.coachHeader}
         >
           <CoachIcon iconName={coach.icon_name} color={coach.color} size="lg" />
-          <Text style={styles.coachName}>{coach.name}</Text>
-          <Text style={styles.coachTagline}>{coach.tagline}</Text>
+          <Text style={[styles.coachName, { color: palette.textSecondary }]}>{coach.name}</Text>
+          <Text style={[styles.coachTagline, { color: palette.textTertiary }]}>{coach.tagline}</Text>
 
-          <View style={styles.versionBadge}>
-            <Text style={styles.versionText}>Version {coach.version}</Text>
+          <View style={[styles.versionBadge, { backgroundColor: palette.backgroundSecondary }]}>
+            <Text style={[styles.versionText, { color: palette.textTertiary }]}>Version {coach.version}</Text>
           </View>
         </Animated.View>
 
         {/* Description */}
         <Animated.View entering={FadeInUp.duration(400).delay(100)}>
           <Card style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.description}>{coach.description}</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>About</Text>
+            <Text style={[styles.description, { color: palette.textTertiary }]}>{coach.description}</Text>
           </Card>
         </Animated.View>
 
         {/* Method */}
         <Animated.View entering={FadeInUp.duration(400).delay(200)}>
           <Card style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Coaching Method</Text>
-            <Text style={styles.method}>{coach.method}</Text>
+            <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Coaching Method</Text>
+            <Text style={[styles.method, { color: palette.textTertiary }]}>{coach.method}</Text>
           </Card>
         </Animated.View>
 
@@ -200,7 +202,7 @@ export default function CoachDetailScreen() {
                 onPress={handleStartChat}
                 variant="gold"
                 fullWidth
-                icon={<Ionicons name="sparkles" size={18} color={Colors.white} />}
+                icon={<Ionicons name="sparkles" size={18} color={palette.textInverse} />}
               />
 
               {!isActive && (
@@ -215,9 +217,9 @@ export default function CoachDetailScreen() {
               )}
 
               {isActive && (
-                <View style={styles.activeBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                  <Text style={styles.activeBadgeText}>Your Primary Coach</Text>
+                <View style={[styles.activeBadge, { backgroundColor: palette.successLight }]}>
+                  <Ionicons name="checkmark-circle" size={16} color={palette.success} />
+                  <Text style={[styles.activeBadgeText, { color: palette.success }]}>Your Primary Coach</Text>
                 </View>
               )}
 
@@ -240,9 +242,9 @@ export default function CoachDetailScreen() {
                 variant="gold"
                 fullWidth
                 loading={loading}
-                icon={<Ionicons name="add-circle-outline" size={18} color={Colors.white} />}
+                icon={<Ionicons name="add-circle-outline" size={18} color={palette.textInverse} />}
               />
-              <Text style={styles.installHint}>
+              <Text style={[styles.installHint, { color: palette.textTertiary }]}>
                 Install to unlock private sessions with this coach
               </Text>
             </>
@@ -255,12 +257,12 @@ export default function CoachDetailScreen() {
           style={styles.infoFooter}
         >
           <View style={styles.infoItem}>
-            <Ionicons name="shield-checkmark" size={16} color={Colors.success} />
-            <Text style={styles.infoText}>Verified coach</Text>
+            <Ionicons name="shield-checkmark" size={16} color={palette.success} />
+            <Text style={[styles.infoText, { color: palette.textTertiary }]}>Verified coach</Text>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="lock-closed" size={16} color={Colors.slateLight} />
-            <Text style={styles.infoText}>Your data stays private</Text>
+            <Ionicons name="lock-closed" size={16} color={palette.textTertiary} />
+            <Text style={[styles.infoText, { color: palette.textTertiary }]}>Your data stays private</Text>
           </View>
         </Animated.View>
       </ScrollView>
@@ -271,7 +273,6 @@ export default function CoachDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.offWhite,
   },
   loading: {
     flex: 1,
@@ -280,7 +281,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
   },
   header: {
     paddingHorizontal: Spacing.lg,
@@ -292,7 +292,6 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.electricIndigo,
     marginLeft: Spacing.xs,
   },
   scrollContent: {
@@ -306,13 +305,11 @@ const styles = StyleSheet.create({
   coachName: {
     fontSize: Typography.sizes.headline,
     fontWeight: Typography.weights.bold,
-    color: Colors.slateCharcoal,
     marginTop: Spacing.lg,
     textAlign: 'center',
   },
   coachTagline: {
     fontSize: Typography.sizes.bodyLarge,
-    color: Colors.slateGray,
     marginTop: Spacing.sm,
     textAlign: 'center',
     lineHeight: 24,
@@ -320,14 +317,12 @@ const styles = StyleSheet.create({
   },
   versionBadge: {
     marginTop: Spacing.lg,
-    backgroundColor: Colors.inputBg,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.full,
   },
   versionText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.slateGray,
     fontWeight: Typography.weights.medium,
   },
   sectionCard: {
@@ -336,17 +331,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.subtitle,
     fontWeight: Typography.weights.semibold,
-    color: Colors.slateCharcoal,
     marginBottom: Spacing.md,
   },
   description: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
     lineHeight: 22,
   },
   method: {
     fontSize: Typography.sizes.body,
-    color: Colors.slateGray,
     lineHeight: 22,
   },
   actions: {
@@ -362,19 +354,16 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.successLight,
     borderRadius: Radius.pill,
     gap: Spacing.sm,
   },
   activeBadgeText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
-    color: Colors.success,
   },
   installHint: {
     marginTop: Spacing.lg,
     fontSize: Typography.sizes.body,
-    color: Colors.stoneGray,
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -389,7 +378,6 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.slateLight,
     marginLeft: Spacing.sm,
   },
 });

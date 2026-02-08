@@ -42,39 +42,52 @@ export function Card({
     scale.value = withSpring(1, Timing.springGentle);
   };
 
+  const borderWidthMap = { thin: 0.5, normal: 1, thick: 2 };
+  const bw = borderWidthMap[palette.borderWeight];
+  const si = palette.shadowIntensity;
+
+  const applyShadow = (shadow: ViewStyle): ViewStyle => {
+    if (si === 0) return { shadowOpacity: 0, elevation: 0 };
+    return {
+      ...shadow,
+      shadowOpacity: ((shadow.shadowOpacity as number) ?? 0.1) * si,
+      elevation: ((shadow.elevation as number) ?? 0) * si,
+    };
+  };
+
   // Dynamic variant styles based on palette
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case 'elevated':
         return {
-          ...Shadows.lg,
+          ...applyShadow(Shadows.lg),
           shadowColor: palette.shadowColor,
         };
       case 'outlined':
         return {
-          borderWidth: 1,
+          borderWidth: bw,
           borderColor: palette.border,
           ...Shadows.none,
         };
       case 'glass':
         return {
           backgroundColor: palette.glassBg,
-          borderWidth: 1,
+          borderWidth: bw,
           borderColor: palette.glassBorder,
-          ...Shadows.md,
+          ...applyShadow(Shadows.md),
           shadowColor: palette.shadowColor,
         };
       case 'gold':
         return {
-          borderWidth: 1,
+          borderWidth: bw,
           borderColor: palette.borderAccent,
-          ...Shadows.md,
+          ...applyShadow(Shadows.md),
           shadowColor: palette.accent,
         };
       default:
         return {
-          ...Shadows.sm,
-          borderWidth: 1,
+          ...applyShadow(Shadows.sm),
+          borderWidth: bw,
           borderColor: palette.borderLight,
           shadowColor: palette.shadowColor,
         };
@@ -96,7 +109,7 @@ export function Card({
 
   const cardStyles: StyleProp<ViewStyle>[] = [
     styles.card,
-    { backgroundColor: palette.cardBg },
+    { backgroundColor: palette.cardBg, borderRadius: palette.cardRadius },
     getVariantStyle(),
     getPaddingStyle(),
     style,
@@ -121,7 +134,6 @@ export function Card({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Radius.squircle,
     overflow: 'hidden',
   },
 });

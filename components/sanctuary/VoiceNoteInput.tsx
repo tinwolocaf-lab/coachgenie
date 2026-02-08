@@ -28,7 +28,8 @@ import {
   useAudioRecorder,
 } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Colors, Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 import { transcribeVoiceNote } from '@/lib/apiClient';
 
 interface VoiceNoteInputProps {
@@ -44,6 +45,7 @@ export function VoiceNoteInput({
   onCancel,
   disabled = false,
 }: VoiceNoteInputProps) {
+  const { palette } = useThemeSafe();
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [transcriptionPreview, setTranscriptionPreview] = useState('');
@@ -280,7 +282,7 @@ export function VoiceNoteInput({
     <Animated.View
       entering={SlideInRight.duration(300).springify()}
       exiting={SlideOutRight.duration(200)}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: palette.textPrimary }]}
     >
       <View style={styles.content}>
         {/* Cancel button */}
@@ -289,7 +291,7 @@ export function VoiceNoteInput({
           style={styles.cancelButton}
           disabled={recordingState === 'processing'}
         >
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={[styles.cancelText, { color: palette.accentLight }]}>Cancel</Text>
         </TouchableOpacity>
 
         {/* Recording indicator */}
@@ -301,15 +303,15 @@ export function VoiceNoteInput({
                   <WaveBar key={i} index={i} />
                 ))}
               </View>
-              <Text style={styles.durationText}>
+              <Text style={[styles.durationText, { color: palette.textInverse }]}>
                 {formatDuration(recordingDuration)}
               </Text>
             </>
           ) : (
             <View style={styles.processingBlock}>
-              <Text style={styles.processingText}>Transcribing...</Text>
+              <Text style={[styles.processingText, { color: palette.accentLight }]}>Transcribing...</Text>
               {!!transcriptionPreview && (
-                <Text style={styles.transcriptionPreview} numberOfLines={2}>
+                <Text style={[styles.transcriptionPreview, { color: palette.textInverse }]} numberOfLines={2}>
                   {transcriptionPreview}
                 </Text>
               )}
@@ -324,14 +326,14 @@ export function VoiceNoteInput({
           style={styles.recordButtonContainer}
         >
           {/* Pulse */}
-          <Animated.View style={[styles.recordButtonPulse, pulseStyle]} />
+          <Animated.View style={[styles.recordButtonPulse, { backgroundColor: palette.accent }, pulseStyle]} />
 
           {/* Button */}
-          <Animated.View style={[styles.recordButton, micStyle]}>
+          <Animated.View style={[styles.recordButton, { backgroundColor: palette.error }, micStyle]}>
             {recordingState === 'processing' ? (
-              <Ionicons name="hourglass" size={24} color={Colors.white} />
+              <Ionicons name="hourglass" size={24} color={palette.textInverse} />
             ) : (
-              <Ionicons name="stop" size={24} color={Colors.white} />
+              <Ionicons name="stop" size={24} color={palette.textInverse} />
             )}
           </Animated.View>
         </TouchableOpacity>
@@ -342,6 +344,7 @@ export function VoiceNoteInput({
 
 // Wave bar component
 function WaveBar({ index }: { index: number }) {
+  const { palette } = useThemeSafe();
   const height = useSharedValue(10);
 
   useEffect(() => {
@@ -363,7 +366,7 @@ function WaveBar({ index }: { index: number }) {
   }));
 
   return (
-    <Animated.View style={[styles.waveBar, barStyle]} />
+    <Animated.View style={[styles.waveBar, { backgroundColor: palette.accent }, barStyle]} />
   );
 }
 
@@ -374,6 +377,8 @@ interface VoiceNoteTriggerProps {
 }
 
 export function VoiceNoteTrigger({ onPress, disabled = false }: VoiceNoteTriggerProps) {
+  const { palette } = useThemeSafe();
+
   return (
     <TouchableOpacity
       onPress={() => {
@@ -381,12 +386,16 @@ export function VoiceNoteTrigger({ onPress, disabled = false }: VoiceNoteTrigger
         onPress();
       }}
       disabled={disabled}
-      style={[styles.triggerButton, disabled && styles.triggerButtonDisabled]}
+      style={[
+        styles.triggerButton,
+        { backgroundColor: palette.accentMuted },
+        disabled && { backgroundColor: palette.backgroundSecondary },
+      ]}
     >
       <Ionicons
         name="mic-outline"
         size={22}
-        color={disabled ? Colors.stoneGray : Colors.burnishedGold}
+        color={disabled ? palette.textTertiary : palette.accent}
       />
     </TouchableOpacity>
   );
@@ -398,7 +407,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.midnightEmerald,
     borderTopLeftRadius: Radius.squircle,
     borderTopRightRadius: Radius.squircle,
     ...Shadows.xl,
@@ -415,7 +423,6 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: Typography.sizes.body,
-    color: Colors.goldLight,
     fontWeight: Typography.weights.medium,
   },
   recordingIndicator: {
@@ -433,19 +440,16 @@ const styles = StyleSheet.create({
   },
   waveBar: {
     width: 3,
-    backgroundColor: Colors.burnishedGold,
     borderRadius: 2,
   },
   durationText: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.white,
     fontFamily: Typography.fonts.sans,
     minWidth: 50,
   },
   processingText: {
     fontSize: Typography.sizes.body,
-    color: Colors.goldLight,
     fontStyle: 'italic',
   },
   processingBlock: {
@@ -455,7 +459,6 @@ const styles = StyleSheet.create({
   },
   transcriptionPreview: {
     fontSize: Typography.sizes.caption,
-    color: Colors.white,
     textAlign: 'center',
   },
   recordButtonContainer: {
@@ -467,13 +470,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.burnishedGold,
   },
   recordButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.error,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.md,
@@ -486,10 +487,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.goldMuted,
-  },
-  triggerButtonDisabled: {
-    backgroundColor: Colors.warmOatmealDark,
   },
 });
 
