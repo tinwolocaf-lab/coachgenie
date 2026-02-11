@@ -55,7 +55,7 @@ Return JSON:
   ]
 }`;
 
-  let planDays: Array<{ day: string; top_3: string[]; time_blocks: unknown[]; notes: string }> = [];
+  let planDays: { day: string; top_3: string[]; time_blocks: unknown[]; notes: string }[] = [];
 
   try {
     const openRouterResponse = await openRouterChat({

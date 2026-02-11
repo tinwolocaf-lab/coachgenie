@@ -156,7 +156,7 @@ export default function VibeScreen() {
           >
             <Ionicons name="information-circle" size={16} color={palette.accent} />
             <Text style={[styles.selectionInfoText, { color: palette.textPrimary }]}>
-              You've selected {selectedVibes.length} of 3
+              {`You've selected ${selectedVibes.length} of 3`}
             </Text>
           </Animated.View>
         )}

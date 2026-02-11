@@ -15,23 +15,18 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
   FadeInUp,
-  FadeInDown,
-  SlideInDown,
-  SlideOutDown,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withRepeat,
   withSequence,
-  withSpring,
 } from 'react-native-reanimated';
-import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
@@ -47,12 +42,12 @@ import {
 } from '@/store/app';
 import { createSession, updateSessionById } from '@/lib/supabase-sanctuary';
 import { streamChat, generateArtifacts } from '@/lib/apiClient';
-import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach, canAccessFeature, SubscriptionTier } from '@/lib/feature-gates';
+import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach, canAccessFeature } from '@/lib/feature-gates';
 import { VoiceLiveSession } from '@/components/chat/VoiceLiveSession';
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { palette, subscriptionTier } = useThemeSafe();
+  const { palette } = useThemeSafe();
   const insets = useSafeAreaInsets();
   const { coachId, context } = useLocalSearchParams<{
     coachId: string;
@@ -71,7 +66,6 @@ export default function ChatScreen() {
   const [isGeneratingArtifacts, setIsGeneratingArtifacts] = useState(false);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [currentTier, setCurrentTier] = useState<SubscriptionTier>('free');
 
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useSharedValue(1);
@@ -90,11 +84,7 @@ export default function ChatScreen() {
     }
   }, [isStreaming, pulseAnim]);
 
-  useEffect(() => {
-    initializeChat();
-  }, [coachId]);
-
-  const initializeChat = async () => {
+  const initializeChat = useCallback(async () => {
     if (!coachId) return;
 
     const coachData = getCoachById(coachId);
@@ -128,7 +118,6 @@ export default function ChatScreen() {
     }
 
     // Check voice coaching availability
-    setCurrentTier(tier);
     const hasVoice = canAccessFeature(tier, 'voiceCoaching');
     setVoiceEnabled(hasVoice);
 
@@ -183,7 +172,11 @@ export default function ChatScreen() {
     };
 
     setMessages([initialMessage]);
-  };
+  }, [coachId, context, router]);
+
+  useEffect(() => {
+    initializeChat();
+  }, [initializeChat]);
 
   const handleSend = async () => {
     if (!inputText.trim() || isStreaming) return;
@@ -329,7 +322,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleEndSession = useCallback(async () => {
+  const handleEndSession = async () => {
     Alert.alert(
       'End Session',
       'Would you like to generate insights from this session?',
@@ -339,7 +332,7 @@ export default function ChatScreen() {
         { text: 'Exit', style: 'destructive', onPress: () => router.back() },
       ]
     );
-  }, [messages, coach, userContext, sessionId, router]);
+  };
 
   const handleBack = () => {
     if (messages.length > 2) {

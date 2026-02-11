@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
-  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,8 +26,6 @@ import {
   getCoachGreeting,
 } from '@/lib/onboarding';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 export default function CoachScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
@@ -37,7 +34,6 @@ export default function CoachScreen() {
   const [selectedCoachId, setSelectedCoachId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [greeting, setGreeting] = useState('');
-  const [vibes, setVibes] = useState<string[]>([]);
 
   useEffect(() => {
     loadRecommendation();
@@ -46,7 +42,6 @@ export default function CoachScreen() {
   const loadRecommendation = async () => {
     try {
       const data = await getOnboardingData();
-      setVibes(data.vibes);
 
       const vibeLabels = data.vibes.map((v) => v.replace('-', ' ').split(' ')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -118,7 +113,7 @@ export default function CoachScreen() {
               Meet your guide
             </Text>
             <Text style={[styles.subtitle, { color: palette.textTertiary }]}>
-              Based on your answers, we've matched you with the perfect coach
+              {"Based on your answers, we've matched you with the perfect coach"}
             </Text>
           </Animated.View>
 
@@ -278,7 +273,6 @@ function CoachCarousel({
   onBack,
 }: CoachCarouselProps) {
   const { palette } = useThemeSafe();
-  const carouselWidth = SCREEN_WIDTH - Spacing.xxl * 2;
 
   return (
     <Animated.View entering={FadeInUp.duration(400)} style={styles.carouselContainer}>

@@ -68,8 +68,8 @@ Session transcript:
 ${transcript}`;
 
   let summaryText = 'Session recap: Coaching session completed.';
-  let nextActions: Array<{ id: string; title: string; completed: boolean }> = [];
-  let planDays: Array<{ day: string; top_3: string[]; time_blocks: unknown[]; notes: string }> = [];
+  let nextActions: { id: string; title: string; completed: boolean }[] = [];
+  let planDays: { day: string; top_3: string[]; time_blocks: unknown[]; notes: string }[] = [];
 
   try {
     const openRouterResponse = await openRouterChat({

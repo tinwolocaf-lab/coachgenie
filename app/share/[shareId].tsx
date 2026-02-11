@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,9 @@ import {
   ActivityIndicator,
   SafeAreaView,
   TouchableOpacity,
-  Alert,
+  useColorScheme,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useColorScheme } from 'react-native';
 import { ImportCoachCard } from '@/components/coaching/ImportCoachCard';
 import { resolveShareLink, CoachConfig } from '@/lib/coachSharing';
 
@@ -24,11 +23,7 @@ export default function ShareScreen() {
   const [coachConfig, setCoachConfig] = useState<CoachConfig | null>(null);
   const [creatorId, setCreatorId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadShareData();
-  }, [shareId]);
-
-  const loadShareData = async () => {
+  const loadShareData = useCallback(async () => {
     if (!shareId) {
       setError('No share ID provided');
       setLoading(false);
@@ -50,7 +45,11 @@ export default function ShareScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [shareId]);
+
+  useEffect(() => {
+    void loadShareData();
+  }, [loadShareData]);
 
   const handleImportSuccess = (coachId: string, coachName: string) => {
     // Navigate to the coach's first chat screen

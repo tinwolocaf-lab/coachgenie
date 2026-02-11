@@ -135,6 +135,7 @@ function AuthenticatedLogin() {
       setShowPassword={setShowPassword}
       isLoading={isLoading}
       error={error}
+      onInputChange={clearErrors}
       onEmailLogin={handleEmailLogin}
       onGoogleSignIn={handleGoogleSignIn}
       onAppleSignIn={handleAppleSignIn}
@@ -199,6 +200,7 @@ function GuestLogin() {
       setShowPassword={setShowPassword}
       isLoading={isLoading}
       error={null}
+      onInputChange={() => {}}
       onEmailLogin={handleEmailLogin}
       onGoogleSignIn={handleGoogleSignIn}
       onAppleSignIn={handleAppleSignIn}
@@ -226,6 +228,7 @@ interface LoginUIProps {
   setShowPassword: (value: boolean) => void;
   isLoading: boolean;
   error: string | null;
+  onInputChange: () => void;
   onEmailLogin: () => void;
   onGoogleSignIn: () => void;
   onAppleSignIn: () => void;
@@ -242,6 +245,7 @@ function LoginUI({
   setShowPassword,
   isLoading,
   error,
+  onInputChange,
   onEmailLogin,
   onGoogleSignIn,
   onAppleSignIn,
@@ -352,7 +356,7 @@ function LoginUI({
                   placeholderTextColor={palette.textTertiary}
                   value={email}
                   onChangeText={(value) => {
-                    clearErrors();
+                    onInputChange();
                     setEmail(value);
                   }}
                   autoCapitalize="none"
@@ -373,7 +377,7 @@ function LoginUI({
                   placeholderTextColor={palette.textTertiary}
                   value={password}
                   onChangeText={(value) => {
-                    clearErrors();
+                    onInputChange();
                     setPassword(value);
                   }}
                   secureTextEntry={!showPassword}

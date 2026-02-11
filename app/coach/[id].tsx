@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -35,11 +35,7 @@ export default function CoachDetailScreen() {
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadCoach();
-  }, [id]);
-
-  const loadCoach = async () => {
+  const loadCoach = useCallback(async () => {
     if (!id) return;
 
     const coachData = getCoachById(id);
@@ -51,7 +47,11 @@ export default function CoachDetailScreen() {
 
     const activeId = await getActiveCoachId();
     setIsActive(activeId === id);
-  };
+  }, [id]);
+
+  useEffect(() => {
+    void loadCoach();
+  }, [loadCoach]);
 
   const handleInstall = async () => {
     if (!coach) return;

@@ -51,7 +51,6 @@ import {
   getDayPlan,
   getInstalledCoaches,
 } from '@/store/app';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getFlashbackInsights } from '@/lib/supabase-archive';
 import { getTodayPractice, getTimeOfDay, completeRitual, uncompleteRitual } from '@/lib/supabase-rituals';
@@ -206,38 +205,39 @@ export default function HomeScreen() {
   }, [loadData]);
 
   useEffect(() => {
-    if (auth.user) {
-      const metadata = auth.user.user_metadata || {};
-      const name = metadata.full_name || metadata.name || auth.user.email?.split('@')[0] || '';
-      setUserName(name.split(' ')[0]);
+    const user = auth.user;
+    if (!user) return;
 
-      const loadFlashback = async () => {
-        try {
-          const flashbacks = await getFlashbackInsights(auth.user.id);
-          if (flashbacks.yearAgo) {
-            setFlashbackInsight({ insight: flashbacks.yearAgo, type: 'yearAgo' });
-          } else if (flashbacks.monthAgo) {
-            setFlashbackInsight({ insight: flashbacks.monthAgo, type: 'monthAgo' });
-          }
-        } catch (error) {
-          console.log('No flashback insights available:', error);
-        }
-      };
-      loadFlashback();
+    const metadata = user.user_metadata || {};
+    const name = metadata.full_name || metadata.name || user.email?.split('@')[0] || '';
+    setUserName(name.split(' ')[0]);
 
-      const loadPractice = async () => {
-        try {
-          const practice = await getTodayPractice(auth.user.id);
-          setTodayPractice(practice);
-          if (practice.streakDays > 0) {
-            setCurrentStreak(practice.streakDays);
-          }
-        } catch (error) {
-          console.log('No practice data available:', error);
+    const loadFlashback = async () => {
+      try {
+        const flashbacks = await getFlashbackInsights(user.id);
+        if (flashbacks.yearAgo) {
+          setFlashbackInsight({ insight: flashbacks.yearAgo, type: 'yearAgo' });
+        } else if (flashbacks.monthAgo) {
+          setFlashbackInsight({ insight: flashbacks.monthAgo, type: 'monthAgo' });
         }
-      };
-      loadPractice();
-    }
+      } catch (error) {
+        console.log('No flashback insights available:', error);
+      }
+    };
+    loadFlashback();
+
+    const loadPractice = async () => {
+      try {
+        const practice = await getTodayPractice(user.id);
+        setTodayPractice(practice);
+        if (practice.streakDays > 0) {
+          setCurrentStreak(practice.streakDays);
+        }
+      } catch (error) {
+        console.log('No practice data available:', error);
+      }
+    };
+    loadPractice();
   }, [auth.user]);
 
   useEffect(() => {
@@ -611,10 +611,10 @@ export default function HomeScreen() {
                     {progressPercentage === 100
                       ? 'Perfect alignment today. Well done.'
                       : progressPercentage > 50
-                      ? 'Making great progress. Keep the momentum.'
-                      : currentStreak > 3
-                      ? `${currentStreak} day streak! Consistency is key.`
-                      : 'Start with one small action today.'}
+                        ? 'Making great progress. Keep the momentum.'
+                        : currentStreak > 3
+                          ? `${currentStreak} day streak! Consistency is key.`
+                          : 'Start with one small action today.'}
                   </Text>
                 </View>
               </View>
@@ -707,6 +707,7 @@ export default function HomeScreen() {
                 subtitle={featuredCoach.tagline}
                 description={featuredCoach.method}
                 iconName={featuredCoach.icon_name}
+                image={featuredCoach.image}
                 accentColor={featuredCoach.color}
                 badge="Premium"
                 onPress={handleFeaturedPress}

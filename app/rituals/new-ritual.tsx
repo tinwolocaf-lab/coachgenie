@@ -1,5 +1,5 @@
 // New Ritual Screen - Create a new daily ritual
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -20,12 +20,10 @@ import Animated, {
   useSharedValue,
   withSpring,
   withSequence,
-  withTiming,
 } from 'react-native-reanimated';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { createRitual, getGrowthChapters } from '@/lib/supabase-rituals';
 import { GrowthChapter } from '@/types';
@@ -64,11 +62,7 @@ export default function NewRitualScreen() {
 
   const successScale = useSharedValue(0);
 
-  useEffect(() => {
-    loadChapters();
-  }, [auth?.user?.id]);
-
-  const loadChapters = async () => {
+  const loadChapters = useCallback(async () => {
     if (!auth?.user?.id) return;
     try {
       const data = await getGrowthChapters(auth.user.id, 'active');
@@ -76,7 +70,11 @@ export default function NewRitualScreen() {
     } catch (error) {
       console.error('Error loading chapters:', error);
     }
-  };
+  }, [auth?.user?.id]);
+
+  useEffect(() => {
+    void loadChapters();
+  }, [loadChapters]);
 
   const handleCreate = async () => {
     if (!auth?.user?.id || !title.trim()) return;

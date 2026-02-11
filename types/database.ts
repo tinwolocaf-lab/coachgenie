@@ -1,7 +1,7 @@
 // Supabase Database Types for Coachgenie
 // Generated types for database tables
 
-export interface Database {
+interface RawDatabase {
   public: {
     Tables: {
       profiles: {
@@ -64,39 +64,48 @@ export interface Database {
       coaches: {
         Row: {
           id: string;
+          user_id: string | null;
           name: string;
-          tagline: string;
-          description: string;
+          tagline: string | null;
+          description: string | null;
           icon_name: string;
           color: string;
           method: string;
           version: string;
           is_public: boolean;
+          is_imported: boolean | null;
+          shared_by: string | null;
           system_prompt: string;
           created_at: string;
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           name: string;
-          tagline: string;
-          description: string;
+          tagline?: string | null;
+          description?: string | null;
           icon_name: string;
           color: string;
           method: string;
           version: string;
           is_public?: boolean;
+          is_imported?: boolean;
+          shared_by?: string | null;
           system_prompt: string;
           created_at?: string;
         };
         Update: {
+          user_id?: string | null;
           name?: string;
-          tagline?: string;
-          description?: string;
+          tagline?: string | null;
+          description?: string | null;
           icon_name?: string;
           color?: string;
           method?: string;
           version?: string;
           is_public?: boolean;
+          is_imported?: boolean;
+          shared_by?: string | null;
           system_prompt?: string;
         };
       };
@@ -751,5 +760,38 @@ export interface Database {
     Enums: Record<string, never>;
   };
 }
+
+type WithRelationships<T> = T extends {
+  Row: infer RowType;
+  Insert: infer InsertType;
+  Update: infer UpdateType;
+}
+  ? {
+      Row: RowType;
+      Insert: InsertType;
+      Update: UpdateType;
+      Relationships: [];
+    }
+  : T;
+
+type NormalizeSchema<T> = T extends {
+  Tables: infer TablesType;
+  Views: infer ViewsType;
+  Functions: infer FunctionsType;
+  Enums: infer EnumsType;
+}
+  ? {
+      Tables: {
+        [TableName in keyof TablesType]: WithRelationships<TablesType[TableName]>;
+      };
+      Views: ViewsType;
+      Functions: FunctionsType;
+      Enums: EnumsType;
+    }
+  : T;
+
+export type Database = {
+  [SchemaName in keyof RawDatabase]: NormalizeSchema<RawDatabase[SchemaName]>;
+};
 
 type Json = string | number | boolean | null | { [key: string]: Json } | Json[];

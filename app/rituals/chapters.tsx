@@ -17,7 +17,6 @@ import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
   FadeInUp,
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -27,7 +26,6 @@ import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme'
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { FluidProgressBar } from '@/components/rituals/FluidProgressBar';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getGrowthChapters,
@@ -79,8 +77,8 @@ export default function GrowthChaptersScreen() {
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    loadChapters();
-  }, [auth?.user?.id]);
+    void loadChapters();
+  }, [loadChapters]);
 
   const loadChapters = useCallback(async () => {
     if (!auth?.user?.id) return;
@@ -132,7 +130,10 @@ export default function GrowthChaptersScreen() {
 
   const handleChapterPress = (chapter: GrowthChapter) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/rituals/chapter/${chapter.id}`);
+    router.push({
+      pathname: '/rituals/chapter/[id]',
+      params: { id: chapter.id },
+    });
   };
 
   const handleSetPrimary = async (chapter: GrowthChapter) => {

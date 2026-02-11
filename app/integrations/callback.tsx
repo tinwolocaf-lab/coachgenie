@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,23 +11,25 @@ import type { IntegrationProvider } from '@/types';
 export default function IntegrationCallbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ code?: string; provider?: string; error?: string }>();
+  const { code, provider, error } = params;
   const { palette } = useThemeSafe();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    handleCallback();
-  }, []);
+  const redirectBack = useCallback(() => {
+    setTimeout(() => {
+      router.replace('/integrations');
+    }, 1500);
+  }, [router]);
 
-  const handleCallback = async () => {
-    if (params.error) {
+  const handleCallback = useCallback(async () => {
+    if (error) {
       setStatus('error');
-      setErrorMessage(params.error);
+      setErrorMessage(error);
       redirectBack();
       return;
     }
 
-    const { code, provider } = params;
     if (!code || !provider) {
       setStatus('error');
       setErrorMessage('Missing authorization code or provider');
@@ -46,13 +48,11 @@ export default function IntegrationCallbackScreen() {
     }
 
     redirectBack();
-  };
+  }, [code, error, provider, redirectBack]);
 
-  const redirectBack = () => {
-    setTimeout(() => {
-      router.replace('/integrations');
-    }, 1500);
-  };
+  useEffect(() => {
+    void handleCallback();
+  }, [handleCallback]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>

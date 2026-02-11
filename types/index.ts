@@ -47,6 +47,7 @@ export interface Coach {
   tagline: string;
   description: string;
   icon_name: string;
+  image?: any; // ImageSourcePropType - using any to avoid react-native dependency in types package if possible
   color: string;
   method: string;
   version: string;

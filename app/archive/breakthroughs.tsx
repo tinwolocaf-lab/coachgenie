@@ -28,7 +28,6 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getAllBreakthroughs } from '@/lib/supabase-archive';
 import { Breakthrough, BreakthroughAction } from '@/types';

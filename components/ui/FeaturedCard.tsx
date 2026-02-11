@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, TouchableOpacity, Image, type ImageSourcePropType } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -8,13 +7,10 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
-  Easing,
 } from 'react-native-reanimated';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { CoachIcon } from './CoachIcon';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface FeaturedCardProps {
   type: 'coach' | 'lesson' | 'insight';
@@ -22,6 +18,7 @@ interface FeaturedCardProps {
   subtitle: string;
   description?: string;
   iconName?: string;
+  image?: ImageSourcePropType;
   accentColor?: string;
   badge?: string;
   onPress: () => void;
@@ -34,6 +31,7 @@ export function FeaturedCard({
   subtitle,
   description,
   iconName,
+  image,
   accentColor,
   badge,
   onPress,
@@ -42,27 +40,13 @@ export function FeaturedCard({
   const { palette } = useThemeSafe();
   const resolvedAccentColor = accentColor ?? palette.accent;
   const opacity = useSharedValue(0);
-  const translateY = useSharedValue(40);
+  const translateY = useSharedValue(20);
   const scale = useSharedValue(1);
-  const shimmerPosition = useSharedValue(-1);
 
   useEffect(() => {
     opacity.value = withDelay(delay, withTiming(1, { duration: Timing.elegant }));
     translateY.value = withDelay(delay, withSpring(0, Timing.springGentle));
-
-    // Subtle shimmer effect
-    const shimmerLoop = () => {
-      shimmerPosition.value = withTiming(2, {
-        duration: 3000,
-        easing: Easing.inOut(Easing.cubic),
-      });
-      setTimeout(() => {
-        shimmerPosition.value = -1;
-        shimmerLoop();
-      }, 5000);
-    };
-    setTimeout(shimmerLoop, delay + 1000);
-  }, [delay, opacity, translateY, shimmerPosition]);
+  }, [delay, opacity, translateY]);
 
   const handlePressIn = () => {
     scale.value = withSpring(0.98, Timing.springBouncy);
@@ -80,35 +64,46 @@ export function FeaturedCard({
     ],
   }));
 
-  const renderTypeIcon = () => {
-    switch (type) {
-      case 'coach':
-        return iconName ? (
-          <CoachIcon iconName={iconName} color={palette.textInverse} size="xl" variant="solid" style={{ backgroundColor: resolvedAccentColor }} />
-        ) : null;
-      case 'lesson':
+  const renderIcon = () => {
+    if (type === 'coach') {
+      if (image) {
         return (
-          <View style={[styles.typeIcon, { backgroundColor: resolvedAccentColor }]}>
-            <Ionicons name="play-circle" size={40} color={palette.textInverse} />
+          <View style={styles.imageContainer}>
+            <Image
+              source={image}
+              style={styles.coachImage}
+              resizeMode="cover"
+            />
           </View>
         );
-      case 'insight':
+      }
+
+      if (iconName) {
         return (
-          <View style={[styles.typeIcon, { backgroundColor: resolvedAccentColor }]}>
-            <Ionicons name="sparkles" size={40} color={palette.textInverse} />
-          </View>
+          <CoachIcon
+            iconName={iconName}
+            color={resolvedAccentColor}
+            size="xl"
+            variant="default" // Changed from solid to default for cleaner look
+          />
         );
+      }
     }
+
+    // Fallback icons
+    const icon = type === 'lesson' ? 'play-circle' : 'sparkles';
+    return (
+      <View style={[styles.iconContainer, { backgroundColor: `${resolvedAccentColor}15` }]}>
+        <Ionicons name={icon} size={40} color={resolvedAccentColor} />
+      </View>
+    );
   };
 
   const getTypeLabel = () => {
     switch (type) {
-      case 'coach':
-        return 'Featured Coach';
-      case 'lesson':
-        return 'Recommended Lesson';
-      case 'insight':
-        return 'Daily Insight';
+      case 'coach': return 'Featured Coach';
+      case 'lesson': return 'Recommended Lesson';
+      case 'insight': return 'Daily Insight';
     }
   };
 
@@ -119,68 +114,44 @@ export function FeaturedCard({
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        style={[styles.cardContainer, { backgroundColor: palette.cardBg }]}
       >
-        <View style={styles.cardOuter}>
-          <LinearGradient
-            colors={[palette.textPrimary, '#0D1A11']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.card}
-          >
-            {/* Accent bar */}
-            <View style={[styles.accentBar, { backgroundColor: resolvedAccentColor }]} />
+        <View style={styles.content}>
+          <View style={styles.topRow}>
+            <View style={styles.typeTagContainer}>
+              <View style={[styles.typeIndicator, { backgroundColor: resolvedAccentColor }]} />
+              <Text style={[styles.typeLabel, { color: palette.textSecondary }]}>
+                {getTypeLabel()}
+              </Text>
+            </View>
 
-            {/* Badge */}
             {badge && (
-              <View style={styles.badgeContainer}>
-                <LinearGradient
-                  colors={[palette.accent, palette.accentLight]}
-                  style={styles.badge}
-                >
-                  <Ionicons name="diamond" size={10} color={palette.textInverse} />
-                  <Text style={[styles.badgeText, { color: palette.textInverse }]}>{badge}</Text>
-                </LinearGradient>
+              <View style={[styles.badge, { backgroundColor: `${palette.accent}15` }]}>
+                <Text style={[styles.badgeText, { color: palette.accent }]}>{badge}</Text>
               </View>
             )}
+          </View>
 
-            {/* Content */}
-            <View style={styles.content}>
-              {/* Header section */}
-              <View style={styles.headerSection}>
-                {renderTypeIcon()}
-                <View style={styles.headerMeta}>
-                  <Text style={[styles.typeLabel, { color: palette.accentLight }]}>{getTypeLabel()}</Text>
-                  <View style={styles.divider} />
-                </View>
-              </View>
-
-              {/* Title section */}
-              <View style={styles.titleSection}>
-                <Text style={[styles.title, { color: palette.textInverse }]}>{title}</Text>
-                <Text style={[styles.subtitle, { color: palette.accentLight }]}>{subtitle}</Text>
-                {description && (
-                  <Text style={styles.description} numberOfLines={2}>
-                    {description}
-                  </Text>
-                )}
-              </View>
-
-              {/* Action section */}
-              <View style={styles.actionSection}>
-                <View style={styles.actionButton}>
-                  <Text style={[styles.actionText, { color: palette.accent }]}>
-                    {type === 'coach' ? 'Begin Session' : type === 'lesson' ? 'Start Lesson' : 'Read More'}
-                  </Text>
-                  <Ionicons name="arrow-forward" size={16} color={palette.accent} />
-                </View>
-              </View>
+          <View style={styles.mainInfo}>
+            {renderIcon()}
+            <View style={styles.textContainer}>
+              <Text style={[styles.title, { color: palette.textPrimary }]}>{title}</Text>
+              <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
             </View>
+          </View>
 
-            {/* Decorative corner element */}
-            <View style={styles.cornerDecoration}>
-              <Ionicons name="star" size={80} color="rgba(197, 160, 89, 0.05)" />
-            </View>
-          </LinearGradient>
+          {description && (
+            <Text style={[styles.description, { color: palette.textTertiary }]} numberOfLines={2}>
+              {description}
+            </Text>
+          )}
+
+          <View style={[styles.footer, { borderTopColor: palette.borderLight }]}>
+            <Text style={[styles.actionText, { color: resolvedAccentColor }]}>
+              {type === 'coach' ? 'Begin Session' : type === 'lesson' ? 'Start Lesson' : 'Read More'}
+            </Text>
+            <Ionicons name="arrow-forward" size={16} color={resolvedAccentColor} />
+          </View>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -188,109 +159,101 @@ export function FeaturedCard({
 }
 
 const styles = StyleSheet.create({
-  cardOuter: {
-    borderRadius: Radius.squircle,
+  cardContainer: {
+    borderRadius: Radius.lg,
     overflow: 'hidden',
-    ...Shadows.xl,
-  },
-  card: {
-    minHeight: 280,
-    position: 'relative',
-  },
-  accentBar: {
-    height: 4,
-    width: '100%',
-  },
-  badgeContainer: {
-    position: 'absolute',
-    top: Spacing.lg,
-    right: Spacing.lg,
-    zIndex: 1,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.pill,
-    gap: 4,
-  },
-  badgeText: {
-    fontSize: Typography.sizes.micro,
-    fontWeight: Typography.weights.bold,
-    letterSpacing: Typography.letterSpacing.wider,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    ...Shadows.lg,
   },
   content: {
-    flex: 1,
     padding: Spacing.xl,
-    paddingTop: Spacing.xxl,
   },
-  headerSection: {
+  topRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.lg,
-  },
-  typeIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: Radius.squircle,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: Spacing.lg,
   },
-  headerMeta: {
-    flex: 1,
-    paddingTop: Spacing.sm,
+  typeTagContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  typeIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   typeLabel: {
     fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
     textTransform: 'uppercase',
-    letterSpacing: Typography.letterSpacing.widest,
-    marginBottom: Spacing.sm,
+    letterSpacing: 1,
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    width: '100%',
+  badge: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: Radius.full,
   },
-  titleSection: {
-    marginTop: Spacing.xl,
+  badgeText: {
+    fontSize: Typography.sizes.micro,
+    fontWeight: Typography.weights.bold,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  mainInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textContainer: {
+    flex: 1,
   },
   title: {
-    fontSize: Typography.sizes.headline,
+    fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
     fontFamily: Typography.fonts.serif,
-    marginBottom: Spacing.xs,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: Typography.sizes.bodyLarge,
-    lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
-    marginBottom: Spacing.sm,
+    fontSize: Typography.sizes.body,
+    lineHeight: 20,
   },
   description: {
     fontSize: Typography.sizes.body,
-    color: 'rgba(255,255,255,0.6)',
-    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
+    lineHeight: 22,
+    marginBottom: Spacing.lg,
   },
-  actionSection: {
-    marginTop: 'auto',
-    paddingTop: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-  },
-  actionButton: {
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
   },
   actionText: {
     fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.medium,
   },
-  cornerDecoration: {
-    position: 'absolute',
-    bottom: -20,
-    right: -20,
-    transform: [{ rotate: '-15deg' }],
+  imageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  coachImage: {
+    width: '100%',
+    height: '100%',
   },
 });

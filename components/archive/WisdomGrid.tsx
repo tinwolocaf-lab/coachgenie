@@ -4,8 +4,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
-  FadeIn,
-  FadeInUp,
   useAnimatedStyle,
   useSharedValue,
   withDelay,

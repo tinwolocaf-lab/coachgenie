@@ -24,7 +24,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getInsightsWithDetails,
@@ -54,7 +53,7 @@ export default function InsightsGalleryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [, setIsSearching] = useState(false);
 
   const loadInsights = useCallback(async () => {
     if (!auth.user?.id) return;

@@ -3,11 +3,11 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   ActivityIndicator,
   Alert,
   SafeAreaView,
+  useColorScheme,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -17,7 +17,6 @@ import Animated, {
   withSpring,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { useColorScheme } from 'react-native';
 import { CoachConfig, importSharedCoach } from '@/lib/coachSharing';
 
 interface ImportCoachCardProps {
@@ -48,7 +47,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
       mass: 0.8,
       overshootClamping: false,
     });
-  }, []);
+  }, [scaleValue]);
 
   const handleImportCoach = async () => {
     try {
@@ -138,8 +137,8 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
               borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
             },
             animatedStyle,
-            SlideInUp,
           ]}
+          entering={SlideInUp}
         >
           {/* Avatar */}
           <View

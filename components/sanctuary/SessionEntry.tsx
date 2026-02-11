@@ -1,5 +1,5 @@
 // Session Entry - Immersive transition animation
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -33,7 +33,6 @@ interface SessionEntryProps {
 
 export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) {
   const { palette } = useThemeSafe();
-  const [phase, setPhase] = useState<'portrait' | 'blur' | 'focus' | 'reveal'>('portrait');
 
   // Animation values
   const portraitScale = useSharedValue(0.8);
@@ -55,13 +54,12 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
     ringScale.value = withDelay(200, withSpring(1, Timing.springGentle));
 
     // Haptic feedback
-    setTimeout(() => {
+    const hapticTimer = setTimeout(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }, 300);
 
     // Phase 2: Background scales and blurs
-    setTimeout(() => {
-      setPhase('blur');
+    const blurTimer = setTimeout(() => {
       backgroundScale.value = withTiming(1.2, { duration: 1200, easing: Easing.inOut(Easing.ease) });
       portraitBlur.value = withTiming(15, { duration: 800 });
       overlayOpacity.value = withTiming(0.7, { duration: 800 });
@@ -69,25 +67,46 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
     }, 800);
 
     // Phase 3: Text appears
-    setTimeout(() => {
-      setPhase('focus');
+    const focusTimer = setTimeout(() => {
       textOpacity.value = withTiming(1, { duration: 600 });
       textTranslateY.value = withSpring(0, Timing.springGentle);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }, 1400);
 
     // Phase 4: Reveal chat
-    setTimeout(() => {
-      setPhase('reveal');
+    let completeTimer: ReturnType<typeof setTimeout> | undefined;
+    const revealTimer = setTimeout(() => {
       overlayOpacity.value = withTiming(0, { duration: 500 });
       textOpacity.value = withTiming(0, { duration: 400 });
       portraitOpacity.value = withTiming(0, { duration: 500 });
 
-      setTimeout(() => {
+      completeTimer = setTimeout(() => {
         runOnJS(onAnimationComplete)();
       }, 500);
     }, 3000);
-  }, []);
+
+    return () => {
+      clearTimeout(hapticTimer);
+      clearTimeout(blurTimer);
+      clearTimeout(focusTimer);
+      clearTimeout(revealTimer);
+      if (completeTimer) {
+        clearTimeout(completeTimer);
+      }
+    };
+  }, [
+    backgroundScale,
+    onAnimationComplete,
+    overlayOpacity,
+    particlesOpacity,
+    portraitBlur,
+    portraitOpacity,
+    portraitScale,
+    ringOpacity,
+    ringScale,
+    textOpacity,
+    textTranslateY,
+  ]);
 
   // Animated styles
   const portraitContainerStyle = useAnimatedStyle(() => ({
@@ -189,7 +208,6 @@ function GoldParticle({ index }: { index: number }) {
     const delay = index * 100;
     const duration = 2000 + Math.random() * 1000;
     const startX = (Math.random() - 0.5) * SCREEN_WIDTH * 0.8;
-    const startY = SCREEN_HEIGHT * 0.3 + Math.random() * SCREEN_HEIGHT * 0.4;
 
     setTimeout(() => {
       opacity.value = withSequence(

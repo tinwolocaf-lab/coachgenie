@@ -14,7 +14,6 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Typography, Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { SynthesisReport } from '@/components/archive/SynthesisReport';
 import { getMonthlySynthesis, getAllMonthlySyntheses } from '@/lib/supabase-archive';
 import { generateMonthlySynthesis } from '@/lib/apiClient';

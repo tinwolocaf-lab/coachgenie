@@ -29,7 +29,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing, Radius } from '@/constants/theme';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getDailyReflection,
@@ -86,8 +85,8 @@ export default function EveningAuditScreen() {
 
   // Load data
   useEffect(() => {
-    loadData();
-  }, [auth?.user?.id]);
+    void loadData();
+  }, [loadData]);
 
   useEffect(() => {
     if (auth?.user) {
@@ -169,35 +168,6 @@ export default function EveningAuditScreen() {
     if (lessons.length > 1) {
       setLessons(lessons.filter((_, i) => i !== index));
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
-  const handleGenerateClosingThought = async () => {
-    if (!auth?.user?.id) return;
-
-    setIsGeneratingResonance(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    try {
-      const filteredWins = wins.filter(w => w.trim());
-      const filteredLessons = lessons.filter(l => l.trim());
-
-      const thought = await generateClosingThought({
-        wins: filteredWins,
-        lessons: filteredLessons,
-        morningIntention,
-        ritualProgress,
-        values: userContext?.values ?? [],
-        goals: userContext?.goals.map(goal => goal.title) ?? [],
-      });
-
-      setResonanceLetter(thought);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Error generating closing thought:', error);
-      setResonanceLetter("Rest well—every effort today was a step forward.");
-    } finally {
-      setIsGeneratingResonance(false);
     }
   };
 

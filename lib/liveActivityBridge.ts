@@ -11,7 +11,7 @@
  * a clean React interface for starting, updating, and ending Live Activities.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import {
   VoiceActivityManager,
   StreakActivityManager,
@@ -332,7 +332,7 @@ export function useStreakActivity(params: UseStreakActivityParams): void {
  * ```
  */
 export function useFormattedDuration(durationSeconds: number | null): string {
-  const [formatted, setFormatted] = React.useState<string>('0:00');
+  const [formatted, setFormatted] = useState<string>('0:00');
 
   useEffect(() => {
     if (durationSeconds === null) {

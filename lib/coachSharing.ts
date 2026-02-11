@@ -159,7 +159,7 @@ export async function importSharedCoach(
     const resolved = await resolveShareLink(shareId);
 
     // Generate a unique ID if not provided
-    const finalCoachId = coachId || `coach-shared-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const finalCoachId = coachId || `coach-shared-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
     // Get the authenticated user
     const {
@@ -170,32 +170,34 @@ export async function importSharedCoach(
     }
 
     // Create the coach in the user's coaches table
-    const { data, error } = await supabase.from('coaches').insert({
-      id: finalCoachId,
-      user_id: user.id,
-      name: resolved.coachConfig.name,
-      tagline: resolved.coachConfig.tagline,
-      description: resolved.coachConfig.description,
-      icon_name: resolved.coachConfig.icon_name,
-      color: resolved.coachConfig.color,
-      method: resolved.coachConfig.method,
-      system_prompt: resolved.coachConfig.system_prompt,
-      version: '1.0.0',
-      is_public: false,
-      is_imported: true,
-      shared_by: resolved.creatorId,
-      created_at: new Date().toISOString(),
-    });
+    const { data: coach, error } = await supabase
+      .from('coaches')
+      .insert({
+        id: finalCoachId,
+        user_id: user.id,
+        name: resolved.coachConfig.name,
+        tagline: resolved.coachConfig.tagline,
+        description: resolved.coachConfig.description,
+        icon_name: resolved.coachConfig.icon_name,
+        color: resolved.coachConfig.color,
+        method: resolved.coachConfig.method,
+        system_prompt: resolved.coachConfig.system_prompt,
+        version: '1.0.0',
+        is_public: false,
+        is_imported: true,
+        shared_by: resolved.creatorId,
+        created_at: new Date().toISOString(),
+      })
+      .select('id, name, icon_name, color')
+      .single();
 
     if (error) {
       throw new Error(`Failed to import coach: ${error.message}`);
     }
 
-    if (!data || data.length === 0) {
+    if (!coach) {
       throw new Error('Failed to create coach record');
     }
-
-    const coach = data[0];
 
     return {
       id: coach.id,

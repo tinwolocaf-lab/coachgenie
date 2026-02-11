@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { Typography, Spacing, Radius, Shadows, EditorialSpacing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface PaywallBannerProps {

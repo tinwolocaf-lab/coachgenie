@@ -8,11 +8,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
-  withSequence,
-  withSpring,
   Easing,
   interpolate,
-  runOnJS,
 } from 'react-native-reanimated';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 

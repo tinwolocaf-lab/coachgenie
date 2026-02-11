@@ -600,7 +600,7 @@ export async function getArchiveStats(userId: string): Promise<ArchiveStats> {
     ]);
 
     // Calculate streaks from breakthroughs
-    const breakthroughs = (breakthroughsRes.data || []) as Array<{ id: string; date: string }>;
+    const breakthroughs = (breakthroughsRes.data || []) as { id: string; date: string }[];
     let currentStreak = 0;
     let longestStreak = 0;
     let tempStreak = 0;
@@ -646,7 +646,7 @@ export async function getArchiveStats(userId: string): Promise<ArchiveStats> {
     }
 
     // Find top coach
-    const sessions = (sessionsRes.data || []) as Array<{ id: string; coach_id: string }>;
+    const sessions = (sessionsRes.data || []) as { id: string; coach_id: string }[];
     const coachCounts: Record<string, number> = {};
     sessions.forEach(s => {
       coachCounts[s.coach_id] = (coachCounts[s.coach_id] || 0) + 1;

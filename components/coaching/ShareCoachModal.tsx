@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  useColorScheme,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
@@ -21,7 +22,6 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Coach } from '@/types';
 import { createShareLink } from '@/lib/coachSharing';
-import { useColorScheme } from 'react-native';
 
 interface ShareCoachModalProps {
   coach: Coach;
@@ -48,14 +48,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
 
   const scaleValue = useSharedValue(0);
 
-  // Generate share link on mount when modal becomes visible
-  useEffect(() => {
-    if (isVisible && !shareLink) {
-      generateShareLink();
-    }
-  }, [isVisible]);
-
-  const generateShareLink = async () => {
+  const generateShareLink = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -79,7 +72,34 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    coach.id,
+    coach.name,
+    coach.system_prompt,
+    coach.method,
+    coach.icon_name,
+    coach.color,
+    coach.tagline,
+    coach.description,
+    scaleValue,
+  ]);
+
+  useEffect(() => {
+    if (!isVisible) {
+      setShareLink(null);
+      setDeepLink(null);
+      setCopied(false);
+      setError(null);
+      scaleValue.value = 0;
+    }
+  }, [coach.id, isVisible, scaleValue]);
+
+  // Generate share link on mount when modal becomes visible
+  useEffect(() => {
+    if (isVisible && !shareLink) {
+      generateShareLink();
+    }
+  }, [generateShareLink, isVisible, shareLink]);
 
   const handleCopyLink = async () => {
     if (!shareLink) return;
@@ -91,7 +111,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
 
       // Reset copied state after 2 seconds
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to copy link to clipboard');
     }
   };
@@ -113,11 +133,11 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
     }
   };
 
-  if (!isVisible) return null;
-
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scaleValue.value }],
   }));
+
+  if (!isVisible) return null;
 
   return (
     <Animated.View
@@ -136,17 +156,13 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
       />
 
       <Animated.View
+        entering={SlideInDown.springify().damping(15).mass(1)}
         style={[
           styles.container,
           {
             backgroundColor: isDark ? '#2a2a4a' : '#ffffff',
             paddingBottom: Math.max(insets.bottom, 16),
           },
-          SlideInDown.springConfig({
-            damping: 15,
-            mass: 1,
-            overshootClamping: false,
-          }),
         ]}
       >
         {/* Header */}

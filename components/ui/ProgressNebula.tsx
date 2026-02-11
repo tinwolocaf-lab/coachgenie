@@ -11,7 +11,6 @@ import Animated, {
   withDelay,
   Easing,
   interpolate,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 

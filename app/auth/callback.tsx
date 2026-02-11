@@ -11,7 +11,7 @@ import { Typography, Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { Button } from '@/components/ui/Button';
-import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 // Custom loading component with premium styling
 function PremiumLoadingState({ message }: { message: string }) {
@@ -154,24 +154,9 @@ function PremiumErrorState({
 }
 
 export default function Callback() {
-  const { palette } = useThemeSafe();
   const router = useRouter();
   const [error, setError] = useState<{ message: string; type?: string } | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
-
-  const handleSuccess = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace('/(tabs)');
-  };
-
-  const handleError = (err: { message: string; type?: string }) => {
-    // Don't show error for browser dismissals (user cancelled)
-    if (err.type === 'BROWSER_DISMISSED') {
-      router.replace('/(auth)/login');
-      return;
-    }
-    setError(err);
-  };
 
   const handleRetry = () => {
     setIsRetrying(true);

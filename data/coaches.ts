@@ -9,6 +9,7 @@ export const SAMPLE_COACHES: Coach[] = [
     description:
       'The Daily Clarity Coach helps you cut through overwhelm and focus on what matters most. Perfect for busy professionals who need to transform chaos into actionable clarity. Each session helps you identify your single most important task and create momentum.',
     icon_name: 'clarity',
+    image: require('../assets/images/coaches/daily_clarity.png'),
     color: '#6366F1',
     method:
       'Uses a structured morning check-in approach: assess current state, identify top priority, break down into smallest next action, and set clear intentions for the day.',
@@ -32,6 +33,7 @@ Coaching style: Supportive yet focused. Guide users to their own insights rather
     description:
       'Based on Cal Newport\'s deep work principles, this coach helps you design distraction-free work blocks and protect your attention from the constant pull of shallow tasks. Ideal for knowledge workers who need to produce high-quality output.',
     icon_name: 'focus',
+    image: require('../assets/images/coaches/deep_work.png'),
     color: '#8B5CF6',
     method:
       'Implements time-boxing with structured deep work sessions. Helps identify shallow vs. deep work, plan focus blocks, and create rituals that signal deep work mode.',
@@ -54,6 +56,7 @@ Coaching style: Methodical and strategic. Push users to protect their cognitive 
     description:
       'This coach focuses on creating sustainable systems and habits rather than relying on willpower. By designing your environment and routines intelligently, you reduce decision fatigue and make success automatic.',
     icon_name: 'systems',
+    image: require('../assets/images/coaches/systems.png'),
     color: '#10B981',
     method:
       'Focuses on habit stacking, environment design, and creating standard operating procedures for recurring tasks. Emphasizes reducing friction for desired behaviors.',
@@ -76,6 +79,7 @@ Coaching style: Practical and engineering-minded. Focus on elegant, simple solut
     description:
       'For those who get lost in the weeds, this coach helps you maintain a bird\'s-eye view of your goals. Regular strategic reviews ensure your daily actions compound toward meaningful long-term outcomes.',
     icon_name: 'strategy',
+    image: require('../assets/images/coaches/strategy.png'),
     color: '#F59E0B',
     method:
       'Employs weekly/monthly reviews, goal alignment checks, and helps prioritize based on leverage and impact rather than urgency.',
@@ -98,6 +102,7 @@ Coaching style: Big-picture and philosophical, but grounded in practical actions
     description:
       'When self-doubt, imposter syndrome, or limiting beliefs hold you back, this coach helps you reframe your thinking. Based on cognitive behavioral techniques and growth mindset principles.',
     icon_name: 'mindset',
+    image: require('../assets/images/coaches/mindset.png'),
     color: '#EC4899',
     method:
       'Uses cognitive reframing, growth mindset practices, and helps identify and challenge limiting beliefs with evidence-based thinking.',

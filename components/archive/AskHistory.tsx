@@ -6,9 +6,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +13,6 @@ import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
   FadeInDown,
-  FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withSpring,

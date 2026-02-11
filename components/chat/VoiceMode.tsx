@@ -1,5 +1,5 @@
 // Voice Mode - Microphone toggle + waveform for chat (Oracle tier)
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat,
@@ -32,7 +32,6 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
   const [isActive, setIsActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pulseScale = useSharedValue(1);
   const pulseOpacity = useSharedValue(0);
 
@@ -126,7 +125,6 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
       if (recorder.isRecording) void recorder.stop().catch(() => undefined);
       void setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
     };

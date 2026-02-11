@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,8 +16,6 @@ import Animated, {
 import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -36,7 +34,7 @@ export default function WelcomeScreen() {
   }, [shimmerPosition]);
 
   const handleStart = () => {
-    router.push('/onboarding/values');
+    router.push('/onboarding/name');
   };
 
   return (

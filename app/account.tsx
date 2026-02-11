@@ -31,7 +31,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import RevenueCatUI from 'react-native-purchases-ui';
-import { checkSovereignEntitlement, restorePurchases, getUserSubscriptionTier } from '@/lib/revenuecat';
+import { getUserSubscriptionTier } from '@/lib/revenuecat';
 
 interface UserProfile {
   email: string;

@@ -34,7 +34,7 @@ export async function registerPushToken(): Promise<string | null> {
     if (isSupabaseConfigured) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const profilesTable = supabase.from('profiles' as any) as any;
         await profilesTable.update({ push_token: token }).eq('id', user.id);
       }

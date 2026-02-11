@@ -7,7 +7,6 @@ import Animated, {
   withDelay,
   withSpring,
   Easing,
-  interpolate,
 } from 'react-native-reanimated';
 import { Timing } from '@/constants/theme';
 
@@ -100,12 +99,6 @@ export function ParallaxContainer({
       {children}
     </Animated.View>
   );
-}
-
-interface ScaleOnPressProps {
-  children: React.ReactNode;
-  scale?: number;
-  style?: ViewStyle;
 }
 
 /**

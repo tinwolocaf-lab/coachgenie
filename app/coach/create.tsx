@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Typography, Spacing, Radius, EditorialSpacing, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 
 const TOTAL_STEPS = 5;
@@ -97,6 +97,7 @@ export default function CreateCoachScreen() {
     try {
       const finalPrompt = systemPrompt || generatedPrompt;
       const { error } = await supabase.from('coaches').insert({
+        user_id: auth.user.id,
         name: name.trim(),
         tagline: tagline.trim(),
         description: method.trim(),
@@ -106,9 +107,7 @@ export default function CreateCoachScreen() {
         method: method.trim(),
         version: '1.0',
         is_public: false,
-        created_by: auth.user.id,
-        is_custom: true,
-      } as any);
+      });
 
       if (error) throw error;
 

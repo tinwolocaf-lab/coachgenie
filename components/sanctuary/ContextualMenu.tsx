@@ -14,8 +14,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  FadeIn,
-  FadeOut,
   SlideInDown,
   SlideOutDown,
 } from 'react-native-reanimated';
@@ -237,7 +235,7 @@ export function ReflectFurtherModal({
           <View style={[styles.reflectOriginal, { backgroundColor: palette.backgroundSecondary }]}>
             <Text style={[styles.reflectOriginalLabel, { color: palette.textTertiary }]}>You asked about:</Text>
             <Text style={[styles.reflectOriginalText, { color: palette.textSecondary }]} numberOfLines={3}>
-              "{message.content}"
+              {`"${message.content}"`}
             </Text>
           </View>
 

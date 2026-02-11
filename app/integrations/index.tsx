@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Typography, Spacing, Radius, EditorialSpacing } from '@/constants/theme';
+import { Typography, Spacing, EditorialSpacing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { IntegrationCard } from '@/components/settings/IntegrationCard';
 import { listIntegrations, syncIntegration, disconnectIntegration } from '@/lib/integrations/api';

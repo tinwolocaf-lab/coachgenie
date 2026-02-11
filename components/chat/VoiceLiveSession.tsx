@@ -5,8 +5,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat,
-  withSequence, withTiming, withSpring, Easing,
-  FadeIn, FadeOut, SlideInDown, SlideOutDown,
+  withSequence, withTiming, Easing,
+  FadeIn, SlideInDown, SlideOutDown,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -14,7 +14,6 @@ import {
   getRecordingPermissionsAsync, requestRecordingPermissionsAsync,
   RecordingPresets, setAudioModeAsync, useAudioRecorder,
 } from 'expo-audio';
-import * as FileSystem from 'expo-file-system/legacy';
 import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import {
@@ -54,6 +53,8 @@ export function VoiceLiveSession({
   const recorder = useRef(useAudioRecorder(RecordingPresets.HIGH_QUALITY));
   const durationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptScrollRef = useRef<ScrollView>(null);
+  const aiTranscriptRef = useRef('');
+  const userTranscriptRef = useRef('');
 
   // Animations
   const pulseScale = useSharedValue(1);
@@ -79,7 +80,7 @@ export function VoiceLiveSession({
       pulseScale.value = withTiming(1, { duration: 300 });
       waveAmplitude.value = withTiming(0, { duration: 300 });
     }
-  }, [isListening]);
+  }, [isListening, pulseScale, waveAmplitude]);
 
   // Connecting spinner
   useEffect(() => {
@@ -91,7 +92,7 @@ export function VoiceLiveSession({
     } else {
       connectingRotation.value = withTiming(0, { duration: 200 });
     }
-  }, [connectionState]);
+  }, [connectionState, connectingRotation]);
 
   // Duration timer
   useEffect(() => {
@@ -112,10 +113,29 @@ export function VoiceLiveSession({
 
   // Cleanup on unmount
   useEffect(() => {
+    const liveSession = geminiSession.current;
     return () => {
-      geminiSession.current.disconnect();
+      liveSession.disconnect();
       setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
     };
+  }, []);
+
+  useEffect(() => {
+    aiTranscriptRef.current = aiTranscript;
+  }, [aiTranscript]);
+
+  useEffect(() => {
+    userTranscriptRef.current = userTranscript;
+  }, [userTranscript]);
+
+  const startAudioCapture = useCallback(async () => {
+    try {
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.current.prepareToRecordAsync();
+      recorder.current.record();
+    } catch (err) {
+      console.error('[VoiceLive] Failed to start audio capture:', err);
+    }
   }, []);
 
   const ensurePermissions = useCallback(async () => {
@@ -136,6 +156,8 @@ export function VoiceLiveSession({
     setConnectionState('connecting');
     setAiTranscript('');
     setUserTranscript('');
+    aiTranscriptRef.current = '';
+    userTranscriptRef.current = '';
     setSessionDuration(0);
 
     try {
@@ -154,9 +176,13 @@ export function VoiceLiveSession({
             // For now, we rely on transcript for feedback
           },
           onTranscript: (text, isFinal) => {
-            setAiTranscript(prev => prev + text);
+            setAiTranscript((prev) => {
+              const next = prev + text;
+              aiTranscriptRef.current = next;
+              return next;
+            });
             if (isFinal) {
-              onTranscriptUpdate?.(userTranscript, aiTranscript + text);
+              onTranscriptUpdate?.(userTranscriptRef.current, aiTranscriptRef.current);
             }
             // Auto-scroll transcript
             setTimeout(() => {
@@ -187,21 +213,12 @@ export function VoiceLiveSession({
         selectedVoice,
       );
     } catch (error) {
+      console.error('[VoiceLive] Connection failed:', error);
       setConnectionState('error');
       Alert.alert('Connection Failed', 'Could not connect to voice service. Falling back to text mode.');
       onClose();
     }
-  }, [coachId, sessionId, selectedVoice, ensurePermissions, onClose, onTranscriptUpdate, onInsightSaved]);
-
-  const startAudioCapture = useCallback(async () => {
-    try {
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.current.prepareToRecordAsync();
-      recorder.current.record();
-    } catch (err) {
-      console.error('[VoiceLive] Failed to start audio capture:', err);
-    }
-  }, []);
+  }, [coachId, sessionId, selectedVoice, ensurePermissions, onClose, onTranscriptUpdate, onInsightSaved, startAudioCapture]);
 
   const stopVoiceSession = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -212,7 +229,7 @@ export function VoiceLiveSession({
         await recorder.current.stop();
       }
       await setAudioModeAsync({ allowsRecording: false });
-    } catch (e) {
+    } catch {
       // ignore
     }
 
@@ -418,7 +435,7 @@ function WaveformBar({ index, color, isActive }: { index: number; color: string;
     } else {
       height.value = withTiming(4, { duration: 300 });
     }
-  }, [isActive]);
+  }, [height, isActive]);
 
   const barStyle = useAnimatedStyle(() => ({ height: height.value }));
 

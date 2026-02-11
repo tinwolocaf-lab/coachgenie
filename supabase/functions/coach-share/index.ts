@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { corsHeaders, handleOptions } from '../_shared/cors.ts';
-import { requireAuth } from '../_shared/auth.ts';
+import { corsHeaders, handleOptions } from '../_shared/cors';
+import { requireAuth } from '../_shared/auth';
 
 interface CoachConfig {
   name: string;
@@ -86,7 +86,7 @@ serve(async (request) => {
       }
 
       // Generate unique share_id
-      let shareId: string;
+      let shareId = '';
       let isUnique = false;
       let attempts = 0;
 
@@ -96,7 +96,7 @@ serve(async (request) => {
           .from('coach_shares')
           .select('id')
           .eq('share_id', shareId)
-          .single();
+          .maybeSingle();
 
         if (!existing) {
           isUnique = true;
@@ -104,7 +104,7 @@ serve(async (request) => {
         attempts++;
       }
 
-      if (!isUnique) {
+      if (!isUnique || !shareId) {
         return new Response('Failed to generate unique share_id', { status: 500, headers: corsHeaders });
       }
 

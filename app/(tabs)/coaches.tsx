@@ -8,10 +8,10 @@ import {
   TouchableOpacity,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -32,7 +32,6 @@ import { Coach, InstalledCoach } from '@/types';
 import { SAMPLE_COACHES, getCoachById } from '@/data/coaches';
 import { getInstalledCoaches, getActiveCoachId } from '@/store/app';
 import { canAccessCoach } from '@/lib/feature-gates';
-import type { SubscriptionTier } from '@/lib/feature-gates';
 
 // Coach categories for filtering
 const COACH_CATEGORIES = [
@@ -193,9 +192,6 @@ export default function CoachesScreen() {
           <StaggeredFadeIn index={3} baseDelay={200}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Your Coaches</Text>
-              <View style={[styles.activeBadge, { backgroundColor: palette.accent }]}>
-                <Text style={[styles.activeCount, { color: palette.textInverse }]}>{myCoaches.length}</Text>
-              </View>
             </View>
             <ScrollView
               horizontal
@@ -307,19 +303,12 @@ function ActiveCoachCard({
     scale.value = withSpring(1, Timing.springGentle);
   };
 
-  // Subtle parallax effect
-  const parallaxOffset = scrollOffset * 0.1;
-
   const containerStyle = useAnimatedStyle(() => ({
     transform: [
       { scale: scale.value },
       { translateY: translateY.value },
     ],
     opacity: opacity.value,
-  }));
-
-  const imageStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -parallaxOffset * 0.3 }],
   }));
 
   return (
@@ -331,24 +320,28 @@ function ActiveCoachCard({
         onPressOut={handlePressOut}
         activeOpacity={1}
       >
-        {/* Colored accent bar */}
-        <View style={[styles.activeAccentBar, { backgroundColor: coach.color }]} />
-
         <View style={styles.activeCoachBody}>
-          <Animated.View style={imageStyle}>
-            <CoachIcon
-              iconName={coach.icon_name}
-              color={coach.color}
-              size="md"
-              variant="default"
-            />
-          </Animated.View>
+          <View style={styles.iconContainer}>
+            {coach.image ? (
+              <View style={styles.activeCoachImageContainer}>
+                <Image
+                  source={coach.image}
+                  style={styles.activeCoachImage}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : (
+              <CoachIcon
+                iconName={coach.icon_name}
+                color={coach.color}
+                size="md"
+                variant="default"
+              />
+            )}
+          </View>
           <Text style={[styles.activeCoachName, { color: palette.textPrimary }]}>{coach.name}</Text>
           {isActive && (
-            <View style={styles.currentBadge}>
-              <View style={[styles.activeDot, { backgroundColor: palette.accent }]} />
-              <Text style={[styles.currentBadgeText, { color: palette.accent }]}>Active</Text>
-            </View>
+            <View style={[styles.activeIndicator, { backgroundColor: palette.accent }]} />
           )}
         </View>
       </TouchableOpacity>
@@ -389,9 +382,6 @@ function MasterclassCoachCard({
     scale.value = withSpring(1, Timing.springGentle);
   };
 
-  // Parallax effect for the portrait
-  const parallaxFactor = 0.15;
-
   const containerStyle = useAnimatedStyle(() => ({
     transform: [
       { scale: scale.value },
@@ -399,13 +389,6 @@ function MasterclassCoachCard({
     ],
     opacity: opacity.value,
   }));
-
-  const portraitStyle = useAnimatedStyle(() => {
-    const parallaxOffset = scrollOffset * parallaxFactor;
-    return {
-      transform: [{ translateY: -parallaxOffset }],
-    };
-  });
 
   return (
     <Animated.View style={containerStyle}>
@@ -416,56 +399,48 @@ function MasterclassCoachCard({
         onPressOut={handlePressOut}
         activeOpacity={1}
       >
-        {/* Color header strip with icon */}
-        <LinearGradient
-          colors={[coach.color, `${coach.color}CC`]}
-          style={styles.masterclassColorHeader}
-        >
-          <Animated.View style={portraitStyle}>
-            <CoachIcon
-              iconName={coach.icon_name}
-              color="#FFFFFF"
-              size="lg"
-              variant="gradient"
-            />
-          </Animated.View>
-        </LinearGradient>
+        <View style={styles.masterclassContent}>
+          <View style={styles.masterclassHeader}>
+            {coach.image ? (
+              <View style={styles.masterclassImageContainer}>
+                <Image
+                  source={coach.image}
+                  style={styles.masterclassImage}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : (
+              <CoachIcon
+                iconName={coach.icon_name}
+                color={coach.color}
+                size="lg"
+                variant="default"
+              />
+            )}
+            <View style={styles.masterclassHeaderInfo}>
+              <Text style={[styles.masterclassName, { color: palette.textPrimary }]}>{coach.name}</Text>
+              <Text style={[styles.categoryLabel, { color: palette.textTertiary }]}>
+                {COACH_CATEGORY_MAP[coach.id]?.charAt(0).toUpperCase() +
+                  COACH_CATEGORY_MAP[coach.id]?.slice(1) || 'Coaching'}
+              </Text>
+            </View>
+          </View>
 
-        {/* Body */}
-        <View style={styles.masterclassBody}>
-          <Text style={[styles.masterclassName, { color: palette.textPrimary }]}>{coach.name}</Text>
           <Text style={[styles.masterclassTagline, { color: palette.textSecondary }]}>{coach.tagline}</Text>
 
-          {/* Divider */}
-          <View style={[styles.masterclassDivider, { backgroundColor: palette.borderLight }]} />
-
-          {/* Method preview with accent bar */}
-          <View style={styles.methodPreview}>
-            <View style={[styles.methodAccentBar, { backgroundColor: coach.color }]} />
-            <Text style={[styles.methodText, { color: palette.textTertiary }]} numberOfLines={2}>
+          <View style={styles.methodContainer}>
+            <Text style={[styles.methodLabel, { color: palette.textTertiary }]}>Method:</Text>
+            <Text style={[styles.methodText, { color: palette.textSecondary }]} numberOfLines={1}>
               {coach.method}
             </Text>
           </View>
-
-          {/* Footer */}
-          <View style={styles.masterclassFooter}>
-            <Text style={[styles.categoryLabel, { color: palette.textTertiary }]}>
-              {COACH_CATEGORY_MAP[coach.id]?.charAt(0).toUpperCase() +
-               COACH_CATEGORY_MAP[coach.id]?.slice(1) || 'Coaching'}
-            </Text>
-            {isLocked ? (
-              <View style={styles.exploreButton}>
-                <Ionicons name="lock-closed" size={14} color={palette.textTertiary} />
-                <Text style={[styles.exploreText, { color: palette.textTertiary }]}>Upgrade</Text>
-              </View>
-            ) : (
-              <View style={styles.exploreButton}>
-                <Text style={[styles.exploreText, { color: coach.color }]}>Explore</Text>
-                <Ionicons name="arrow-forward" size={14} color={coach.color} />
-              </View>
-            )}
-          </View>
         </View>
+
+        {isLocked && (
+          <View style={styles.lockedOverlay}>
+            <Ionicons name="lock-closed" size={20} color={palette.textTertiary} />
+          </View>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -547,42 +522,49 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xxl,
   },
   activeCoachCard: {
-    width: 160,
+    width: 140,
     marginRight: Spacing.md,
-    borderRadius: Radius.squircle,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
     ...Shadows.sm,
-  },
-  activeAccentBar: {
-    height: 4,
-    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   activeCoachBody: {
     padding: Spacing.lg,
     alignItems: 'center',
-    minHeight: 160,
+    justifyContent: 'center',
+    minHeight: 140,
+    gap: Spacing.md,
+  },
+  iconContainer: {
+    padding: Spacing.sm,
+    borderRadius: Radius.full,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeCoachImageContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  activeCoachImage: {
+    width: '100%',
+    height: '100%',
   },
   activeCoachName: {
-    fontSize: Typography.sizes.bodyLarge,
-    fontWeight: Typography.weights.semibold,
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.medium,
     textAlign: 'center',
-    marginTop: Spacing.md,
     fontFamily: Typography.fonts.serif,
   },
-  currentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-    gap: 6,
-  },
-  activeDot: {
+  activeIndicator: {
     width: 6,
     height: 6,
     borderRadius: 3,
-  },
-  currentBadgeText: {
-    fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.semibold,
+    marginTop: 4,
   },
 
   // Masterclass Cards
@@ -591,70 +573,75 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
   },
   masterclassCard: {
-    borderRadius: Radius.squircle,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
-    ...Shadows.md,
+    ...Shadows.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  masterclassColorHeader: {
-    height: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  masterclassBody: {
+  masterclassContent: {
     padding: Spacing.xl,
   },
-  masterclassName: {
-    fontSize: Typography.sizes.headline,
-    fontWeight: Typography.weights.semibold,
-    fontFamily: Typography.fonts.serif,
-  },
-  masterclassTagline: {
-    fontSize: Typography.sizes.body,
-    marginTop: Spacing.xs,
-    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
-  },
-  masterclassDivider: {
-    height: 1,
-    width: '100%',
-    marginTop: Spacing.lg,
-  },
-  methodPreview: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: Spacing.lg,
-  },
-  methodAccentBar: {
-    width: 3,
-    alignSelf: 'stretch',
-    borderRadius: 2,
-    marginRight: Spacing.md,
-  },
-  methodText: {
-    flex: 1,
-    fontSize: Typography.sizes.body,
-    fontStyle: 'italic',
-    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
-  },
-  masterclassFooter: {
+  masterclassHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.xl,
+    gap: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  masterclassHeaderInfo: {
+    flex: 1,
+  },
+  masterclassName: {
+    fontSize: Typography.sizes.title,
+    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.serif,
+    marginBottom: 4,
   },
   categoryLabel: {
     fontSize: Typography.sizes.caption,
     textTransform: 'uppercase',
-    letterSpacing: Typography.letterSpacing.wide,
-    fontWeight: Typography.weights.semibold,
+    letterSpacing: 1,
+    fontWeight: Typography.weights.medium,
   },
-  exploreButton: {
+  masterclassTagline: {
+    fontSize: Typography.sizes.body,
+    lineHeight: 22,
+    marginBottom: Spacing.lg,
+  },
+  methodContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
   },
-  exploreText: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.semibold,
+  methodLabel: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.bold,
+  },
+  methodText: {
+    flex: 1,
+    fontSize: Typography.sizes.caption,
+    fontStyle: 'italic',
+  },
+  lockedOverlay: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    opacity: 0.5,
+  },
+  masterclassImageContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: Radius.squircle,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  masterclassImage: {
+    width: '100%',
+    height: '100%',
   },
 
   // Empty state

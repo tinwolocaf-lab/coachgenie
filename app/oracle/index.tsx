@@ -35,7 +35,6 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useFocusMode } from '@/contexts/FocusModeContext';
 import { Message, ContextVault } from '@/types';
 import { getContextVault } from '@/store/app';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { generateOracleResponse, getOracleGreeting } from '@/lib/ai-oracle';
 import { TranscriptEntry } from '@/components/oracle/TranscriptEntry';
@@ -111,7 +110,7 @@ export default function OracleScreen() {
       runOnJS(startSession)();
     });
     headerOpacity.value = withTiming(1, { duration: 800 });
-  }, [entranceOpacity, headerOpacity]);
+  }, [entranceOpacity, headerOpacity, startSession]);
 
   const startSession = useCallback(() => {
     setSessionStarted(true);

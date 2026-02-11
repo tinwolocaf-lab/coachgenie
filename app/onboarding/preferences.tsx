@@ -26,7 +26,6 @@ import { Preferences } from '@/types';
 import { getOnboardingState, updatePreferences } from '@/store/onboarding';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_SIZE = SCREEN_WIDTH - Spacing.xxl * 2;
 
 // 2D Style Grid positions
 const STYLE_POSITIONS = [
@@ -161,7 +160,11 @@ export default function PreferencesScreen() {
               style={styles.selectedStyleGradient}
             >
               <View style={styles.selectedStyleIcon}>
-                <Ionicons name={selectedStyle?.icon as any || 'scale-outline'} size={24} color={palette.accent} />
+                <Ionicons
+                  name={(selectedStyle?.icon ?? 'scale-outline') as keyof typeof Ionicons.glyphMap}
+                  size={24}
+                  color={palette.accent}
+                />
               </View>
               <View style={styles.selectedStyleInfo}>
                 <Text style={styles.selectedStyleLabel}>Your Style</Text>
@@ -276,11 +279,11 @@ function StyleGridCell({
             colors={[palette.accent, palette.accentLight]}
             style={styles.gridCellGradient}
           >
-            <Ionicons name={position.icon as any} size={22} color={palette.textInverse} />
+            <Ionicons name={position.icon as keyof typeof Ionicons.glyphMap} size={22} color={palette.textInverse} />
           </LinearGradient>
         ) : (
           <View style={styles.gridCellContent}>
-            <Ionicons name={position.icon as any} size={22} color={palette.textTertiary} />
+            <Ionicons name={position.icon as keyof typeof Ionicons.glyphMap} size={22} color={palette.textTertiary} />
           </View>
         )}
       </TouchableOpacity>

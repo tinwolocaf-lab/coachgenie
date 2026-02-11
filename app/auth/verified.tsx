@@ -24,7 +24,6 @@ import * as Haptics from 'expo-haptics';
 import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

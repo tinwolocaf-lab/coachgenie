@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -18,7 +17,6 @@ import Animated, {
   useSharedValue,
   withTiming,
   Easing,
-  useAnimatedStyle,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -26,8 +24,6 @@ import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { saveOnboardingData } from '@/lib/onboarding';
-
-const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 export default function NameScreen() {
   const router = useRouter();
@@ -186,7 +182,7 @@ export default function NameScreen() {
             >
               <Ionicons name="information-circle" size={16} color={palette.accent} />
               <Text style={[styles.hintText, { color: palette.textPrimary }]}>
-                I'll use your name to personalize your coaching experience
+                {"I'll use your name to personalize your coaching experience"}
               </Text>
             </View>
           </Animated.View>

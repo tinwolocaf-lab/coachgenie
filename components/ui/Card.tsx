@@ -5,7 +5,7 @@ import Animated, {
   withSpring,
   useSharedValue,
 } from 'react-native-reanimated';
-import { Radius, Spacing, Shadows, Timing } from '@/constants/theme';
+import { Spacing, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface CardProps {

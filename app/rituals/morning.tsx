@@ -27,7 +27,6 @@ import Animated, {
 import { Typography, Spacing, Radius, Timing, EditorialSpacing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { InkText } from '@/components/ui/InkText';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getDailyReflection,
@@ -42,6 +41,20 @@ import { VoiceMode } from '@/components/chat/VoiceMode';
 
 // Phases of the Morning Intention ritual
 type RitualPhase = 'opening' | 'intention' | 'muse' | 'complete';
+
+async function generateDailyMuse(
+  intention: string,
+  context: ContextVault | null,
+  chapter: GrowthChapter | null
+): Promise<string> {
+  const focusGoal = context?.goals.find((goal) => goal.is_30_day_focus) || context?.goals[0];
+  const chapterLine = chapter ? `Keep ${chapter.title} as your north star.` : 'Stay aligned with what matters most today.';
+  const focusLine = focusGoal
+    ? `Let this intention move "${focusGoal.title}" forward in one clear way.`
+    : 'Choose one specific action that proves this intention is real.';
+
+  return `${intention.trim()}. ${focusLine} ${chapterLine}`;
+}
 
 export default function MorningIntentionScreen() {
   const router = useRouter();
@@ -70,8 +83,8 @@ export default function MorningIntentionScreen() {
 
   // Load data on mount
   useEffect(() => {
-    loadData();
-  }, [auth?.user?.id]);
+    void loadData();
+  }, [loadData]);
 
   const loadData = useCallback(async () => {
     if (!auth?.user?.id) return;
@@ -103,45 +116,7 @@ export default function MorningIntentionScreen() {
     }
   }, [auth?.user?.id, intentionOpacity]);
 
-  // Opening animation sequence
-  useEffect(() => {
-    if (phase === 'opening') {
-      // Fade in the opening text
-      openingOpacity.value = withDelay(
-        400,
-        withTiming(1, {
-          duration: 1200,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-        })
-      );
-      openingScale.value = withDelay(
-        400,
-        withTiming(1, {
-          duration: 1500,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-        })
-      );
-
-      // Subtle haptic on opening
-      const timer1 = setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }, 600);
-
-      // Transition to intention phase after opening
-      const timer2 = setTimeout(() => {
-        if (!existingReflection) {
-          transitionToIntention();
-        }
-      }, 3500);
-
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
-    }
-  }, [phase, existingReflection]);
-
-  const transitionToIntention = () => {
+  const transitionToIntention = useCallback(() => {
     // Fade out opening
     openingOpacity.value = withTiming(0, {
       duration: 600,
@@ -163,7 +138,45 @@ export default function MorningIntentionScreen() {
         inputRef.current?.focus();
       }, 900);
     }, 700);
-  };
+  }, [intentionOpacity, openingOpacity]);
+
+  // Opening animation sequence
+  useEffect(() => {
+    if (phase !== 'opening') return undefined;
+
+    // Fade in the opening text
+    openingOpacity.value = withDelay(
+      400,
+      withTiming(1, {
+        duration: 1200,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      })
+    );
+    openingScale.value = withDelay(
+      400,
+      withTiming(1, {
+        duration: 1500,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      })
+    );
+
+    // Subtle haptic on opening
+    const timer1 = setTimeout(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, 600);
+
+    // Transition to intention phase after opening
+    const timer2 = setTimeout(() => {
+      if (!existingReflection) {
+        transitionToIntention();
+      }
+    }, 3500);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, [existingReflection, openingOpacity, openingScale, phase, transitionToIntention]);
 
   const handleSetIntention = async () => {
     if (!intention.trim() || !auth?.user?.id) return;
@@ -209,6 +222,7 @@ export default function MorningIntentionScreen() {
       }
     } catch (error) {
       console.error('Error saving morning intention:', error);
+    } finally {
       setIsSaving(false);
     }
   };

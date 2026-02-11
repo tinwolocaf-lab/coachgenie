@@ -52,7 +52,7 @@ export function useConditionalAuth() {
   // If real auth is available and Supabase is configured, use it
   if (realUseAuth && isSupabaseConfigured) {
     try {
-      // eslint-disable-next-line react-hooks/rules-of-hooks
+       
       return realUseAuth();
     } catch {
       // Fall through to fallback
@@ -90,6 +90,6 @@ export function useConditionalAuth() {
  * This is the preferred hook for most screens.
  */
 export function useAuthSafe() {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+   
   return useConditionalAuth();
 }

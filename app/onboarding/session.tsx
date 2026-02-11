@@ -12,18 +12,16 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
-  FadeIn,
   FadeInUp,
-  useSharedValue,
-  withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { SAMPLE_COACHES } from '@/data/coaches';
+import { Coach } from '@/types';
 import {
   getOnboardingData,
   completeNewOnboarding,
@@ -72,11 +70,10 @@ export default function FirstSessionScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [coachInfo, setCoachInfo] = useState<any>(null);
+  const [coachInfo, setCoachInfo] = useState<Coach | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [exchangeCount, setExchangeCount] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
-  const opacityValue = useSharedValue(0);
 
   useEffect(() => {
     loadCoachAndStartSession();
@@ -247,7 +244,7 @@ export default function FirstSessionScreen() {
                 message.role === 'coach' && styles.coachMessageRow,
               ]}
             >
-              <ChatBubble message={message} coach={coachInfo} />
+              <ChatBubble message={message} />
             </Animated.View>
           ))}
 
@@ -270,7 +267,7 @@ export default function FirstSessionScreen() {
                   style={styles.completionIcon}
                 />
                 <Text style={[styles.completionText, { color: palette.textPrimary }]}>
-                  Great start! You've laid the foundation for meaningful growth. Let's continue this conversation when you're ready.
+                  {"Great start! You've laid the foundation for meaningful growth. Let's continue this conversation when you're ready."}
                 </Text>
               </View>
             </Animated.View>
@@ -338,10 +335,9 @@ export default function FirstSessionScreen() {
 
 interface ChatBubbleProps {
   message: ChatMessage;
-  coach: any;
 }
 
-function ChatBubble({ message, coach }: ChatBubbleProps) {
+function ChatBubble({ message }: ChatBubbleProps) {
   const { palette } = useThemeSafe();
   const isCoach = message.role === 'coach';
 

@@ -194,7 +194,7 @@ export default function InsightsDashboardScreen() {
 
   const maxCat = Math.max(...(data?.categories.map((c) => c.count) || [1]), 1);
   const maxCoach = Math.max(...(data?.coaches.map((c) => c.sessionCount) || [1]), 1);
-  const trendIcons: Array<'trending-up' | 'remove-outline'> = ['trending-up', 'remove-outline', 'trending-up', 'trending-up', 'remove-outline'];
+  const trendIcons: ('trending-up' | 'remove-outline')[] = ['trending-up', 'remove-outline', 'trending-up', 'trending-up', 'remove-outline'];
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>

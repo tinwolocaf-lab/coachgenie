@@ -11,11 +11,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
-import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Typography, Spacing, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
-import { getOfferings } from '@/lib/revenuecat';
-import { getUserSubscriptionTier } from '@/lib/revenuecat';
+import { getOfferings , getUserSubscriptionTier } from '@/lib/revenuecat';
 import Purchases from 'react-native-purchases';
 import {
   completeOnboarding,
@@ -91,8 +90,14 @@ export default function TrialScreen() {
         setSubscriptionTier(tier);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-    } catch (error: any) {
-      if (!error?.userCancelled) {
+    } catch (error: unknown) {
+      const userCancelled = Boolean(
+        error &&
+          typeof error === 'object' &&
+          'userCancelled' in error &&
+          (error as { userCancelled?: boolean }).userCancelled
+      );
+      if (!userCancelled) {
         console.error('[Trial] Purchase error:', error);
       }
     } finally {

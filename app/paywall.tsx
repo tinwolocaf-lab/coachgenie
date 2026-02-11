@@ -8,15 +8,13 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
-import { getOfferings, restorePurchases } from '@/lib/revenuecat';
-import { getUserSubscriptionTier } from '@/lib/revenuecat';
+import { getOfferings, restorePurchases , getUserSubscriptionTier } from '@/lib/revenuecat';
 import type { SubscriptionTier } from '@/lib/feature-gates';
 import Purchases from 'react-native-purchases';
 
@@ -127,8 +125,14 @@ export default function PaywallScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.back();
       }
-    } catch (error: any) {
-      if (error?.userCancelled) {
+    } catch (error: unknown) {
+      const userCancelled = Boolean(
+        error &&
+          typeof error === 'object' &&
+          'userCancelled' in error &&
+          (error as { userCancelled?: boolean }).userCancelled
+      );
+      if (userCancelled) {
         // User cancelled - do nothing
       } else {
         console.error('[Paywall] Purchase error:', error);

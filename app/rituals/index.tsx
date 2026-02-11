@@ -24,13 +24,11 @@ import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Card } from '@/components/ui/Card';
 import { RitualCard, ActionCard } from '@/components/rituals/RitualCard';
-import { FluidProgressBar, SegmentedProgress } from '@/components/rituals/FluidProgressBar';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { FluidProgressBar } from '@/components/rituals/FluidProgressBar';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getTodayPractice,
   getTimeOfDay,
-  getTodayDate,
   completeRitual,
   uncompleteRitual,
   getOverallConsistency,
@@ -40,9 +38,7 @@ import { getContextVault } from '@/store/app';
 import {
   TodayPractice,
   TimeOfDay,
-  RitualWithStatus,
   EditorialNudge,
-  ContextVault,
 } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -55,7 +51,6 @@ export default function RitualsHubScreen() {
   const [practice, setPractice] = useState<TodayPractice | null>(null);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay());
   const [morningPrompt, setMorningPrompt] = useState<string>('');
-  const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [consistency, setConsistency] = useState<{
     currentStreak: number;
     longestStreak: number;
@@ -65,15 +60,6 @@ export default function RitualsHubScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Load data
-  useEffect(() => {
-    loadData();
-    // Update time of day periodically
-    const interval = setInterval(() => {
-      setTimeOfDay(getTimeOfDay());
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [auth?.user?.id]);
-
   const loadData = useCallback(async () => {
     if (!auth?.user?.id) return;
 
@@ -85,7 +71,6 @@ export default function RitualsHubScreen() {
       ]);
 
       setPractice(practiceData);
-      setUserContext(context);
       setConsistency(consistencyData);
 
       // Generate morning prompt
@@ -95,6 +80,15 @@ export default function RitualsHubScreen() {
       console.error('Error loading practice data:', error);
     }
   }, [auth?.user?.id]);
+
+  useEffect(() => {
+    loadData();
+    // Update time of day periodically
+    const interval = setInterval(() => {
+      setTimeOfDay(getTimeOfDay());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -165,10 +159,6 @@ export default function RitualsHubScreen() {
   const greeting = timeOfDay === 'morning' ? 'Good morning' :
     timeOfDay === 'afternoon' ? 'Good afternoon' :
     timeOfDay === 'evening' ? 'Good evening' : 'Good night';
-
-  // Calculate week's completion for segmented progress
-  const weekDays = Array(7).fill(false);
-  // This would ideally come from actual data - simplified for now
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
