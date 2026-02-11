@@ -25,6 +25,7 @@ import {
   setActiveCoachId,
   getActiveCoachId,
 } from '@/store/app';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 
 export default function CoachDetailScreen() {
   const router = useRouter();
@@ -147,125 +148,126 @@ export default function CoachDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={palette.accent} />
-          <Text style={[styles.backText, { color: palette.accent }]}>Back</Text>
-        </TouchableOpacity>
-      </View>
+      <PremiumPageTransition style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color={palette.accent} />
+            <Text style={[styles.backText, { color: palette.accent }]}>Back</Text>
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Coach Header */}
-        <Animated.View
-          entering={FadeInUp.duration(400)}
-          style={styles.coachHeader}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <CoachIcon iconName={coach.icon_name} color={coach.color} size="lg" />
-          <Text style={[styles.coachName, { color: palette.textSecondary }]}>{coach.name}</Text>
-          <Text style={[styles.coachTagline, { color: palette.textTertiary }]}>{coach.tagline}</Text>
+          {/* Coach Header */}
+          <Animated.View
+            entering={FadeInUp.duration(400)}
+            style={styles.coachHeader}
+          >
+            <CoachIcon iconName={coach.icon_name} color={coach.color} size="lg" />
+            <Text style={[styles.coachName, { color: palette.textSecondary }]}>{coach.name}</Text>
+            <Text style={[styles.coachTagline, { color: palette.textTertiary }]}>{coach.tagline}</Text>
 
-          <View style={[styles.versionBadge, { backgroundColor: palette.backgroundSecondary }]}>
-            <Text style={[styles.versionText, { color: palette.textTertiary }]}>Version {coach.version}</Text>
-          </View>
-        </Animated.View>
+            <View style={[styles.versionBadge, { backgroundColor: palette.backgroundSecondary }]}>
+              <Text style={[styles.versionText, { color: palette.textTertiary }]}>Version {coach.version}</Text>
+            </View>
+          </Animated.View>
 
-        {/* Description */}
-        <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-          <Card style={styles.sectionCard}>
-            <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>About</Text>
-            <Text style={[styles.description, { color: palette.textTertiary }]}>{coach.description}</Text>
-          </Card>
-        </Animated.View>
+          {/* Description */}
+          <Animated.View entering={FadeInUp.duration(400).delay(100)}>
+            <Card style={styles.sectionCard}>
+              <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>About</Text>
+              <Text style={[styles.description, { color: palette.textTertiary }]}>{coach.description}</Text>
+            </Card>
+          </Animated.View>
 
-        {/* Method */}
-        <Animated.View entering={FadeInUp.duration(400).delay(200)}>
-          <Card style={styles.sectionCard}>
-            <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Coaching Method</Text>
-            <Text style={[styles.method, { color: palette.textTertiary }]}>{coach.method}</Text>
-          </Card>
-        </Animated.View>
+          {/* Method */}
+          <Animated.View entering={FadeInUp.duration(400).delay(200)}>
+            <Card style={styles.sectionCard}>
+              <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Coaching Method</Text>
+              <Text style={[styles.method, { color: palette.textTertiary }]}>{coach.method}</Text>
+            </Card>
+          </Animated.View>
 
-        {/* Actions */}
-        <Animated.View
-          entering={FadeInUp.duration(400).delay(300)}
-          style={styles.actions}
-        >
-          {isInstalled ? (
-            <>
-              {/* Primary action - Enter Session */}
-              <Button
-                title="Enter Sanctuary"
-                onPress={handleStartChat}
-                variant="gold"
-                fullWidth
-                icon={<Ionicons name="sparkles" size={18} color={palette.textInverse} />}
-              />
-
-              {!isActive && (
+          {/* Actions */}
+          <Animated.View
+            entering={FadeInUp.duration(400).delay(300)}
+            style={styles.actions}
+          >
+            {isInstalled ? (
+              <>
+                {/* Primary action - Enter Session */}
                 <Button
-                  title="Set as Primary Coach"
-                  onPress={handleSetActive}
-                  variant="outline"
+                  title="Enter Sanctuary"
+                  onPress={handleStartChat}
+                  variant="gold"
+                  fullWidth
+                  icon={<Ionicons name="sparkles" size={18} color={palette.textInverse} />}
+                />
+
+                {!isActive && (
+                  <Button
+                    title="Set as Primary Coach"
+                    onPress={handleSetActive}
+                    variant="outline"
+                    fullWidth
+                    loading={loading}
+                    style={styles.secondaryAction}
+                  />
+                )}
+
+                {isActive && (
+                  <View style={[styles.activeBadge, { backgroundColor: palette.successLight }]}>
+                    <Ionicons name="checkmark-circle" size={16} color={palette.success} />
+                    <Text style={[styles.activeBadgeText, { color: palette.success }]}>Your Primary Coach</Text>
+                  </View>
+                )}
+
+                {!isActive && (
+                  <Button
+                    title="Remove from Library"
+                    onPress={handleUninstall}
+                    variant="ghost"
+                    fullWidth
+                    loading={loading}
+                    style={styles.secondaryAction}
+                  />
+                )}
+              </>
+            ) : (
+              <>
+                <Button
+                  title="Add to Your Library"
+                  onPress={handleInstall}
+                  variant="gold"
                   fullWidth
                   loading={loading}
-                  style={styles.secondaryAction}
+                  icon={<Ionicons name="add-circle-outline" size={18} color={palette.textInverse} />}
                 />
-              )}
+                <Text style={[styles.installHint, { color: palette.textTertiary }]}>
+                  Install to unlock private sessions with this coach
+                </Text>
+              </>
+            )}
+          </Animated.View>
 
-              {isActive && (
-                <View style={[styles.activeBadge, { backgroundColor: palette.successLight }]}>
-                  <Ionicons name="checkmark-circle" size={16} color={palette.success} />
-                  <Text style={[styles.activeBadgeText, { color: palette.success }]}>Your Primary Coach</Text>
-                </View>
-              )}
-
-              {!isActive && (
-                <Button
-                  title="Remove from Library"
-                  onPress={handleUninstall}
-                  variant="ghost"
-                  fullWidth
-                  loading={loading}
-                  style={styles.secondaryAction}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              <Button
-                title="Add to Your Library"
-                onPress={handleInstall}
-                variant="gold"
-                fullWidth
-                loading={loading}
-                icon={<Ionicons name="add-circle-outline" size={18} color={palette.textInverse} />}
-              />
-              <Text style={[styles.installHint, { color: palette.textTertiary }]}>
-                Install to unlock private sessions with this coach
-              </Text>
-            </>
-          )}
-        </Animated.View>
-
-        {/* Info Footer */}
-        <Animated.View
-          entering={FadeIn.duration(300).delay(400)}
-          style={styles.infoFooter}
-        >
-          <View style={styles.infoItem}>
-            <Ionicons name="shield-checkmark" size={16} color={palette.success} />
-            <Text style={[styles.infoText, { color: palette.textTertiary }]}>Verified coach</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Ionicons name="lock-closed" size={16} color={palette.textTertiary} />
-            <Text style={[styles.infoText, { color: palette.textTertiary }]}>Your data stays private</Text>
-          </View>
-        </Animated.View>
-      </ScrollView>
+          {/* Info Footer */}
+          <Animated.View
+            entering={FadeIn.duration(300).delay(400)}
+            style={styles.infoFooter}
+          >
+            <View style={styles.infoItem}>
+              <Ionicons name="shield-checkmark" size={16} color={palette.success} />
+              <Text style={[styles.infoText, { color: palette.textTertiary }]}>Verified coach</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Ionicons name="lock-closed" size={16} color={palette.textTertiary} />
+              <Text style={[styles.infoText, { color: palette.textTertiary }]}>Your data stays private</Text>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </PremiumPageTransition>
     </SafeAreaView>
   );
 }

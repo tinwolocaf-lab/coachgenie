@@ -4,6 +4,7 @@
 import { supabase } from '@/lib/supabase';
 
 const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+const VOICE_SESSION_CONFIG_FUNCTION = 'voice-session-config';
 
 export interface GeminiLiveConfig {
   model: string;
@@ -33,6 +34,153 @@ export interface VoiceSessionCallbacks {
 }
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+export type GeminiLiveErrorKind =
+  | 'auth'
+  | 'configuration'
+  | 'voice_service_unavailable'
+  | 'voice_service_request_failed'
+  | 'connection'
+  | 'unknown';
+
+export class GeminiLiveError extends Error {
+  readonly kind: GeminiLiveErrorKind;
+  readonly status?: number;
+  readonly code?: string;
+
+  constructor({
+    kind,
+    message,
+    status,
+    code,
+  }: {
+    kind: GeminiLiveErrorKind;
+    message: string;
+    status?: number;
+    code?: string;
+  }) {
+    super(message);
+    this.name = 'GeminiLiveError';
+    this.kind = kind;
+    this.status = status;
+    this.code = code;
+  }
+}
+
+interface JsonLikeObject {
+  [key: string]: unknown;
+}
+
+interface ParsedErrorPayload {
+  code?: string;
+  message?: string;
+  error?: string;
+}
+
+function isJsonLikeObject(value: unknown): value is JsonLikeObject {
+  return typeof value === 'object' && value !== null;
+}
+
+function getStringField(payload: JsonLikeObject, key: string): string | undefined {
+  const value = payload[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function parseErrorPayload(raw: string): ParsedErrorPayload | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isJsonLikeObject(parsed)) {
+      return null;
+    }
+
+    return {
+      code: getStringField(parsed, 'code'),
+      message: getStringField(parsed, 'message'),
+      error: getStringField(parsed, 'error'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function extractErrorMessage(payload: ParsedErrorPayload | null, fallback: string): string {
+  if (!payload) return fallback;
+  return payload.message || payload.error || fallback;
+}
+
+function getFunctionsBaseUrl(): string {
+  const explicit = process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL;
+  if (explicit) {
+    const normalized = explicit.replace(/\/$/, '');
+    if (normalized.includes('/functions/v1')) {
+      return normalized;
+    }
+    return `${normalized}/functions/v1`;
+  }
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new GeminiLiveError({
+      kind: 'configuration',
+      message: 'Missing EXPO_PUBLIC_SUPABASE_URL',
+    });
+  }
+
+  return `${supabaseUrl.replace(/\/$/, '')}/functions/v1`;
+}
+
+function normalizeConnectionError(error: unknown): GeminiLiveError {
+  if (error instanceof GeminiLiveError) {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return new GeminiLiveError({
+      kind: 'connection',
+      message: error.message || 'Failed to connect to voice service',
+    });
+  }
+
+  return new GeminiLiveError({
+    kind: 'unknown',
+    message: 'Failed to connect to voice service',
+  });
+}
+
+function buildSessionConfigError(status: number, rawText: string): GeminiLiveError {
+  const payload = parseErrorPayload(rawText);
+  const payloadCode = payload?.code?.toUpperCase();
+  const payloadMessage = (payload?.message || payload?.error || rawText).toLowerCase();
+  const isFunctionMissing =
+    status === 404 ||
+    payloadCode === 'NOT_FOUND' ||
+    payloadMessage.includes('requested function was not found');
+
+  if (isFunctionMissing) {
+    return new GeminiLiveError({
+      kind: 'voice_service_unavailable',
+      message: 'Voice service is not available right now. Please use text mode.',
+      status,
+      code: payload?.code,
+    });
+  }
+
+  if (status === 401 || status === 403) {
+    return new GeminiLiveError({
+      kind: 'auth',
+      message: 'Your session is not authorized for voice mode. Please sign in again.',
+      status,
+      code: payload?.code,
+    });
+  }
+
+  return new GeminiLiveError({
+    kind: 'voice_service_request_failed',
+    message: extractErrorMessage(payload, rawText || 'Failed to fetch voice session config'),
+    status,
+    code: payload?.code,
+  });
+}
 
 export class GeminiLiveSession {
   private ws: WebSocket | null = null;
@@ -84,7 +232,7 @@ export class GeminiLiveSession {
       };
 
       this.ws.onerror = (event) => {
-        console.error('[GeminiLive] WebSocket error:', event);
+        console.warn('[GeminiLive] WebSocket error:', event);
         this._state = 'error';
         this.callbacks.onError?.('WebSocket connection error');
       };
@@ -96,8 +244,7 @@ export class GeminiLiveSession {
       };
     } catch (error) {
       this._state = 'error';
-      this.callbacks.onError?.((error as Error).message || 'Failed to connect');
-      throw error;
+      throw normalizeConnectionError(error);
     }
   }
 
@@ -234,7 +381,7 @@ export class GeminiLiveSession {
         }
       }
     } catch (error) {
-      console.error('[GeminiLive] Error parsing message:', error);
+      console.warn('[GeminiLive] Error parsing message:', error);
     }
   }
 
@@ -373,14 +520,15 @@ export class GeminiLiveSession {
   ): Promise<GeminiLiveConfig> {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
-    if (!token) throw new Error('Not authenticated');
+    if (!token) {
+      throw new GeminiLiveError({
+        kind: 'auth',
+        message: 'Not authenticated',
+      });
+    }
 
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL');
-
-    const baseUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1`;
-
-    const response = await fetch(`${baseUrl}/voice-session-config`, {
+    const baseUrl = getFunctionsBaseUrl();
+    const response = await fetch(`${baseUrl}/${VOICE_SESSION_CONFIG_FUNCTION}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -395,7 +543,7 @@ export class GeminiLiveSession {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(text || 'Failed to fetch voice session config');
+      throw buildSessionConfigError(response.status, text);
     }
 
     return response.json();

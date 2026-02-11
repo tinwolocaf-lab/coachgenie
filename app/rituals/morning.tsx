@@ -38,6 +38,7 @@ import { getMorningPrompt } from '@/lib/ritualPrompts';
 import { getContextVault } from '@/store/app';
 import { DailyReflection, GrowthChapter, ContextVault } from '@/types';
 import { VoiceMode } from '@/components/chat/VoiceMode';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 
 // Phases of the Morning Intention ritual
 type RitualPhase = 'opening' | 'intention' | 'muse' | 'complete';
@@ -302,276 +303,273 @@ export default function MorningIntentionScreen() {
 
   // ========== RENDER PHASES ==========
 
-  // Phase: Opening - "The day is yours."
-  if (phase === 'opening') {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleClose}
-          activeOpacity={0.6}
-        >
-          <Ionicons name="close" size={22} color={palette.textTertiary} />
-        </TouchableOpacity>
+  return (
+    <PremiumPageTransition>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: palette.background }]}
+        edges={phase === 'intention' ? ['top'] : ['top', 'bottom']}
+      >
+        {/* Phase: Opening - "The day is yours." */}
+        {phase === 'opening' && (
+          <>
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={handleClose}
+              activeOpacity={0.6}
+            >
+              <Ionicons name="close" size={22} color={palette.textTertiary} />
+            </TouchableOpacity>
 
-        <Animated.View style={[styles.openingContainer, openingStyle]}>
-          <Text style={[styles.openingDate, { color: palette.textTertiary }]}>
-            {dateString}
-          </Text>
-          <InkText
-            text="The day is yours."
-            style={[styles.openingText, { color: palette.textPrimary }]}
-            delay={800}
-            duration={1200}
-            charByChar
-          />
-        </Animated.View>
-      </SafeAreaView>
-    );
-  }
-
-  // Phase: Intention - Single-focus input
-  if (phase === 'intention') {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <Animated.View style={[styles.intentionContainer, intentionStyle]}>
-            {/* Minimal header */}
-            <View style={styles.intentionHeader}>
-              <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
-                <Ionicons name="close" size={22} color={palette.textTertiary} />
-              </TouchableOpacity>
-              <Text style={[styles.intentionDateSmall, { color: palette.textTertiary }]}>
+            <Animated.View style={[styles.openingContainer, openingStyle]}>
+              <Text style={[styles.openingDate, { color: palette.textTertiary }]}>
                 {dateString}
               </Text>
-              <View style={styles.closeBtnSpacer} />
-            </View>
-
-            {/* Chapter context if available */}
-            {activeChapter && !existingReflection && (
-              <View style={[styles.chapterPill, { backgroundColor: palette.accentMuted }]}>
-                <Ionicons name="flag" size={12} color={palette.accent} />
-                <Text style={[styles.chapterPillText, { color: palette.textSecondary }]}>
-                  {activeChapter.title}
-                </Text>
-              </View>
-            )}
-
-            {/* The prompt - editorial serif */}
-            <View style={styles.promptSection}>
-              {!existingReflection && prompt ? (
-                <InkText
-                  text={prompt}
-                  style={[styles.intentionPrompt, { color: palette.textPrimary }]}
-                  delay={200}
-                  duration={800}
-                />
-              ) : (
-                <Text style={[styles.intentionPrompt, { color: palette.textPrimary }]}>
-                  Your morning intention
-                </Text>
-              )}
-            </View>
-
-            {/* The Input - Single focus, ink effect */}
-            <Animated.View style={[
-              styles.intentionInputCard,
-              {
-                backgroundColor: palette.cardBg,
-                shadowColor: palette.shadowColor,
-              },
-              inputContainerStyle,
-            ]}>
-              <TextInput
-                ref={inputRef}
-                style={[styles.intentionInput, {
-                  color: palette.textPrimary,
-                  fontFamily: Typography.fonts.serifRegular,
-                }]}
-                placeholder="What will guide you today..."
-                placeholderTextColor={palette.textTertiary}
-                value={intention}
-                onChangeText={(text) => {
-                  setIntention(text);
-                  // Subtle haptic on each word boundary
-                  if (text.endsWith(' ') || text.endsWith('.')) {
-                    Haptics.selectionAsync();
-                  }
-                }}
-                multiline
-                textAlignVertical="top"
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-                editable={!existingReflection}
+              <InkText
+                text="The day is yours."
+                style={[styles.openingText, { color: palette.textPrimary }]}
+                delay={800}
+                duration={1200}
+                charByChar
               />
-              {existingReflection && (
-                <View style={[styles.savedBadge, { backgroundColor: palette.successLight }]}>
-                  <Ionicons name="checkmark-circle" size={14} color={palette.success} />
-                  <Text style={[styles.savedBadgeText, { color: palette.success }]}>
-                    Set for today
+            </Animated.View>
+          </>
+        )}
+
+        {/* Phase: Intention - Single-focus input */}
+        {phase === 'intention' && (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardView}
+          >
+            <Animated.View style={[styles.intentionContainer, intentionStyle]}>
+              {/* Minimal header */}
+              <View style={styles.intentionHeader}>
+                <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
+                  <Ionicons name="close" size={22} color={palette.textTertiary} />
+                </TouchableOpacity>
+                <Text style={[styles.intentionDateSmall, { color: palette.textTertiary }]}>
+                  {dateString}
+                </Text>
+                <View style={styles.closeBtnSpacer} />
+              </View>
+
+              {/* Chapter context if available */}
+              {activeChapter && !existingReflection && (
+                <View style={[styles.chapterPill, { backgroundColor: palette.accentMuted }]}>
+                  <Ionicons name="flag" size={12} color={palette.accent} />
+                  <Text style={[styles.chapterPillText, { color: palette.textSecondary }]}>
+                    {activeChapter.title}
                   </Text>
                 </View>
               )}
-            </Animated.View>
 
-            {/* Gentle guidance */}
-            {!existingReflection && !intention.trim() && (
-              <InkText
-                text="A few words are enough. The power is in the pause."
-                style={[styles.guidanceText, { color: palette.textTertiary }]}
-                delay={1200}
-                duration={600}
-              />
-            )}
-
-            {/* Voice Input + Set Intention Button */}
-            {!existingReflection && (
-              <View style={styles.intentionFooter}>
-                <View style={styles.intentionActions}>
-                  <VoiceMode
-                    onTranscription={(text) => {
-                      setIntention(prev => prev ? `${prev} ${text}` : text);
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    }}
-                    isEnabled={true}
+              {/* The prompt - editorial serif */}
+              <View style={styles.promptSection}>
+                {!existingReflection && prompt ? (
+                  <InkText
+                    text={prompt}
+                    style={[styles.intentionPrompt, { color: palette.textPrimary }]}
+                    delay={200}
+                    duration={800}
                   />
-                  <TouchableOpacity
-                    style={[
-                      styles.setIntentionBtn,
-                      {
-                        backgroundColor: intention.trim() ? palette.accent : palette.border,
-                        flex: 1,
-                      },
-                      intention.trim() ? styles.setIntentionBtnActive : null,
-                    ]}
-                    onPress={handleSetIntention}
-                    disabled={!intention.trim() || isSaving}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={[styles.setIntentionBtnText, {
-                      color: intention.trim() ? palette.textInverse : palette.textTertiary,
-                    }]}>
-                      {isSaving ? 'Setting...' : 'Set Intention'}
+                ) : (
+                  <Text style={[styles.intentionPrompt, { color: palette.textPrimary }]}>
+                    Your morning intention
+                  </Text>
+                )}
+              </View>
+
+              {/* The Input - Single focus, ink effect */}
+              <Animated.View style={[
+                styles.intentionInputCard,
+                {
+                  backgroundColor: palette.cardBg,
+                  shadowColor: palette.shadowColor,
+                },
+                inputContainerStyle,
+              ]}>
+                <TextInput
+                  ref={inputRef}
+                  style={[styles.intentionInput, {
+                    color: palette.textPrimary,
+                    fontFamily: Typography.fonts.serifRegular,
+                  }]}
+                  placeholder="What will guide you today..."
+                  placeholderTextColor={palette.textTertiary}
+                  value={intention}
+                  onChangeText={(text) => {
+                    setIntention(text);
+                    // Subtle haptic on each word boundary
+                    if (text.endsWith(' ') || text.endsWith('.')) {
+                      Haptics.selectionAsync();
+                    }
+                  }}
+                  multiline
+                  textAlignVertical="top"
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  editable={!existingReflection}
+                />
+                {existingReflection && (
+                  <View style={[styles.savedBadge, { backgroundColor: palette.successLight }]}>
+                    <Ionicons name="checkmark-circle" size={14} color={palette.success} />
+                    <Text style={[styles.savedBadgeText, { color: palette.success }]}>
+                      Set for today
                     </Text>
-                    {intention.trim() && !isSaving && (
-                      <Ionicons name="arrow-forward" size={18} color={palette.textInverse} style={{ marginLeft: 8 }} />
-                    )}
+                  </View>
+                )}
+              </Animated.View>
+
+              {/* Gentle guidance */}
+              {!existingReflection && !intention.trim() && (
+                <InkText
+                  text="A few words are enough. The power is in the pause."
+                  style={[styles.guidanceText, { color: palette.textTertiary }]}
+                  delay={1200}
+                  duration={600}
+                />
+              )}
+
+              {/* Voice Input + Set Intention Button */}
+              {!existingReflection && (
+                <View style={styles.intentionFooter}>
+                  <View style={styles.intentionActions}>
+                    <VoiceMode
+                      onTranscription={(text) => {
+                        setIntention(prev => prev ? `${prev} ${text}` : text);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      }}
+                      isEnabled={true}
+                    />
+                    <TouchableOpacity
+                      style={[
+                        styles.setIntentionBtn,
+                        {
+                          backgroundColor: intention.trim() ? palette.accent : palette.border,
+                          flex: 1,
+                        },
+                        intention.trim() ? styles.setIntentionBtnActive : null,
+                      ]}
+                      onPress={handleSetIntention}
+                      disabled={!intention.trim() || isSaving}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.setIntentionBtnText, {
+                        color: intention.trim() ? palette.textInverse : palette.textTertiary,
+                      }]}>
+                        {isSaving ? 'Setting...' : 'Set Intention'}
+                      </Text>
+                      {intention.trim() && !isSaving && (
+                        <Ionicons name="arrow-forward" size={18} color={palette.textInverse} style={{ marginLeft: 8 }} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Back button if already saved */}
+              {existingReflection && (
+                <View style={styles.intentionFooter}>
+                  <TouchableOpacity
+                    style={[styles.backBtn, { borderColor: palette.border }]}
+                    onPress={handleClose}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="arrow-back" size={18} color={palette.textSecondary} />
+                    <Text style={[styles.backBtnText, { color: palette.textSecondary }]}>
+                      Return
+                    </Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            )}
+              )}
+            </Animated.View>
+          </KeyboardAvoidingView>
+        )}
 
-            {/* Back button if already saved */}
-            {existingReflection && (
-              <View style={styles.intentionFooter}>
+        {/* Phase: Muse - Daily Muse AI coaching prompt appears */}
+        {phase === 'muse' && (
+          <Animated.View style={[styles.museContainer, museStyle]}>
+            {/* Your intention echoed back */}
+            <View style={styles.museIntentionEcho}>
+              <Text style={[styles.museLabel, { color: palette.textTertiary }]}>
+                YOUR INTENTION
+              </Text>
+              <Text style={[styles.museIntentionText, { color: palette.textPrimary }]}>
+                {intention}
+              </Text>
+            </View>
+
+            {/* Decorative divider */}
+            <View style={[styles.museDivider, { backgroundColor: palette.accent }]} />
+
+            {/* Daily Muse */}
+            <View style={styles.museContent}>
+              <Text style={[styles.museLabel, { color: palette.textTertiary }]}>
+                DAILY MUSE
+              </Text>
+              {isGeneratingMuse ? (
+                <View style={styles.museLoading}>
+                  <Text style={[styles.museLoadingText, { color: palette.textTertiary }]}>
+                    ···
+                  </Text>
+                </View>
+              ) : (
+                <InkText
+                  text={dailyMuse}
+                  style={[styles.museText, { color: palette.textPrimary }]}
+                  delay={300}
+                  duration={1200}
+                  charByChar={false}
+                  onComplete={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                />
+              )}
+            </View>
+
+            {/* Continue button */}
+            {!isGeneratingMuse && dailyMuse && (
+              <Animated.View
+                entering={FadeIn.duration(600).delay(1500)}
+                style={styles.museFooter}
+              >
                 <TouchableOpacity
-                  style={[styles.backBtn, { borderColor: palette.border }]}
-                  onPress={handleClose}
-                  activeOpacity={0.8}
+                  style={[styles.museBtn, { backgroundColor: palette.accent }]}
+                  onPress={handleComplete}
+                  activeOpacity={0.85}
                 >
-                  <Ionicons name="arrow-back" size={18} color={palette.textSecondary} />
-                  <Text style={[styles.backBtnText, { color: palette.textSecondary }]}>
-                    Return
+                  <Text style={[styles.museBtnText, { color: palette.textInverse }]}>
+                    Begin Your Day
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </Animated.View>
             )}
           </Animated.View>
-        </KeyboardAvoidingView>
+        )}
+
+        {/* Phase: Complete - Confirmation */}
+        {phase === 'complete' && (
+          <Animated.View style={[styles.completeContainer, completeStyle]}>
+            <View style={[styles.completeIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="sunny" size={40} color={palette.accent} />
+            </View>
+            <InkText
+              text="Intention set."
+              style={[styles.completeTitle, { color: palette.textPrimary }]}
+              delay={200}
+              duration={800}
+              charByChar
+            />
+            <InkText
+              text="May your day unfold with purpose."
+              style={[styles.completeSubtitle, { color: palette.textTertiary }]}
+              delay={800}
+              duration={600}
+            />
+          </Animated.View>
+        )}
       </SafeAreaView>
-    );
-  }
-
-  // Phase: Muse - Daily Muse AI coaching prompt appears
-  if (phase === 'muse') {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
-        <Animated.View style={[styles.museContainer, museStyle]}>
-          {/* Your intention echoed back */}
-          <View style={styles.museIntentionEcho}>
-            <Text style={[styles.museLabel, { color: palette.textTertiary }]}>
-              YOUR INTENTION
-            </Text>
-            <Text style={[styles.museIntentionText, { color: palette.textPrimary }]}>
-              {intention}
-            </Text>
-          </View>
-
-          {/* Decorative divider */}
-          <View style={[styles.museDivider, { backgroundColor: palette.accent }]} />
-
-          {/* Daily Muse */}
-          <View style={styles.museContent}>
-            <Text style={[styles.museLabel, { color: palette.textTertiary }]}>
-              DAILY MUSE
-            </Text>
-            {isGeneratingMuse ? (
-              <View style={styles.museLoading}>
-                <Text style={[styles.museLoadingText, { color: palette.textTertiary }]}>
-                  ···
-                </Text>
-              </View>
-            ) : (
-              <InkText
-                text={dailyMuse}
-                style={[styles.museText, { color: palette.textPrimary }]}
-                delay={300}
-                duration={1200}
-                charByChar={false}
-                onComplete={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              />
-            )}
-          </View>
-
-          {/* Continue button */}
-          {!isGeneratingMuse && dailyMuse && (
-            <Animated.View
-              entering={FadeIn.duration(600).delay(1500)}
-              style={styles.museFooter}
-            >
-              <TouchableOpacity
-                style={[styles.museBtn, { backgroundColor: palette.accent }]}
-                onPress={handleComplete}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.museBtnText, { color: palette.textInverse }]}>
-                  Begin Your Day
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-        </Animated.View>
-      </SafeAreaView>
-    );
-  }
-
-  // Phase: Complete - Confirmation
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
-      <Animated.View style={[styles.completeContainer, completeStyle]}>
-        <View style={[styles.completeIcon, { backgroundColor: palette.accentMuted }]}>
-          <Ionicons name="sunny" size={40} color={palette.accent} />
-        </View>
-        <InkText
-          text="Intention set."
-          style={[styles.completeTitle, { color: palette.textPrimary }]}
-          delay={200}
-          duration={800}
-          charByChar
-        />
-        <InkText
-          text="May your day unfold with purpose."
-          style={[styles.completeSubtitle, { color: palette.textTertiary }]}
-          delay={800}
-          duration={600}
-        />
-      </Animated.View>
-    </SafeAreaView>
+    </PremiumPageTransition>
   );
 }
 

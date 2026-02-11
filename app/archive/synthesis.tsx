@@ -84,7 +84,11 @@ export default function SynthesisScreen() {
 
   const handleBackPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/archive');
   };
 
   const getMonthName = (monthYear: string) => {

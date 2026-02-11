@@ -76,7 +76,11 @@ export default function InsightDetailScreen() {
 
   const handleBackPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/archive');
   };
 
   const handleToggleHighlight = async () => {

@@ -14,6 +14,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import Animated, {
   FadeInUp,
   useAnimatedStyle,
@@ -118,222 +119,222 @@ export default function NewRitualScreen() {
     transform: [{ scale: successScale.value }],
   }));
 
-  if (showSuccess) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-        <View style={styles.successContainer}>
-          <Animated.View style={[styles.successIcon, successStyle]}>
-            <Ionicons name="checkmark-circle" size={80} color={palette.success} />
-          </Animated.View>
-          <Text style={[styles.successTitle, { color: palette.textPrimary }]}>Ritual Created!</Text>
-          <Text style={[styles.successSubtitle, { color: palette.textTertiary }]}>
-            Your new daily ritual has been added
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: palette.borderLight }]}>
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.back();
-          }}
-        >
-          <Ionicons name="close" size={24} color={palette.textSecondary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>New Ritual</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Preview Card */}
-          <Animated.View entering={FadeInUp.duration(400)} style={styles.previewSection}>
-            <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>Preview</Text>
-            <View style={[styles.previewCard, { backgroundColor: palette.cardBg, borderLeftColor: selectedColor }]}>
-              <View style={[styles.previewIcon, { backgroundColor: selectedColor + '20' }]}>
-                <Ionicons
-                  name={selectedIcon as keyof typeof Ionicons.glyphMap}
-                  size={20}
-                  color={selectedColor}
-                />
-              </View>
-              <View style={styles.previewContent}>
-                <Text style={[styles.previewTitle, { color: palette.textSecondary }]} numberOfLines={1}>
-                  {title || 'Your ritual name'}
-                </Text>
-                {description ? (
-                  <Text style={[styles.previewDescription, { color: palette.textTertiary }]} numberOfLines={1}>
-                    {description}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* Title Input */}
-          <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.inputSection}>
-            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Ritual Name *</Text>
-            <TextInput
-              style={[styles.textInput, { backgroundColor: palette.cardBg, borderColor: palette.border, color: palette.textSecondary }]}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g., Morning Meditation"
-              placeholderTextColor={palette.textTertiary}
-              maxLength={50}
-            />
-          </Animated.View>
-
-          {/* Description Input */}
-          <Animated.View entering={FadeInUp.duration(400).delay(150)} style={styles.inputSection}>
-            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Description (optional)</Text>
-            <TextInput
-              style={[styles.textInput, styles.textInputMultiline, { backgroundColor: palette.cardBg, borderColor: palette.border, color: palette.textSecondary }]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="What does this ritual involve?"
-              placeholderTextColor={palette.textTertiary}
-              multiline
-              numberOfLines={3}
-              maxLength={150}
-            />
-          </Animated.View>
-
-          {/* Icon Picker */}
-          <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.inputSection}>
-            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Icon</Text>
-            <View style={styles.iconPicker}>
-              {RITUAL_ICONS.map((icon) => (
-                <TouchableOpacity
-                  key={icon}
-                  style={[
-                    styles.iconOption,
-                    { backgroundColor: palette.cardBg, borderColor: palette.border },
-                    selectedIcon === icon && [styles.iconOptionSelected, { backgroundColor: selectedColor }],
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedIcon(icon);
-                  }}
-                >
-                  <Ionicons
-                    name={icon as keyof typeof Ionicons.glyphMap}
-                    size={20}
-                    color={selectedIcon === icon ? palette.textInverse : palette.textSecondary}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-
-          {/* Color Picker */}
-          <Animated.View entering={FadeInUp.duration(400).delay(250)} style={styles.inputSection}>
-            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Color</Text>
-            <View style={styles.colorPicker}>
-              {RITUAL_COLORS.map((color) => (
-                <TouchableOpacity
-                  key={color}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: color },
-                    selectedColor === color && { borderColor: palette.textSecondary },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedColor(color);
-                  }}
-                >
-                  {selectedColor === color && (
-                    <Ionicons name="checkmark" size={18} color={palette.textInverse} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-
-          {/* Link to Chapter (optional) */}
-          {chapters.length > 0 && (
-            <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.inputSection}>
-              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Link to Growth Chapter (optional)</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.chapterPicker}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.chapterOption,
-                    { backgroundColor: palette.cardBg, borderColor: palette.border },
-                    !linkedChapterId && { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setLinkedChapterId(null);
-                  }}
-                >
-                  <Text style={[
-                    styles.chapterOptionText,
-                    { color: palette.textSecondary },
-                    !linkedChapterId && { color: palette.textInverse, fontWeight: Typography.weights.medium },
-                  ]}>
-                    None
-                  </Text>
-                </TouchableOpacity>
-                {chapters.map((chapter) => (
-                  <TouchableOpacity
-                    key={chapter.id}
-                    style={[
-                      styles.chapterOption,
-                      { backgroundColor: palette.cardBg, borderColor: chapter.cover_color || palette.border },
-                      linkedChapterId === chapter.id && { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setLinkedChapterId(chapter.id);
-                    }}
-                  >
-                    <Text style={[
-                      styles.chapterOptionText,
-                      { color: palette.textSecondary },
-                      linkedChapterId === chapter.id && { color: palette.textInverse, fontWeight: Typography.weights.medium },
-                    ]} numberOfLines={1}>
-                      {chapter.title}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+    <PremiumPageTransition>
+      {showSuccess ? (
+        <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
+          <View style={styles.successContainer}>
+            <Animated.View style={[styles.successIcon, successStyle]}>
+              <Ionicons name="checkmark-circle" size={80} color={palette.success} />
             </Animated.View>
-          )}
+            <Text style={[styles.successTitle, { color: palette.textPrimary }]}>Ritual Created!</Text>
+            <Text style={[styles.successSubtitle, { color: palette.textTertiary }]}>
+              Your new daily ritual has been added
+            </Text>
+          </View>
+        </SafeAreaView>
+      ) : (
+        <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
+          {/* Header */}
+          <View style={[styles.header, { borderBottomColor: palette.borderLight }]}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.back();
+              }}
+            >
+              <Ionicons name="close" size={24} color={palette.textSecondary} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>New Ritual</Text>
+            <View style={styles.headerSpacer} />
+          </View>
 
-          {/* Create Button */}
-          <Animated.View entering={FadeInUp.duration(400).delay(350)} style={styles.buttonSection}>
-            <Button
-              title={isCreating ? 'Creating...' : 'Create Ritual'}
-              onPress={handleCreate}
-              variant="gold"
-              fullWidth
-              size="lg"
-              disabled={!title.trim() || isCreating}
-            />
-          </Animated.View>
+          <KeyboardAvoidingView
+            style={styles.keyboardView}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Preview Card */}
+              <Animated.View entering={FadeInUp.duration(400)} style={styles.previewSection}>
+                <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>Preview</Text>
+                <View style={[styles.previewCard, { backgroundColor: palette.cardBg, borderLeftColor: selectedColor }]}>
+                  <View style={[styles.previewIcon, { backgroundColor: selectedColor + '20' }]}>
+                    <Ionicons
+                      name={selectedIcon as keyof typeof Ionicons.glyphMap}
+                      size={20}
+                      color={selectedColor}
+                    />
+                  </View>
+                  <View style={styles.previewContent}>
+                    <Text style={[styles.previewTitle, { color: palette.textSecondary }]} numberOfLines={1}>
+                      {title || 'Your ritual name'}
+                    </Text>
+                    {description ? (
+                      <Text style={[styles.previewDescription, { color: palette.textTertiary }]} numberOfLines={1}>
+                        {description}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              </Animated.View>
 
-          <View style={styles.bottomSpacer} />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              {/* Title Input */}
+              <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.inputSection}>
+                <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Ritual Name *</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: palette.cardBg, borderColor: palette.border, color: palette.textSecondary }]}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="e.g., Morning Meditation"
+                  placeholderTextColor={palette.textTertiary}
+                  maxLength={50}
+                />
+              </Animated.View>
+
+              {/* Description Input */}
+              <Animated.View entering={FadeInUp.duration(400).delay(150)} style={styles.inputSection}>
+                <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Description (optional)</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textInputMultiline, { backgroundColor: palette.cardBg, borderColor: palette.border, color: palette.textSecondary }]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="What does this ritual involve?"
+                  placeholderTextColor={palette.textTertiary}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={150}
+                />
+              </Animated.View>
+
+              {/* Icon Picker */}
+              <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.inputSection}>
+                <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Icon</Text>
+                <View style={styles.iconPicker}>
+                  {RITUAL_ICONS.map((icon) => (
+                    <TouchableOpacity
+                      key={icon}
+                      style={[
+                        styles.iconOption,
+                        { backgroundColor: palette.cardBg, borderColor: palette.border },
+                        selectedIcon === icon && [styles.iconOptionSelected, { backgroundColor: selectedColor }],
+                      ]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setSelectedIcon(icon);
+                      }}
+                    >
+                      <Ionicons
+                        name={icon as keyof typeof Ionicons.glyphMap}
+                        size={20}
+                        color={selectedIcon === icon ? palette.textInverse : palette.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Animated.View>
+
+              {/* Color Picker */}
+              <Animated.View entering={FadeInUp.duration(400).delay(250)} style={styles.inputSection}>
+                <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Color</Text>
+                <View style={styles.colorPicker}>
+                  {RITUAL_COLORS.map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      style={[
+                        styles.colorOption,
+                        { backgroundColor: color },
+                        selectedColor === color && { borderColor: palette.textSecondary },
+                      ]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setSelectedColor(color);
+                      }}
+                    >
+                      {selectedColor === color && (
+                        <Ionicons name="checkmark" size={18} color={palette.textInverse} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Animated.View>
+
+              {/* Link to Chapter (optional) */}
+              {chapters.length > 0 && (
+                <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.inputSection}>
+                  <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Link to Growth Chapter (optional)</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.chapterPicker}
+                  >
+                    <TouchableOpacity
+                      style={[
+                        styles.chapterOption,
+                        { backgroundColor: palette.cardBg, borderColor: palette.border },
+                        !linkedChapterId && { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
+                      ]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setLinkedChapterId(null);
+                      }}
+                    >
+                      <Text style={[
+                        styles.chapterOptionText,
+                        { color: palette.textSecondary },
+                        !linkedChapterId && { color: palette.textInverse, fontWeight: Typography.weights.medium },
+                      ]}>
+                        None
+                      </Text>
+                    </TouchableOpacity>
+                    {chapters.map((chapter) => (
+                      <TouchableOpacity
+                        key={chapter.id}
+                        style={[
+                          styles.chapterOption,
+                          { backgroundColor: palette.cardBg, borderColor: chapter.cover_color || palette.border },
+                          linkedChapterId === chapter.id && { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setLinkedChapterId(chapter.id);
+                        }}
+                      >
+                        <Text style={[
+                          styles.chapterOptionText,
+                          { color: palette.textSecondary },
+                          linkedChapterId === chapter.id && { color: palette.textInverse, fontWeight: Typography.weights.medium },
+                        ]} numberOfLines={1}>
+                          {chapter.title}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </Animated.View>
+              )}
+
+              {/* Create Button */}
+              <Animated.View entering={FadeInUp.duration(400).delay(350)} style={styles.buttonSection}>
+                <Button
+                  title={isCreating ? 'Creating...' : 'Create Ritual'}
+                  onPress={handleCreate}
+                  variant="gold"
+                  fullWidth
+                  size="lg"
+                  disabled={!title.trim() || isCreating}
+                />
+              </Animated.View>
+
+              <View style={styles.bottomSpacer} />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      )}
+    </PremiumPageTransition>
   );
 }
 

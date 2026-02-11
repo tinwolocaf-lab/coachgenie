@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -422,361 +423,363 @@ export default function HomeScreen() {
       {/* Ritual Completion Flourish overlay */}
       <RitualCompletionFlourish ref={flourishRef} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={palette.accent}
-          />
-        }
-      >
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* BREATHING HEADER - Generous white space sanctuary      */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        <StaggeredFadeIn index={0} baseDelay={0} staggerDelay={0}>
-          <View style={styles.heroSection}>
-            <View style={styles.heroHeader}>
-              <View style={styles.greetingContainer}>
-                <Text style={[styles.heroGreeting, { color: palette.textPrimary }]}>
-                  {getGreeting()}{userName ? ',' : ''}
-                </Text>
-                {userName && (
-                  <Text style={[styles.heroName, { color: palette.textPrimary }]}>{userName}</Text>
-                )}
-                <Text style={[styles.heroDate, { color: palette.textTertiary }]}>{dateString}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.avatarButton}
-                onPress={handleAccountPress}
-                activeOpacity={0.9}
-              >
-                {palette.useGradients ? (
-                  <LinearGradient
-                    colors={[palette.accent, palette.accentLight]}
-                    style={[styles.avatarGradient, { shadowColor: palette.accent }]}
-                  >
-                    <Ionicons name="person" size={18} color={palette.textInverse} />
-                  </LinearGradient>
-                ) : (
-                  <View style={[styles.avatarGradient, { backgroundColor: palette.accent, shadowColor: palette.accent }]}>
-                    <Ionicons name="person" size={18} color={palette.textInverse} />
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Golden Thread accent line */}
-            <View style={styles.heroThreadWrapper}>
-              <GoldenThread width="40%" height={1.5} delay={600} />
-            </View>
-          </View>
-        </StaggeredFadeIn>
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* PAYWALL BANNER - For free tier users                   */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {subscriptionTier === 'free' && !bannerDismissed && (
-          <StaggeredFadeIn index={0} baseDelay={50}>
-            <View style={styles.paywallBannerSection}>
-              <PaywallBanner onDismiss={() => setBannerDismissed(true)} />
-            </View>
-          </StaggeredFadeIn>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* CALENDAR PREVIEW - When Google Calendar connected      */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {subscriptionTier !== 'free' && (
-          <StaggeredFadeIn index={1} baseDelay={80}>
-            <View style={styles.calendarPreviewSection}>
-              <CalendarPreview />
-            </View>
-          </StaggeredFadeIn>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* FEATURED RITUAL - Dynamic Stack Hero Card              */}
-        {/* The primary ritual based on time-of-day, large format  */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        <StaggeredFadeIn index={1} baseDelay={100}>
-          <View style={styles.featuredRitualSection}>
-            <Text style={[styles.ritualTimeLabel, { color: palette.textTertiary }]}>
-              {featuredRitual.timeLabel}
-            </Text>
-            <FeaturedRitualCard
-              ritual={featuredRitual}
-              palette={palette}
+      <PremiumPageTransition>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={palette.accent}
             />
-          </View>
-        </StaggeredFadeIn>
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* SECONDARY RITUALS - Clean vertical editorial stack     */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {auth.user && todayPractice && todayPractice.rituals.length > 0 && (
-          <StaggeredFadeIn index={2} baseDelay={200}>
-            <View style={styles.secondaryRitualsSection}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Daily Rituals</Text>
-                <TouchableOpacity onPress={handlePracticePress} style={styles.viewAllButton}>
-                  <Text style={[styles.viewAllText, { color: palette.accent }]}>View All</Text>
-                  <Ionicons name="chevron-forward" size={14} color={palette.accent} />
+          }
+        >
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* BREATHING HEADER - Generous white space sanctuary      */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          <StaggeredFadeIn index={0} baseDelay={0} staggerDelay={0}>
+            <View style={styles.heroSection}>
+              <View style={styles.heroHeader}>
+                <View style={styles.greetingContainer}>
+                  <Text style={[styles.heroGreeting, { color: palette.textPrimary }]}>
+                    {getGreeting()}{userName ? ',' : ''}
+                  </Text>
+                  {userName && (
+                    <Text style={[styles.heroName, { color: palette.textPrimary }]}>{userName}</Text>
+                  )}
+                  <Text style={[styles.heroDate, { color: palette.textTertiary }]}>{dateString}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.avatarButton}
+                  onPress={handleAccountPress}
+                  activeOpacity={0.9}
+                >
+                  {palette.useGradients ? (
+                    <LinearGradient
+                      colors={[palette.accent, palette.accentLight]}
+                      style={[styles.avatarGradient, { shadowColor: palette.accent }]}
+                    >
+                      <Ionicons name="person" size={18} color={palette.textInverse} />
+                    </LinearGradient>
+                  ) : (
+                    <View style={[styles.avatarGradient, { backgroundColor: palette.accent, shadowColor: palette.accent }]}>
+                      <Ionicons name="person" size={18} color={palette.textInverse} />
+                    </View>
+                  )}
                 </TouchableOpacity>
               </View>
 
-              {/* Progress bar with golden thread */}
-              <View style={styles.ritualProgressWrapper}>
-                <View style={styles.ritualProgressHeader}>
-                  <Text style={[styles.ritualProgressLabel, { color: palette.textSecondary }]}>
-                    {todayPractice.overallProgress}% complete
-                  </Text>
-                  {todayPractice.streakDays > 0 && (
-                    <View style={[styles.streakBadge, { backgroundColor: palette.accentMuted }]}>
-                      <Text style={[styles.streakBadgeText, { color: palette.textPrimary }]}>
-                        {todayPractice.streakDays}🔥
+              {/* Golden Thread accent line */}
+              <View style={styles.heroThreadWrapper}>
+                <GoldenThread width="40%" height={1.5} delay={600} />
+              </View>
+            </View>
+          </StaggeredFadeIn>
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* PAYWALL BANNER - For free tier users                   */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {subscriptionTier === 'free' && !bannerDismissed && (
+            <StaggeredFadeIn index={0} baseDelay={50}>
+              <View style={styles.paywallBannerSection}>
+                <PaywallBanner onDismiss={() => setBannerDismissed(true)} />
+              </View>
+            </StaggeredFadeIn>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* CALENDAR PREVIEW - When Google Calendar connected      */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {subscriptionTier !== 'free' && (
+            <StaggeredFadeIn index={1} baseDelay={80}>
+              <View style={styles.calendarPreviewSection}>
+                <CalendarPreview />
+              </View>
+            </StaggeredFadeIn>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* FEATURED RITUAL - Dynamic Stack Hero Card              */}
+          {/* The primary ritual based on time-of-day, large format  */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          <StaggeredFadeIn index={1} baseDelay={100}>
+            <View style={styles.featuredRitualSection}>
+              <Text style={[styles.ritualTimeLabel, { color: palette.textTertiary }]}>
+                {featuredRitual.timeLabel}
+              </Text>
+              <FeaturedRitualCard
+                ritual={featuredRitual}
+                palette={palette}
+              />
+            </View>
+          </StaggeredFadeIn>
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* SECONDARY RITUALS - Clean vertical editorial stack     */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {auth.user && todayPractice && todayPractice.rituals.length > 0 && (
+            <StaggeredFadeIn index={2} baseDelay={200}>
+              <View style={styles.secondaryRitualsSection}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Daily Rituals</Text>
+                  <TouchableOpacity onPress={handlePracticePress} style={styles.viewAllButton}>
+                    <Text style={[styles.viewAllText, { color: palette.accent }]}>View All</Text>
+                    <Ionicons name="chevron-forward" size={14} color={palette.accent} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Progress bar with golden thread */}
+                <View style={styles.ritualProgressWrapper}>
+                  <View style={styles.ritualProgressHeader}>
+                    <Text style={[styles.ritualProgressLabel, { color: palette.textSecondary }]}>
+                      {todayPractice.overallProgress}% complete
+                    </Text>
+                    {todayPractice.streakDays > 0 && (
+                      <View style={[styles.streakBadge, { backgroundColor: palette.accentMuted }]}>
+                        <Text style={[styles.streakBadgeText, { color: palette.textPrimary }]}>
+                          {todayPractice.streakDays}🔥
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <GoldenThread
+                    variant="progress"
+                    progress={todayPractice.overallProgress}
+                    height={4}
+                  />
+                </View>
+
+                {/* Ritual items - clean editorial list */}
+                <View style={styles.ritualsList}>
+                  {todayPractice.rituals.slice(0, 4).map((ritual, index) => (
+                    <SecondaryRitualItem
+                      key={ritual.id}
+                      ritual={ritual}
+                      index={index}
+                      palette={palette}
+                      onToggle={(completed) => handleRitualToggle(ritual.id, completed)}
+                    />
+                  ))}
+                  {todayPractice.rituals.length > 4 && (
+                    <TouchableOpacity
+                      style={styles.moreRitualsButton}
+                      onPress={handlePracticePress}
+                    >
+                      <Text style={[styles.moreRitualsText, { color: palette.accent }]}>
+                        +{todayPractice.rituals.length - 4} more rituals
                       </Text>
-                    </View>
+                    </TouchableOpacity>
                   )}
                 </View>
-                <GoldenThread
-                  variant="progress"
-                  progress={todayPractice.overallProgress}
-                  height={4}
+              </View>
+            </StaggeredFadeIn>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* PROGRESS SNAPSHOT - Compact editorial metrics          */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          <StaggeredFadeIn index={3} baseDelay={250}>
+            <View style={styles.progressSection}>
+              <FloatingCard elevation="medium" style={{ backgroundColor: palette.cardBg }}>
+                <View style={styles.progressCardInner}>
+                  <View style={styles.progressContent}>
+                    <View style={styles.progressRingWrapper}>
+                      <ProgressRing
+                        progress={progressPercentage}
+                        size={120}
+                        strokeWidth={10}
+                        label="Alignment"
+                        sublabel="with daily goals"
+                      />
+                    </View>
+                    <View style={styles.streakWrapper}>
+                      <StreakTimeline
+                        days={getStreakDays()}
+                        currentStreak={currentStreak}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Golden Thread divider */}
+                  <View style={styles.progressDivider}>
+                    <GoldenThread height={1} delay={400} />
+                  </View>
+
+                  {/* Quick insight */}
+                  <View style={[styles.insightCard, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="sparkles" size={14} color={palette.accent} />
+                    <Text style={[styles.insightText, { color: palette.textSecondary }]}>
+                      {progressPercentage === 100
+                        ? 'Perfect alignment today. Well done.'
+                        : progressPercentage > 50
+                          ? 'Making great progress. Keep the momentum.'
+                          : currentStreak > 3
+                            ? `${currentStreak} day streak! Consistency is key.`
+                            : 'Start with one small action today.'}
+                    </Text>
+                  </View>
+                </View>
+              </FloatingCard>
+            </View>
+          </StaggeredFadeIn>
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* ACTIVE COACH - Floating editorial card                 */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {activeCoach && (
+            <StaggeredFadeIn index={4} baseDelay={300}>
+              <TouchableOpacity
+                style={[styles.activeCoachCard, { shadowColor: palette.shadowColor }]}
+                onPress={handleOpenChat}
+                activeOpacity={0.95}
+              >
+                {palette.useGradients ? (
+                  <LinearGradient
+                    colors={[palette.gradientStart, palette.gradientEnd]}
+                    style={styles.coachGradient}
+                  >
+                    <View style={styles.coachContent}>
+                      <CoachIcon iconName={activeCoach.icon_name} color={palette.accent} size="md" />
+                      <View style={styles.coachInfo}>
+                        <Text style={[styles.coachLabel, { color: palette.accentLight }]}>Your Active Coach</Text>
+                        <Text style={[styles.coachName, { color: palette.textInverse }]}>{activeCoach.name}</Text>
+                      </View>
+                      <View style={styles.resumeButton}>
+                        <Text style={[styles.resumeText, { color: palette.accent }]}>Resume</Text>
+                        <Ionicons name="arrow-forward" size={14} color={palette.accent} />
+                      </View>
+                    </View>
+                  </LinearGradient>
+                ) : (
+                  <View style={[styles.coachGradient, { backgroundColor: palette.gradientStart }]}>
+                    <View style={styles.coachContent}>
+                      <CoachIcon iconName={activeCoach.icon_name} color={palette.accent} size="md" />
+                      <View style={styles.coachInfo}>
+                        <Text style={[styles.coachLabel, { color: palette.accentLight }]}>Your Active Coach</Text>
+                        <Text style={[styles.coachName, { color: palette.textInverse }]}>{activeCoach.name}</Text>
+                      </View>
+                      <View style={styles.resumeButton}>
+                        <Text style={[styles.resumeText, { color: palette.accent }]}>Resume</Text>
+                        <Ionicons name="arrow-forward" size={14} color={palette.accent} />
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </StaggeredFadeIn>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* QUICK ACTIONS - Editorial grid                         */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          <StaggeredFadeIn index={5} baseDelay={350}>
+            <View style={styles.quickActionsContainer}>
+              <QuickActions actions={quickActions} baseDelay={400} />
+            </View>
+          </StaggeredFadeIn>
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* FLASHBACK - From Your Archive                          */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {flashbackInsight && (
+            <StaggeredFadeIn index={6} baseDelay={400}>
+              <View style={styles.flashbackSection}>
+                <FlashbackCard
+                  insight={flashbackInsight.insight}
+                  type={flashbackInsight.type}
+                  onPress={handleFlashbackPress}
                 />
               </View>
+            </StaggeredFadeIn>
+          )}
 
-              {/* Ritual items - clean editorial list */}
-              <View style={styles.ritualsList}>
-                {todayPractice.rituals.slice(0, 4).map((ritual, index) => (
-                  <SecondaryRitualItem
-                    key={ritual.id}
-                    ritual={ritual}
-                    index={index}
-                    palette={palette}
-                    onToggle={(completed) => handleRitualToggle(ritual.id, completed)}
-                  />
-                ))}
-                {todayPractice.rituals.length > 4 && (
-                  <TouchableOpacity
-                    style={styles.moreRitualsButton}
-                    onPress={handlePracticePress}
-                  >
-                    <Text style={[styles.moreRitualsText, { color: palette.accent }]}>
-                      +{todayPractice.rituals.length - 4} more rituals
-                    </Text>
-                  </TouchableOpacity>
-                )}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* FEATURED COACH - Editorial magazine card                */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {featuredCoach && (
+            <StaggeredFadeIn index={7} baseDelay={450}>
+              <View style={styles.featuredSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Featured</Text>
+                </View>
+                <FeaturedCard
+                  type="coach"
+                  title={featuredCoach.name}
+                  subtitle={featuredCoach.tagline}
+                  description={featuredCoach.method}
+                  iconName={featuredCoach.icon_name}
+                  image={featuredCoach.image}
+                  accentColor={featuredCoach.color}
+                  badge="Premium"
+                  onPress={handleFeaturedPress}
+                  delay={500}
+                />
               </View>
-            </View>
-          </StaggeredFadeIn>
-        )}
+            </StaggeredFadeIn>
+          )}
 
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* PROGRESS SNAPSHOT - Compact editorial metrics          */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        <StaggeredFadeIn index={3} baseDelay={250}>
-          <View style={styles.progressSection}>
-            <FloatingCard elevation="medium" style={{ backgroundColor: palette.cardBg }}>
-              <View style={styles.progressCardInner}>
-                <View style={styles.progressContent}>
-                  <View style={styles.progressRingWrapper}>
-                    <ProgressRing
-                      progress={progressPercentage}
-                      size={120}
-                      strokeWidth={10}
-                      label="Alignment"
-                      sublabel="with daily goals"
-                    />
-                  </View>
-                  <View style={styles.streakWrapper}>
-                    <StreakTimeline
-                      days={getStreakDays()}
-                      currentStreak={currentStreak}
-                    />
-                  </View>
-                </View>
-
-                {/* Golden Thread divider */}
-                <View style={styles.progressDivider}>
-                  <GoldenThread height={1} delay={400} />
-                </View>
-
-                {/* Quick insight */}
-                <View style={[styles.insightCard, { backgroundColor: palette.accentMuted }]}>
-                  <Ionicons name="sparkles" size={14} color={palette.accent} />
-                  <Text style={[styles.insightText, { color: palette.textSecondary }]}>
-                    {progressPercentage === 100
-                      ? 'Perfect alignment today. Well done.'
-                      : progressPercentage > 50
-                        ? 'Making great progress. Keep the momentum.'
-                        : currentStreak > 3
-                          ? `${currentStreak} day streak! Consistency is key.`
-                          : 'Start with one small action today.'}
-                  </Text>
-                </View>
-              </View>
-            </FloatingCard>
-          </View>
-        </StaggeredFadeIn>
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* ACTIVE COACH - Floating editorial card                 */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {activeCoach && (
-          <StaggeredFadeIn index={4} baseDelay={300}>
-            <TouchableOpacity
-              style={[styles.activeCoachCard, { shadowColor: palette.shadowColor }]}
-              onPress={handleOpenChat}
-              activeOpacity={0.95}
-            >
-              {palette.useGradients ? (
-                <LinearGradient
-                  colors={[palette.gradientStart, palette.gradientEnd]}
-                  style={styles.coachGradient}
-                >
-                  <View style={styles.coachContent}>
-                    <CoachIcon iconName={activeCoach.icon_name} color={palette.accent} size="md" />
-                    <View style={styles.coachInfo}>
-                      <Text style={[styles.coachLabel, { color: palette.accentLight }]}>Your Active Coach</Text>
-                      <Text style={[styles.coachName, { color: palette.textInverse }]}>{activeCoach.name}</Text>
-                    </View>
-                    <View style={styles.resumeButton}>
-                      <Text style={[styles.resumeText, { color: palette.accent }]}>Resume</Text>
-                      <Ionicons name="arrow-forward" size={14} color={palette.accent} />
-                    </View>
-                  </View>
-                </LinearGradient>
-              ) : (
-                <View style={[styles.coachGradient, { backgroundColor: palette.gradientStart }]}>
-                  <View style={styles.coachContent}>
-                    <CoachIcon iconName={activeCoach.icon_name} color={palette.accent} size="md" />
-                    <View style={styles.coachInfo}>
-                      <Text style={[styles.coachLabel, { color: palette.accentLight }]}>Your Active Coach</Text>
-                      <Text style={[styles.coachName, { color: palette.textInverse }]}>{activeCoach.name}</Text>
-                    </View>
-                    <View style={styles.resumeButton}>
-                      <Text style={[styles.resumeText, { color: palette.accent }]}>Resume</Text>
-                      <Ionicons name="arrow-forward" size={14} color={palette.accent} />
-                    </View>
-                  </View>
-                </View>
-              )}
-            </TouchableOpacity>
-          </StaggeredFadeIn>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* QUICK ACTIONS - Editorial grid                         */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        <StaggeredFadeIn index={5} baseDelay={350}>
-          <View style={styles.quickActionsContainer}>
-            <QuickActions actions={quickActions} baseDelay={400} />
-          </View>
-        </StaggeredFadeIn>
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* FLASHBACK - From Your Archive                          */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {flashbackInsight && (
-          <StaggeredFadeIn index={6} baseDelay={400}>
-            <View style={styles.flashbackSection}>
-              <FlashbackCard
-                insight={flashbackInsight.insight}
-                type={flashbackInsight.type}
-                onPress={handleFlashbackPress}
-              />
-            </View>
-          </StaggeredFadeIn>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* FEATURED COACH - Editorial magazine card                */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {featuredCoach && (
-          <StaggeredFadeIn index={7} baseDelay={450}>
-            <View style={styles.featuredSection}>
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* TODAY'S FOCUS - Top 3 priorities                       */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          <StaggeredFadeIn index={8} baseDelay={500}>
+            <View style={styles.focusSection}>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Featured</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Today&apos;s Focus</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>Top 3 Priorities</Text>
               </View>
-              <FeaturedCard
-                type="coach"
-                title={featuredCoach.name}
-                subtitle={featuredCoach.tagline}
-                description={featuredCoach.method}
-                iconName={featuredCoach.icon_name}
-                image={featuredCoach.image}
-                accentColor={featuredCoach.color}
-                badge="Premium"
-                onPress={handleFeaturedPress}
-                delay={500}
-              />
+
+              <Card variant="elevated" style={styles.prioritiesCard}>
+                <View style={styles.prioritiesList}>
+                  {displayPriorities.slice(0, 3).map((priority, index) => (
+                    <PriorityItem
+                      key={priority.id}
+                      priority={priority}
+                      index={index + 1}
+                      delay={550 + index * 100}
+                      palette={palette}
+                    />
+                  ))}
+                </View>
+
+                <Button
+                  title="Begin Check-in"
+                  onPress={handleStartCheckIn}
+                  variant="gold"
+                  fullWidth
+                  size="lg"
+                  style={styles.checkInButton}
+                />
+              </Card>
             </View>
           </StaggeredFadeIn>
-        )}
 
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* TODAY'S FOCUS - Top 3 priorities                       */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        <StaggeredFadeIn index={8} baseDelay={500}>
-          <View style={styles.focusSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Today&apos;s Focus</Text>
-              <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>Top 3 Priorities</Text>
-            </View>
-
-            <Card variant="elevated" style={styles.prioritiesCard}>
-              <View style={styles.prioritiesList}>
-                {displayPriorities.slice(0, 3).map((priority, index) => (
-                  <PriorityItem
-                    key={priority.id}
-                    priority={priority}
-                    index={index + 1}
-                    delay={550 + index * 100}
-                    palette={palette}
-                  />
-                ))}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* RECENT SESSIONS - Horizontal editorial scroll          */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {recentSessions.length > 0 && (
+            <StaggeredFadeIn index={9} baseDelay={600}>
+              <View style={styles.sessionsSection}>
+                <View style={[styles.sectionHeader, { paddingHorizontal: EditorialSpacing.breathingMargin }]}>
+                  <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Recent Sessions</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.sessionsScroll}
+                >
+                  {recentSessions.map((session, index) => (
+                    <SessionCard key={session.id} session={session} index={index} palette={palette} />
+                  ))}
+                </ScrollView>
               </View>
+            </StaggeredFadeIn>
+          )}
 
-              <Button
-                title="Begin Check-in"
-                onPress={handleStartCheckIn}
-                variant="gold"
-                fullWidth
-                size="lg"
-                style={styles.checkInButton}
-              />
-            </Card>
-          </View>
-        </StaggeredFadeIn>
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* RECENT SESSIONS - Horizontal editorial scroll          */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {recentSessions.length > 0 && (
-          <StaggeredFadeIn index={9} baseDelay={600}>
-            <View style={styles.sessionsSection}>
-              <View style={[styles.sectionHeader, { paddingHorizontal: EditorialSpacing.breathingMargin }]}>
-                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Recent Sessions</Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.sessionsScroll}
-              >
-                {recentSessions.map((session, index) => (
-                  <SessionCard key={session.id} session={session} index={index} palette={palette} />
-                ))}
-              </ScrollView>
-            </View>
-          </StaggeredFadeIn>
-        )}
-
-        {/* Spacer for floating dock */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+          {/* Spacer for floating dock */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </PremiumPageTransition>
     </SafeAreaView>
   );
 }

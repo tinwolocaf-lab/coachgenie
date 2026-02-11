@@ -30,6 +30,7 @@ import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { Coach, Message, Session, SessionResult, ContextVault } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { supabase } from '@/lib/supabase';
@@ -392,124 +393,126 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-      {/* Premium Header */}
-      <View style={[styles.header, { borderBottomColor: palette.borderLight, backgroundColor: palette.background }]}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="chevron-down" size={28} color={palette.textPrimary} />
-        </TouchableOpacity>
+      <PremiumPageTransition style={styles.container}>
+        {/* Premium Header */}
+        <View style={[styles.header, { borderBottomColor: palette.borderLight, backgroundColor: palette.background }]}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Ionicons name="chevron-down" size={28} color={palette.textPrimary} />
+          </TouchableOpacity>
 
-        <View style={styles.headerCenter}>
-          <CoachIcon iconName={coach.icon_name} color={coach.color} size="sm" />
-          <View style={styles.headerInfo}>
-            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>{coach.name}</Text>
-            <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>Session in progress</Text>
+          <View style={styles.headerCenter}>
+            <CoachIcon iconName={coach.icon_name} color={coach.color} size="sm" />
+            <View style={styles.headerInfo}>
+              <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>{coach.name}</Text>
+              <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>Session in progress</Text>
+            </View>
           </View>
+
+          {/* Voice Mode Toggle */}
+          <TouchableOpacity
+            onPress={() => {
+              if (!voiceEnabled) {
+                Alert.alert('Voice Coaching', 'Voice coaching is available on Sovereign and Oracle plans.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Upgrade', onPress: () => { router.back(); router.push('/paywall'); } },
+                ]);
+                return;
+              }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowVoiceMode(true);
+            }}
+            style={[styles.voiceButton, !voiceEnabled && { opacity: 0.4 }]}
+          >
+            <Ionicons name="mic" size={18} color={palette.accent} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => sessionResult ? setShowPaperArtifact(true) : generateSessionResults()}
+            style={styles.insightsButton}
+            disabled={isGeneratingArtifacts}
+          >
+            {isGeneratingArtifacts ? (
+              <ActivityIndicator size="small" color={palette.accent} />
+            ) : (
+              <>
+                <Ionicons name="sparkles" size={18} color={palette.accent} />
+                {sessionResult && <View style={[styles.insightsBadge, { backgroundColor: palette.success }]} />}
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Voice Mode Toggle */}
-        <TouchableOpacity
-          onPress={() => {
-            if (!voiceEnabled) {
-              Alert.alert('Voice Coaching', 'Voice coaching is available on Sovereign and Oracle plans.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Upgrade', onPress: () => { router.back(); router.push('/paywall'); } },
-              ]);
-              return;
-            }
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowVoiceMode(true);
-          }}
-          style={[styles.voiceButton, !voiceEnabled && { opacity: 0.4 }]}
+        {/* Transcript-style messages */}
+        <KeyboardAvoidingView
+          style={styles.chatContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Ionicons name="mic" size={18} color={palette.accent} />
-        </TouchableOpacity>
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            ListFooterComponent={() => (
+              <>
+                {isStreaming && streamingText && (
+                  <Animated.View entering={FadeIn.duration(300)} style={styles.transcriptEntry}>
+                    <View style={styles.speakerRow}>
+                      <View style={[styles.speakerDot, { backgroundColor: palette.accent }]} />
+                      <Text style={[styles.speakerLabel, { color: palette.accent }]}>{coach.name}</Text>
+                      <Animated.View style={[styles.typingIndicator, { backgroundColor: palette.accentMuted }, pulseStyle]}>
+                        <Text style={[styles.typingText, { color: palette.accent }]}>composing</Text>
+                      </Animated.View>
+                    </View>
+                    <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }]}>
+                      <Text style={[styles.transcriptText, { color: palette.textSecondary }]}>{streamingText}</Text>
+                      <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
+                    </View>
+                  </Animated.View>
+                )}
+                {(isStreaming && !streamingText) && (
+                  <Animated.View entering={FadeIn.duration(300)} style={styles.thinkingContainer}>
+                    <View style={styles.thinkingDots}>
+                      <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
+                      <View style={[styles.thinkingDot, { backgroundColor: palette.accent, marginHorizontal: 4 }]} />
+                      <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
+                    </View>
+                    <Text style={[styles.thinkingText, { color: palette.textTertiary }]}>{coach.name} is reflecting...</Text>
+                  </Animated.View>
+                )}
+              </>
+            )}
+          />
 
-        <TouchableOpacity
-          onPress={() => sessionResult ? setShowPaperArtifact(true) : generateSessionResults()}
-          style={styles.insightsButton}
-          disabled={isGeneratingArtifacts}
-        >
-          {isGeneratingArtifacts ? (
-            <ActivityIndicator size="small" color={palette.accent} />
-          ) : (
-            <>
-              <Ionicons name="sparkles" size={18} color={palette.accent} />
-              {sessionResult && <View style={[styles.insightsBadge, { backgroundColor: palette.success }]} />}
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Transcript-style messages */}
-      <KeyboardAvoidingView
-        style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          ListFooterComponent={() => (
-            <>
-              {isStreaming && streamingText && (
-                <Animated.View entering={FadeIn.duration(300)} style={styles.transcriptEntry}>
-                  <View style={styles.speakerRow}>
-                    <View style={[styles.speakerDot, { backgroundColor: palette.accent }]} />
-                    <Text style={[styles.speakerLabel, { color: palette.accent }]}>{coach.name}</Text>
-                    <Animated.View style={[styles.typingIndicator, { backgroundColor: palette.accentMuted }, pulseStyle]}>
-                      <Text style={[styles.typingText, { color: palette.accent }]}>composing</Text>
-                    </Animated.View>
-                  </View>
-                  <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }]}>
-                    <Text style={[styles.transcriptText, { color: palette.textSecondary }]}>{streamingText}</Text>
-                    <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
-                  </View>
-                </Animated.View>
-              )}
-              {(isStreaming && !streamingText) && (
-                <Animated.View entering={FadeIn.duration(300)} style={styles.thinkingContainer}>
-                  <View style={styles.thinkingDots}>
-                    <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
-                    <View style={[styles.thinkingDot, { backgroundColor: palette.accent, marginHorizontal: 4 }]} />
-                    <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
-                  </View>
-                  <Text style={[styles.thinkingText, { color: palette.textTertiary }]}>{coach.name} is reflecting...</Text>
-                </Animated.View>
-              )}
-            </>
-          )}
-        />
-
-        {/* Premium Input */}
-        <View style={[styles.inputContainer, { paddingBottom: insets.bottom || Spacing.md, backgroundColor: palette.background, borderTopColor: palette.borderLight }]}>
-          <View style={[styles.inputWrapper, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
-            <TextInput
-              style={[styles.input, { color: palette.textSecondary }]}
-              placeholder="Share your thoughts..."
-              placeholderTextColor={palette.textTertiary}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={1000}
-              editable={!isStreaming}
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, { backgroundColor: palette.accent }, (!inputText.trim() || isStreaming) && { backgroundColor: palette.backgroundSecondary }]}
-              onPress={handleSend}
-              disabled={!inputText.trim() || isStreaming}
-            >
-              <Ionicons
-                name="arrow-up"
-                size={20}
-                color={(!inputText.trim() || isStreaming) ? palette.textTertiary : palette.textInverse}
+          {/* Premium Input */}
+          <View style={[styles.inputContainer, { paddingBottom: insets.bottom || Spacing.md, backgroundColor: palette.background, borderTopColor: palette.borderLight }]}>
+            <View style={[styles.inputWrapper, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+              <TextInput
+                style={[styles.input, { color: palette.textSecondary }]}
+                placeholder="Share your thoughts..."
+                placeholderTextColor={palette.textTertiary}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={1000}
+                editable={!isStreaming}
               />
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sendButton, { backgroundColor: palette.accent }, (!inputText.trim() || isStreaming) && { backgroundColor: palette.backgroundSecondary }]}
+                onPress={handleSend}
+                disabled={!inputText.trim() || isStreaming}
+              >
+                <Ionicons
+                  name="arrow-up"
+                  size={20}
+                  color={(!inputText.trim() || isStreaming) ? palette.textTertiary : palette.textInverse}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </PremiumPageTransition>
 
       {/* Paper Artifact Modal */}
       <Modal
@@ -716,7 +719,7 @@ const styles = StyleSheet.create({
   messagesList: {
     paddingHorizontal: Spacing.xxl,
     paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xxxl,
+    paddingBottom: 300,
   },
 
   // Transcript style

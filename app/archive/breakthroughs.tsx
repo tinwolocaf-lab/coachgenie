@@ -68,7 +68,11 @@ export default function BreakthroughsScreen() {
 
   const handleBackPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/archive');
   };
 
   const handleExpandToggle = (id: string) => {

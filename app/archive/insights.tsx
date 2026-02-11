@@ -125,7 +125,11 @@ export default function InsightsGalleryScreen() {
 
   const handleBackPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/archive');
   };
 
   // Group insights by month for display

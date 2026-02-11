@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -141,132 +142,134 @@ export default function CoachesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={palette.accent}
-          />
-        }
-      >
-        {/* Header */}
-        <StaggeredFadeIn index={0} baseDelay={0}>
-          <View style={styles.header}>
-            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>The Gallery</Text>
-            <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
-              World-class methodologies for every aspect of your growth
-            </Text>
-          </View>
-        </StaggeredFadeIn>
-
-        {/* Search Bar */}
-        <StaggeredFadeIn index={1} baseDelay={100}>
-          <View style={styles.searchContainer}>
-            <SearchBar
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search coaches, methodologies..."
+      <PremiumPageTransition>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={palette.accent}
             />
-          </View>
-        </StaggeredFadeIn>
-
-        {/* Filter Pills */}
-        <StaggeredFadeIn index={2} baseDelay={150}>
-          <View style={styles.filtersContainer}>
-            <FilterPills
-              categories={COACH_CATEGORIES}
-              selectedId={selectedCategory}
-              onSelect={handleCategorySelect}
-            />
-          </View>
-        </StaggeredFadeIn>
-
-        {/* My Coaches Section */}
-        {myCoaches.length > 0 && !searchQuery && !selectedCategory && (
-          <StaggeredFadeIn index={3} baseDelay={200}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Your Coaches</Text>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.myCoachesScroll}
-            >
-              {myCoaches.map((item, index) => (
-                <ActiveCoachCard
-                  key={item.id}
-                  coach={item.coach}
-                  isActive={item.coach_id === activeCoachId}
-                  onPress={() => handleCoachPress(item.coach_id)}
-                  index={index}
-                  scrollOffset={scrollOffset}
-                />
-              ))}
-            </ScrollView>
-          </StaggeredFadeIn>
-        )}
-
-        {/* Discover Coaches - Masterclass Style Gallery */}
-        <StaggeredFadeIn index={4} baseDelay={300}>
-          <View style={styles.sectionHeaderVertical}>
-            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-              {searchQuery || selectedCategory ? 'Results' : 'Discover Coaches'}
-            </Text>
-            {!searchQuery && !selectedCategory && (
-              <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
-                Each coach brings a unique methodology
+          }
+        >
+          {/* Header */}
+          <StaggeredFadeIn index={0} baseDelay={0}>
+            <View style={styles.header}>
+              <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>The Gallery</Text>
+              <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
+                World-class methodologies for every aspect of your growth
               </Text>
-            )}
-          </View>
+            </View>
+          </StaggeredFadeIn>
 
-          <View style={styles.coachGrid}>
-            {availableCoaches.length > 0 ? (
-              availableCoaches.map((coach, index) => (
-                <MasterclassCoachCard
-                  key={coach.id}
-                  coach={coach}
-                  onPress={() => handleCoachPress(coach.id)}
-                  index={index}
-                  scrollOffset={scrollOffset}
-                  isLocked={!canAccessCoach(subscriptionTier, coach.id)}
-                />
-              ))
-            ) : (
-              <Card variant="glass" style={styles.emptyCard}>
-                <View style={styles.emptyIcon}>
-                  <Ionicons name="search-outline" size={48} color={palette.textTertiary} />
+          {/* Search Bar */}
+          <StaggeredFadeIn index={1} baseDelay={100}>
+            <View style={styles.searchContainer}>
+              <SearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search coaches, methodologies..."
+              />
+            </View>
+          </StaggeredFadeIn>
+
+          {/* Filter Pills */}
+          <StaggeredFadeIn index={2} baseDelay={150}>
+            <View style={styles.filtersContainer}>
+              <FilterPills
+                categories={COACH_CATEGORIES}
+                selectedId={selectedCategory}
+                onSelect={handleCategorySelect}
+              />
+            </View>
+          </StaggeredFadeIn>
+
+          {/* My Coaches Section */}
+          {myCoaches.length > 0 && !searchQuery && !selectedCategory && (
+            <StaggeredFadeIn index={3} baseDelay={200}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Your Coaches</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.myCoachesScroll}
+              >
+                {myCoaches.map((item, index) => (
+                  <ActiveCoachCard
+                    key={item.id}
+                    coach={item.coach}
+                    isActive={item.coach_id === activeCoachId}
+                    onPress={() => handleCoachPress(item.coach_id)}
+                    index={index}
+                    scrollOffset={scrollOffset}
+                  />
+                ))}
+              </ScrollView>
+            </StaggeredFadeIn>
+          )}
+
+          {/* Discover Coaches - Masterclass Style Gallery */}
+          <StaggeredFadeIn index={4} baseDelay={300}>
+            <View style={styles.sectionHeaderVertical}>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                {searchQuery || selectedCategory ? 'Results' : 'Discover Coaches'}
+              </Text>
+              {!searchQuery && !selectedCategory && (
+                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
+                  Each coach brings a unique methodology
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.coachGrid}>
+              {availableCoaches.length > 0 ? (
+                availableCoaches.map((coach, index) => (
+                  <MasterclassCoachCard
+                    key={coach.id}
+                    coach={coach}
+                    onPress={() => handleCoachPress(coach.id)}
+                    index={index}
+                    scrollOffset={scrollOffset}
+                    isLocked={!canAccessCoach(subscriptionTier, coach.id)}
+                  />
+                ))
+              ) : (
+                <Card variant="glass" style={styles.emptyCard}>
+                  <View style={styles.emptyIcon}>
+                    <Ionicons name="search-outline" size={48} color={palette.textTertiary} />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>No coaches found</Text>
+                  <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
+                    Try adjusting your search or filters
+                  </Text>
+                </Card>
+              )}
+            </View>
+
+            {/* All coaches installed message */}
+            {availableCoaches.length === 0 && !searchQuery && !selectedCategory && installedIds.length === SAMPLE_COACHES.length && (
+              <Card variant="glass" style={styles.allInstalledCard}>
+                <View style={styles.allInstalledIcon}>
+                  <Ionicons name="checkmark-circle" size={48} color={palette.success} />
                 </View>
-                <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>No coaches found</Text>
-                <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
-                  Try adjusting your search or filters
+                <Text style={[styles.allInstalledTitle, { color: palette.textPrimary }]}>Library Complete</Text>
+                <Text style={[styles.allInstalledText, { color: palette.textTertiary }]}>
+                  You&apos;ve explored all available coaches. More methodologies coming soon.
                 </Text>
               </Card>
             )}
-          </View>
+          </StaggeredFadeIn>
 
-          {/* All coaches installed message */}
-          {availableCoaches.length === 0 && !searchQuery && !selectedCategory && installedIds.length === SAMPLE_COACHES.length && (
-            <Card variant="glass" style={styles.allInstalledCard}>
-              <View style={styles.allInstalledIcon}>
-                <Ionicons name="checkmark-circle" size={48} color={palette.success} />
-              </View>
-              <Text style={[styles.allInstalledTitle, { color: palette.textPrimary }]}>Library Complete</Text>
-              <Text style={[styles.allInstalledText, { color: palette.textTertiary }]}>
-                You&apos;ve explored all available coaches. More methodologies coming soon.
-              </Text>
-            </Card>
-          )}
-        </StaggeredFadeIn>
-
-        {/* Bottom spacer */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+          {/* Bottom spacer */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </PremiumPageTransition>
     </SafeAreaView>
   );
 }
@@ -451,7 +454,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: Spacing.section,
+    paddingBottom: 200,
   },
 
   // Header

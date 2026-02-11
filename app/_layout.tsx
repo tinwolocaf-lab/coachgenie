@@ -12,6 +12,7 @@ import { FocusModeProvider } from '@/contexts/FocusModeContext';
 import { usePremiumFonts } from '@/hooks/usePremiumFonts';
 import { initRevenueCat, identifyUser, logOutUser } from '@/lib/revenuecat';
 import { AuthProvider } from '@/lib/auth';
+import { GlobalErrorBoundary } from '@/components/system/GlobalErrorBoundary';
 
 /**
  * Parse authentication tokens from URL hash fragment
@@ -336,13 +337,18 @@ function ThemedAppContentWithStatusBar() {
 }
 
 export default function RootLayout() {
-  // Wrap with AuthProvider if available
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppContent />
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+
+  const guardedContent = (
+    <GlobalErrorBoundary>
+      {content}
+    </GlobalErrorBoundary>
   );
 
   if (isSupabaseConfigured) {
@@ -369,12 +375,12 @@ export default function RootLayout() {
           console.log('[Auth] Email verified for:', user.email);
         }}
       >
-        {content}
+        {guardedContent}
       </AuthProvider>
     );
   }
 
-  return content;
+  return guardedContent;
 }
 
 const styles = StyleSheet.create({

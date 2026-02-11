@@ -26,6 +26,7 @@ import * as Haptics from 'expo-haptics';
 import { Typography, Spacing, Radius, Shadows, EditorialSpacing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { AtmosphereGallery } from '@/components/settings/AtmosphereGallery';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { useThemeSafe } from '@/contexts/ThemeContext';
@@ -315,258 +316,260 @@ export default function AccountScreen() {
 
   return (<>
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top']}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+      <PremiumPageTransition style={styles.container}>
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {/* Header */}
-          <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
-            <TouchableOpacity
-              onPress={handleBack}
-              style={[styles.backButton, { backgroundColor: palette.cardBg }]}
-            >
-              <Ionicons name="arrow-back" size={22} color={palette.textSecondary} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, dynamicStyles.headerTitle]}>Account</Text>
-            <View style={styles.headerSpacer} />
-          </Animated.View>
-
-          {/* Profile Card */}
-          <Animated.View entering={FadeIn.duration(600).delay(100)}>
-            <View style={[styles.profileCard, { shadowColor: palette.shadowColor }]}>
-              <LinearGradient
-                colors={[palette.gradientStart, palette.gradientEnd]}
-                style={styles.profileGradient}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Header */}
+            <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
+              <TouchableOpacity
+                onPress={handleBack}
+                style={[styles.backButton, { backgroundColor: palette.cardBg }]}
               >
-                <Animated.View style={[styles.avatarContainer, headerAnimatedStyle]}>
-                  <LinearGradient
-                    colors={[palette.accent, palette.accentLight]}
-                    style={[styles.avatarGradient, { shadowColor: palette.accent }]}
-                  >
-                    <Text style={[styles.avatarText, { color: palette.textInverse }]}>{profile.avatarInitial}</Text>
-                  </LinearGradient>
-                </Animated.View>
-                <Text style={[styles.profileName, { color: palette.textInverse }]}>{profile.fullName}</Text>
-                <Text style={[styles.profileEmail, { color: palette.accentLight }]}>{profile.email}</Text>
-                <View style={styles.memberBadge}>
-                  <Ionicons name="sparkles" size={14} color={palette.accent} />
-                  <Text style={[styles.memberText, { color: palette.accent }]}>
-                    {isSovereignMember ? 'Sovereign Member' : 'Premium Member'}
-                  </Text>
-                </View>
-              </LinearGradient>
-            </View>
-          </Animated.View>
+                <Ionicons name="arrow-back" size={22} color={palette.textSecondary} />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, dynamicStyles.headerTitle]}>Account</Text>
+              <View style={styles.headerSpacer} />
+            </Animated.View>
 
-          {/* Atmospheres Section */}
-          <Animated.View entering={FadeInUp.duration(500).delay(150)}>
-            <AtmosphereGallery onPremiumRequired={handlePremiumRequired} />
-          </Animated.View>
+            {/* Profile Card */}
+            <Animated.View entering={FadeIn.duration(600).delay(100)}>
+              <View style={[styles.profileCard, { shadowColor: palette.shadowColor }]}>
+                <LinearGradient
+                  colors={[palette.gradientStart, palette.gradientEnd]}
+                  style={styles.profileGradient}
+                >
+                  <Animated.View style={[styles.avatarContainer, headerAnimatedStyle]}>
+                    <LinearGradient
+                      colors={[palette.accent, palette.accentLight]}
+                      style={[styles.avatarGradient, { shadowColor: palette.accent }]}
+                    >
+                      <Text style={[styles.avatarText, { color: palette.textInverse }]}>{profile.avatarInitial}</Text>
+                    </LinearGradient>
+                  </Animated.View>
+                  <Text style={[styles.profileName, { color: palette.textInverse }]}>{profile.fullName}</Text>
+                  <Text style={[styles.profileEmail, { color: palette.accentLight }]}>{profile.email}</Text>
+                  <View style={styles.memberBadge}>
+                    <Ionicons name="sparkles" size={14} color={palette.accent} />
+                    <Text style={[styles.memberText, { color: palette.accent }]}>
+                      {isSovereignMember ? 'Sovereign Member' : 'Premium Member'}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              </View>
+            </Animated.View>
 
-          {/* Edit Profile Section */}
-          <Animated.View entering={FadeInUp.duration(500).delay(200)}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Profile Settings</Text>
-            </View>
+            {/* Atmospheres Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(150)}>
+              <AtmosphereGallery onPremiumRequired={handlePremiumRequired} />
+            </Animated.View>
 
-            <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
-              {/* Name Field */}
-              <View style={[styles.settingItem, { borderBottomColor: palette.borderLight }]}>
-                <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
-                  <Ionicons name="person-outline" size={20} color={palette.accent} />
-                </View>
-                <View style={styles.settingContent}>
-                  <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Display Name</Text>
-                  {isEditing ? (
-                    <TextInput
-                      style={[styles.settingInput, { color: palette.textSecondary, borderBottomColor: palette.accent }]}
-                      value={editedName}
-                      onChangeText={setEditedName}
-                      placeholder="Enter your name"
-                      placeholderTextColor={palette.textTertiary}
-                      autoFocus
-                    />
-                  ) : (
-                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>{profile.fullName}</Text>
+            {/* Edit Profile Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(200)}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Profile Settings</Text>
+              </View>
+
+              <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+                {/* Name Field */}
+                <View style={[styles.settingItem, { borderBottomColor: palette.borderLight }]}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="person-outline" size={20} color={palette.accent} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Display Name</Text>
+                    {isEditing ? (
+                      <TextInput
+                        style={[styles.settingInput, { color: palette.textSecondary, borderBottomColor: palette.accent }]}
+                        value={editedName}
+                        onChangeText={setEditedName}
+                        placeholder="Enter your name"
+                        placeholderTextColor={palette.textTertiary}
+                        autoFocus
+                      />
+                    ) : (
+                      <Text style={[styles.settingValue, { color: palette.textSecondary }]}>{profile.fullName}</Text>
+                    )}
+                  </View>
+                  {!isEditing && (
+                    <TouchableOpacity
+                      onPress={handleEditProfile}
+                      style={[styles.editButton, { backgroundColor: palette.accentMuted }]}
+                    >
+                      <Ionicons name="pencil" size={16} color={palette.accent} />
+                    </TouchableOpacity>
                   )}
                 </View>
-                {!isEditing && (
-                  <TouchableOpacity
-                    onPress={handleEditProfile}
-                    style={[styles.editButton, { backgroundColor: palette.accentMuted }]}
-                  >
-                    <Ionicons name="pencil" size={16} color={palette.accent} />
-                  </TouchableOpacity>
+
+                {/* Email Field (Read-only) */}
+                <View style={styles.settingItem}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="mail-outline" size={20} color={palette.accent} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Email Address</Text>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>{profile.email}</Text>
+                  </View>
+                  <View style={[styles.verifiedBadge, { backgroundColor: palette.successLight }]}>
+                    <Ionicons name="checkmark-circle" size={16} color={palette.success} />
+                  </View>
+                </View>
+
+                {/* Edit Actions */}
+                {isEditing && (
+                  <Animated.View entering={FadeIn.duration(300)} style={styles.editActions}>
+                    <Button
+                      title="Cancel"
+                      onPress={handleCancelEdit}
+                      variant="outline"
+                      size="sm"
+                      style={styles.editCancelButton}
+                    />
+                    <Button
+                      title="Save Changes"
+                      onPress={handleSaveProfile}
+                      variant="gold"
+                      size="sm"
+                      loading={isSaving}
+                      style={styles.editSaveButton}
+                    />
+                  </Animated.View>
                 )}
               </View>
+            </Animated.View>
 
-              {/* Email Field (Read-only) */}
-              <View style={styles.settingItem}>
-                <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
-                  <Ionicons name="mail-outline" size={20} color={palette.accent} />
-                </View>
-                <View style={styles.settingContent}>
-                  <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Email Address</Text>
-                  <Text style={[styles.settingValue, { color: palette.textSecondary }]}>{profile.email}</Text>
-                </View>
-                <View style={[styles.verifiedBadge, { backgroundColor: palette.successLight }]}>
-                  <Ionicons name="checkmark-circle" size={16} color={palette.success} />
-                </View>
+            {/* Subscription Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(300)}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Subscription</Text>
               </View>
 
-              {/* Edit Actions */}
-              {isEditing && (
-                <Animated.View entering={FadeIn.duration(300)} style={styles.editActions}>
-                  <Button
-                    title="Cancel"
-                    onPress={handleCancelEdit}
-                    variant="outline"
-                    size="sm"
-                    style={styles.editCancelButton}
-                  />
-                  <Button
-                    title="Save Changes"
-                    onPress={handleSaveProfile}
-                    variant="gold"
-                    size="sm"
-                    loading={isSaving}
-                    style={styles.editSaveButton}
-                  />
-                </Animated.View>
-              )}
-            </View>
-          </Animated.View>
-
-          {/* Subscription Section */}
-          <Animated.View entering={FadeInUp.duration(500).delay(300)}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Subscription</Text>
-            </View>
-
-            <View style={[styles.subscriptionCard, { borderColor: palette.borderAccent }]}>
-              <LinearGradient
-                colors={[`${palette.accent}06`, `${palette.accent}03`]}
-                style={styles.subscriptionGradient}
-              >
-                <View style={styles.subscriptionHeader}>
-                  <View style={[styles.subscriptionIcon, { backgroundColor: palette.accentMuted }]}>
-                    <Ionicons name="diamond" size={24} color={palette.accent} />
-                  </View>
-                  <View style={styles.subscriptionInfo}>
-                    <Text style={[styles.subscriptionTitle, { color: palette.textSecondary }]}>
-                      {subscriptionTier === 'oracle' ? 'Oracle Plan' : subscriptionTier === 'sovereign' ? 'Sovereign Plan' : 'Free Plan'}
-                    </Text>
-                    <Text style={[styles.subscriptionStatus, { color: palette.success }]}>Active</Text>
-                  </View>
-                  <View style={[styles.subscriptionBadge, { backgroundColor: palette.accent }]}>
-                    <Text style={[styles.subscriptionBadgeText, { color: palette.textInverse }]}>CURRENT</Text>
-                  </View>
-                </View>
-                <View style={styles.subscriptionFeatures}>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={16} color={palette.success} />
-                    <Text style={[styles.featureText, { color: palette.textSecondary }]}>Unlimited AI coaching sessions</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={16} color={palette.success} />
-                    <Text style={[styles.featureText, { color: palette.textSecondary }]}>All premium coaches</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Ionicons name="checkmark" size={16} color={palette.success} />
-                    <Text style={[styles.featureText, { color: palette.textSecondary }]}>
-                      {isSovereignMember ? 'All premium atmospheres' : 'Priority support'}
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  onPress={handleManageSubscription}
-                  style={[styles.manageButton, { borderTopColor: palette.borderAccent }]}
-                  activeOpacity={0.7}
+              <View style={[styles.subscriptionCard, { borderColor: palette.borderAccent }]}>
+                <LinearGradient
+                  colors={[`${palette.accent}06`, `${palette.accent}03`]}
+                  style={styles.subscriptionGradient}
                 >
-                  <Text style={[styles.manageButtonText, { color: palette.accent }]}>Manage Subscription</Text>
-                  <Ionicons name="arrow-forward" size={14} color={palette.accent} />
-                </TouchableOpacity>
-              </LinearGradient>
-            </View>
-          </Animated.View>
-
-          {/* Connections Section */}
-          <Animated.View entering={FadeInUp.duration(500).delay(350)}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Connections</Text>
-            </View>
-
-            <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
-              <TouchableOpacity
-                style={styles.settingItemClickable}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/integrations');
-                }}
-              >
-                <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
-                  <Ionicons name="apps-outline" size={20} color={palette.accent} />
-                </View>
-                <View style={styles.settingContent}>
-                  <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Integrations</Text>
-                  <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>
-                    Connect Calendar, Notion, GitHub and more
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-
-          {/* Security Section */}
-          <Animated.View entering={FadeInUp.duration(500).delay(400)}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Security</Text>
-            </View>
-
-            <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
-              <TouchableOpacity style={styles.settingItemClickable} onPress={handleChangePassword}>
-                <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
-                  <Ionicons name="lock-closed-outline" size={20} color={palette.accent} />
-                </View>
-                <View style={styles.settingContent}>
-                  <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Change Password</Text>
-                  <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Update your account password</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-
-          {/* Sign Out Button */}
-          <Animated.View entering={FadeInUp.duration(500).delay(500)} style={styles.signOutSection}>
-            <TouchableOpacity
-              onPress={handleSignOut}
-              style={[styles.signOutButton, { backgroundColor: palette.errorLight }]}
-              activeOpacity={0.8}
-            >
-              <View style={styles.signOutContent}>
-                <Ionicons name="log-out-outline" size={20} color={palette.error} />
-                <Text style={[styles.signOutText, { color: palette.error }]}>Sign Out</Text>
+                  <View style={styles.subscriptionHeader}>
+                    <View style={[styles.subscriptionIcon, { backgroundColor: palette.accentMuted }]}>
+                      <Ionicons name="diamond" size={24} color={palette.accent} />
+                    </View>
+                    <View style={styles.subscriptionInfo}>
+                      <Text style={[styles.subscriptionTitle, { color: palette.textSecondary }]}>
+                        {subscriptionTier === 'oracle' ? 'Oracle Plan' : subscriptionTier === 'sovereign' ? 'Sovereign Plan' : 'Free Plan'}
+                      </Text>
+                      <Text style={[styles.subscriptionStatus, { color: palette.success }]}>Active</Text>
+                    </View>
+                    <View style={[styles.subscriptionBadge, { backgroundColor: palette.accent }]}>
+                      <Text style={[styles.subscriptionBadgeText, { color: palette.textInverse }]}>CURRENT</Text>
+                    </View>
+                  </View>
+                  <View style={styles.subscriptionFeatures}>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="checkmark" size={16} color={palette.success} />
+                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>Unlimited AI coaching sessions</Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="checkmark" size={16} color={palette.success} />
+                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>All premium coaches</Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="checkmark" size={16} color={palette.success} />
+                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>
+                        {isSovereignMember ? 'All premium atmospheres' : 'Priority support'}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={handleManageSubscription}
+                    style={[styles.manageButton, { borderTopColor: palette.borderAccent }]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.manageButtonText, { color: palette.accent }]}>Manage Subscription</Text>
+                    <Ionicons name="arrow-forward" size={14} color={palette.accent} />
+                  </TouchableOpacity>
+                </LinearGradient>
               </View>
-            </TouchableOpacity>
-          </Animated.View>
+            </Animated.View>
 
-          {/* App Info */}
-          <Animated.View entering={FadeIn.duration(400).delay(600)} style={styles.appInfo}>
-            <Text style={[styles.appVersion, { color: palette.textTertiary }]}>Coachgenie v1.0.0</Text>
-            <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 Coachgenie. All rights reserved.</Text>
-          </Animated.View>
+            {/* Connections Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(350)}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Connections</Text>
+              </View>
 
-          {/* Bottom Spacer */}
-          <View style={styles.bottomSpacer} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+              <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+                <TouchableOpacity
+                  style={styles.settingItemClickable}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push('/integrations');
+                  }}
+                >
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="apps-outline" size={20} color={palette.accent} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Integrations</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>
+                      Connect Calendar, Notion, GitHub and more
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+
+            {/* Security Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(400)}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Security</Text>
+              </View>
+
+              <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+                <TouchableOpacity style={styles.settingItemClickable} onPress={handleChangePassword}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="lock-closed-outline" size={20} color={palette.accent} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Change Password</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Update your account password</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+
+            {/* Sign Out Button */}
+            <Animated.View entering={FadeInUp.duration(500).delay(500)} style={styles.signOutSection}>
+              <TouchableOpacity
+                onPress={handleSignOut}
+                style={[styles.signOutButton, { backgroundColor: palette.errorLight }]}
+                activeOpacity={0.8}
+              >
+                <View style={styles.signOutContent}>
+                  <Ionicons name="log-out-outline" size={20} color={palette.error} />
+                  <Text style={[styles.signOutText, { color: palette.error }]}>Sign Out</Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* App Info */}
+            <Animated.View entering={FadeIn.duration(400).delay(600)} style={styles.appInfo}>
+              <Text style={[styles.appVersion, { color: palette.textTertiary }]}>Coachgenie v1.0.0</Text>
+              <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 Coachgenie. All rights reserved.</Text>
+            </Animated.View>
+
+            {/* Bottom Spacer */}
+            <View style={styles.bottomSpacer} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </PremiumPageTransition>
     </SafeAreaView>
 
     {/* Password Change Modal */}

@@ -29,6 +29,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing, Radius } from '@/constants/theme';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getDailyReflection,
@@ -237,351 +238,344 @@ export default function EveningAuditScreen() {
     day: 'numeric',
   });
 
-  // Completion screen
-  if (showCompletion) {
-    return (
-      <View style={styles.completionContainer}>
-        <StatusBar barStyle="light-content" />
-        <Animated.View
-          entering={FadeIn.duration(800)}
-          style={styles.completionContent}
-        >
-          <Animated.View entering={FadeInUp.duration(600).delay(200)}>
-            <View style={styles.completionMoon}>
-              <Ionicons name="moon" size={36} color={CL.accent} />
-            </View>
-          </Animated.View>
+  return (
+    <PremiumPageTransition>
+      {showCompletion ? (
+        <View style={styles.completionContainer}>
+          <StatusBar barStyle="light-content" />
+          <Animated.View
+            entering={FadeIn.duration(800)}
+            style={styles.completionContent}
+          >
+            <Animated.View entering={FadeInUp.duration(600).delay(200)}>
+              <View style={styles.completionMoon}>
+                <Ionicons name="moon" size={36} color={CL.accent} />
+              </View>
+            </Animated.View>
 
-          <Animated.View entering={FadeInUp.duration(600).delay(500)}>
-            <Text style={styles.completionTitle}>Day Complete</Text>
-          </Animated.View>
+            <Animated.View entering={FadeInUp.duration(600).delay(500)}>
+              <Text style={styles.completionTitle}>Day Complete</Text>
+            </Animated.View>
 
-          <Animated.View entering={FadeInUp.duration(600).delay(800)}>
-            <Text style={styles.completionSubtitle}>
-              Rest well and rise renewed
-            </Text>
-          </Animated.View>
+            <Animated.View entering={FadeInUp.duration(600).delay(800)}>
+              <Text style={styles.completionSubtitle}>
+                Rest well and rise renewed
+              </Text>
+            </Animated.View>
 
-          <Animated.View entering={FadeInUp.duration(600).delay(1200)}>
-            <TouchableOpacity style={styles.completionButton} onPress={handleClose}>
-              <Text style={styles.completionButtonText}>Close</Text>
-            </TouchableOpacity>
+            <Animated.View entering={FadeInUp.duration(600).delay(1200)}>
+              <TouchableOpacity style={styles.completionButton} onPress={handleClose}>
+                <Text style={styles.completionButtonText}>Close</Text>
+              </TouchableOpacity>
+            </Animated.View>
           </Animated.View>
-        </Animated.View>
-      </View>
-    );
-  }
+        </View>
+      ) : showResonance && resonanceLetter ? (
+        <View style={styles.resonanceContainer}>
+          <StatusBar barStyle="light-content" />
+          <SafeAreaView style={styles.resonanceSafe} edges={['top', 'bottom']}>
+            {/* Ambient candlelight glow */}
+            <Animated.View style={[styles.ambientGlow, glowStyle]}>
+              <LinearGradient
+                colors={['#E8B44D15', 'transparent', '#E8B44D08']}
+                style={StyleSheet.absoluteFillObject}
+              />
+            </Animated.View>
 
-  // Resonance experience - full screen AI letter
-  if (showResonance && resonanceLetter) {
-    return (
-      <View style={styles.resonanceContainer}>
-        <StatusBar barStyle="light-content" />
-        <SafeAreaView style={styles.resonanceSafe} edges={['top', 'bottom']}>
+            <ScrollView
+              contentContainerStyle={styles.resonanceScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Resonance header */}
+              <Animated.View entering={FadeIn.duration(600)} style={styles.resonanceHeader}>
+                <View style={styles.resonanceMoon}>
+                  <Ionicons name="moon" size={24} color={CL.accent} />
+                </View>
+                <Text style={styles.resonanceTitle}>Evening Reflection</Text>
+                <Text style={styles.resonanceDate}>{dateString}</Text>
+              </Animated.View>
+
+              {/* Brief recap of what was entered */}
+              <Animated.View entering={FadeInUp.duration(500).delay(300)} style={styles.recapSection}>
+                {wins.filter(w => w.trim()).length > 0 && (
+                  <View style={styles.recapBlock}>
+                    <Text style={styles.recapLabel}>TODAY&apos;S WINS</Text>
+                    {wins.filter(w => w.trim()).map((win, i) => (
+                      <Text key={i} style={styles.recapItem}>{win}</Text>
+                    ))}
+                  </View>
+                )}
+                {lessons.filter(l => l.trim()).length > 0 && (
+                  <View style={styles.recapBlock}>
+                    <Text style={styles.recapLabel}>LESSONS</Text>
+                    {lessons.filter(l => l.trim()).map((lesson, i) => (
+                      <Text key={i} style={styles.recapItem}>{lesson}</Text>
+                    ))}
+                  </View>
+                )}
+              </Animated.View>
+
+              {/* AI Resonance note */}
+              <AIResonanceNote
+                letter={resonanceLetter}
+                onComplete={handleResonanceComplete}
+                userName={userName}
+              />
+
+              {/* Spacer */}
+              <View style={{ height: 60 }} />
+            </ScrollView>
+
+            {/* Close button */}
+            {showCompletion && (
+              <Animated.View entering={FadeIn.duration(400)} style={styles.resonanceCloseRow}>
+                <TouchableOpacity style={styles.resonanceCloseBtn} onPress={handleClose}>
+                  <Text style={styles.resonanceCloseText}>Rest well</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </SafeAreaView>
+        </View>
+      ) : (
+        <View style={styles.container}>
+          <StatusBar barStyle="light-content" />
+
           {/* Ambient candlelight glow */}
           <Animated.View style={[styles.ambientGlow, glowStyle]}>
             <LinearGradient
-              colors={['#E8B44D15', 'transparent', '#E8B44D08']}
+              colors={['#E8B44D10', 'transparent', '#E8B44D05']}
               style={StyleSheet.absoluteFillObject}
             />
           </Animated.View>
 
-          <ScrollView
-            contentContainerStyle={styles.resonanceScrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Resonance header */}
-            <Animated.View entering={FadeIn.duration(600)} style={styles.resonanceHeader}>
-              <View style={styles.resonanceMoon}>
-                <Ionicons name="moon" size={24} color={CL.accent} />
-              </View>
-              <Text style={styles.resonanceTitle}>Evening Reflection</Text>
-              <Text style={styles.resonanceDate}>{dateString}</Text>
-            </Animated.View>
-
-            {/* Brief recap of what was entered */}
-            <Animated.View entering={FadeInUp.duration(500).delay(300)} style={styles.recapSection}>
-              {wins.filter(w => w.trim()).length > 0 && (
-                <View style={styles.recapBlock}>
-                  <Text style={styles.recapLabel}>TODAY&apos;S WINS</Text>
-                  {wins.filter(w => w.trim()).map((win, i) => (
-                    <Text key={i} style={styles.recapItem}>{win}</Text>
-                  ))}
-                </View>
-              )}
-              {lessons.filter(l => l.trim()).length > 0 && (
-                <View style={styles.recapBlock}>
-                  <Text style={styles.recapLabel}>LESSONS</Text>
-                  {lessons.filter(l => l.trim()).map((lesson, i) => (
-                    <Text key={i} style={styles.recapItem}>{lesson}</Text>
-                  ))}
-                </View>
-              )}
-            </Animated.View>
-
-            {/* AI Resonance note */}
-            <AIResonanceNote
-              letter={resonanceLetter}
-              onComplete={handleResonanceComplete}
-              userName={userName}
-            />
-
-            {/* Spacer */}
-            <View style={{ height: 60 }} />
-          </ScrollView>
-
-          {/* Close button */}
-          {showCompletion && (
-            <Animated.View entering={FadeIn.duration(400)} style={styles.resonanceCloseRow}>
-              <TouchableOpacity style={styles.resonanceCloseBtn} onPress={handleClose}>
-                <Text style={styles.resonanceCloseText}>Rest well</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-        </SafeAreaView>
-      </View>
-    );
-  }
-
-  // Main audit form with candlelight aesthetic
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
-      {/* Ambient candlelight glow */}
-      <Animated.View style={[styles.ambientGlow, glowStyle]}>
-        <LinearGradient
-          colors={['#E8B44D10', 'transparent', '#E8B44D05']}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </Animated.View>
-
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          {/* Header */}
-          <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-              <Ionicons name="close" size={22} color={CL.textSecondary} />
-            </TouchableOpacity>
-            <View style={styles.headerCenter}>
-              <View style={styles.moonIcon}>
-                <Ionicons name="moon" size={16} color={CL.accent} />
-              </View>
-              <Text style={styles.headerTitle}>Evening Audit</Text>
-            </View>
-            <View style={styles.headerRight} />
-          </Animated.View>
-
-          {/* Header border */}
-          <View style={styles.headerBorder} />
-
-          <ScrollView
-            style={styles.content}
-            contentContainerStyle={styles.contentContainer}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Date & greeting */}
-            <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.dateSection}>
-              <Text style={styles.dateText}>{dateString}</Text>
-              <LinearGradient
-                colors={['transparent', CL.accent + '30', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.dateLine}
-              />
-            </Animated.View>
-
-            {/* Practice progress */}
-            <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.progressSection}>
-              <View style={styles.progressRow}>
-                <Text style={styles.progressLabel}>DAILY PRACTICE</Text>
-                <Text style={styles.progressValue}>{ritualProgress}%</Text>
-              </View>
-              <View style={styles.progressBar}>
-                <LinearGradient
-                  colors={[CL.accentWarm, CL.accent]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.progressFill, { width: `${ritualProgress}%` }]}
-                />
-              </View>
-              <Text style={styles.progressDetail}>
-                {rituals.filter(r => r.is_completed_today).length} of {rituals.length} rituals
-              </Text>
-            </Animated.View>
-
-            {/* Morning intention reference */}
-            {morningIntention && (
-              <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.intentionSection}>
-                <View style={styles.intentionRow}>
-                  <Ionicons name="sunny-outline" size={14} color={CL.accent + '80'} />
-                  <Text style={styles.intentionLabel}>this morning&apos;s intention</Text>
-                </View>
-                <Text style={styles.intentionText}>&ldquo;{morningIntention}&rdquo;</Text>
-              </Animated.View>
-            )}
-
-            {/* Wins section */}
-            <Animated.View entering={FadeInUp.duration(400).delay(400)} style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionEmoji}>✦</Text>
-                <Text style={styles.sectionTitle}>Wins</Text>
-                <Text style={styles.sectionHint}>what went well</Text>
-                {!existingReflection && (
-                  <VoiceMode
-                    onTranscription={(text) => {
-                      // Add transcribed text to next empty win slot or create new one
-                      const emptyIdx = wins.findIndex(w => !w.trim());
-                      if (emptyIdx >= 0) {
-                        handleUpdateWin(emptyIdx, text);
-                      } else if (wins.length < 5) {
-                        setWins([...wins, text]);
-                      }
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    }}
-                    isEnabled={true}
-                  />
-                )}
-              </View>
-
-              {wins.map((win, index) => (
-                <View key={`win-${index}`} style={styles.inputRow}>
-                  <TextInput
-                    style={styles.inputField}
-                    placeholder="Something that went well..."
-                    placeholderTextColor={CL.textTertiary + '80'}
-                    value={win}
-                    onChangeText={(value) => handleUpdateWin(index, value)}
-                    multiline
-                    editable={!existingReflection}
-                    returnKeyType="next"
-                  />
-                  {wins.length > 1 && !existingReflection && (
-                    <TouchableOpacity
-                      style={styles.removeBtn}
-                      onPress={() => handleRemoveWin(index)}
-                    >
-                      <Ionicons name="close-circle" size={18} color={CL.textTertiary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-
-              {wins.length < 5 && !existingReflection && (
-                <TouchableOpacity style={styles.addBtn} onPress={handleAddWin}>
-                  <Ionicons name="add" size={16} color={CL.accent} />
-                  <Text style={styles.addBtnText}>Add win</Text>
-                </TouchableOpacity>
-              )}
-            </Animated.View>
-
-            {/* Lessons section */}
-            <Animated.View entering={FadeInUp.duration(400).delay(500)} style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionEmoji}>◆</Text>
-                <Text style={styles.sectionTitle}>Lessons</Text>
-                <Text style={styles.sectionHint}>what you learned</Text>
-                {!existingReflection && (
-                  <VoiceMode
-                    onTranscription={(text) => {
-                      const emptyIdx = lessons.findIndex(l => !l.trim());
-                      if (emptyIdx >= 0) {
-                        handleUpdateLesson(emptyIdx, text);
-                      } else if (lessons.length < 5) {
-                        setLessons([...lessons, text]);
-                      }
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    }}
-                    isEnabled={true}
-                  />
-                )}
-              </View>
-
-              {lessons.map((lesson, index) => (
-                <View key={`lesson-${index}`} style={styles.inputRow}>
-                  <TextInput
-                    style={styles.inputField}
-                    placeholder="Something you learned..."
-                    placeholderTextColor={CL.textTertiary + '80'}
-                    value={lesson}
-                    onChangeText={(value) => handleUpdateLesson(index, value)}
-                    multiline
-                    editable={!existingReflection}
-                    returnKeyType="next"
-                  />
-                  {lessons.length > 1 && !existingReflection && (
-                    <TouchableOpacity
-                      style={styles.removeBtn}
-                      onPress={() => handleRemoveLesson(index)}
-                    >
-                      <Ionicons name="close-circle" size={18} color={CL.textTertiary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-
-              {lessons.length < 5 && !existingReflection && (
-                <TouchableOpacity style={styles.addBtn} onPress={handleAddLesson}>
-                  <Ionicons name="add" size={16} color={CL.accent} />
-                  <Text style={styles.addBtnText}>Add lesson</Text>
-                </TouchableOpacity>
-              )}
-            </Animated.View>
-
-            {/* Existing Resonance (for already-completed audits) */}
-            {existingReflection && resonanceLetter && (
-              <Animated.View entering={FadeInUp.duration(400).delay(600)}>
-                <AIResonanceNote letter={resonanceLetter} userName={userName} />
-              </Animated.View>
-            )}
-
-            <View style={styles.bottomSpacer} />
-          </ScrollView>
-
-          {/* Save Button / Generating state */}
-          {!existingReflection && (
-            <Animated.View
-              entering={FadeInUp.duration(400).delay(700)}
-              style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}
+          <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.keyboardView}
             >
-              <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  (!hasContent || isSaving || isGeneratingResonance) && styles.saveButtonDisabled,
-                ]}
-                onPress={handleSave}
-                disabled={!hasContent || isSaving || isGeneratingResonance}
-                activeOpacity={0.85}
+              {/* Header */}
+              <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+                <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+                  <Ionicons name="close" size={22} color={CL.textSecondary} />
+                </TouchableOpacity>
+                <View style={styles.headerCenter}>
+                  <View style={styles.moonIcon}>
+                    <Ionicons name="moon" size={16} color={CL.accent} />
+                  </View>
+                  <Text style={styles.headerTitle}>Evening Audit</Text>
+                </View>
+                <View style={styles.headerRight} />
+              </Animated.View>
+
+              {/* Header border */}
+              <View style={styles.headerBorder} />
+
+              <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                <LinearGradient
-                  colors={
-                    hasContent && !isSaving
-                      ? [CL.accentWarm, CL.accent]
-                      : [CL.cardBorder, CL.cardBorder]
-                  }
-                  style={styles.saveButtonGradient}
-                >
-                  {isSaving || isGeneratingResonance ? (
-                    <Text style={styles.saveButtonText}>
-                      {isGeneratingResonance ? 'The Oracle is writing...' : 'Saving...'}
-                    </Text>
-                  ) : (
-                    <>
-                      <Ionicons name="moon" size={18} color="#FFFFFF" />
-                      <Text style={styles.saveButtonText}>Complete Day</Text>
-                    </>
+                {/* Date & greeting */}
+                <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.dateSection}>
+                  <Text style={styles.dateText}>{dateString}</Text>
+                  <LinearGradient
+                    colors={['transparent', CL.accent + '30', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.dateLine}
+                  />
+                </Animated.View>
+
+                {/* Practice progress */}
+                <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.progressSection}>
+                  <View style={styles.progressRow}>
+                    <Text style={styles.progressLabel}>DAILY PRACTICE</Text>
+                    <Text style={styles.progressValue}>{ritualProgress}%</Text>
+                  </View>
+                  <View style={styles.progressBar}>
+                    <LinearGradient
+                      colors={[CL.accentWarm, CL.accent]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.progressFill, { width: `${ritualProgress}%` }]}
+                    />
+                  </View>
+                  <Text style={styles.progressDetail}>
+                    {rituals.filter(r => r.is_completed_today).length} of {rituals.length} rituals
+                  </Text>
+                </Animated.View>
+
+                {/* Morning intention reference */}
+                {morningIntention && (
+                  <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.intentionSection}>
+                    <View style={styles.intentionRow}>
+                      <Ionicons name="sunny-outline" size={14} color={CL.accent + '80'} />
+                      <Text style={styles.intentionLabel}>this morning&apos;s intention</Text>
+                    </View>
+                    <Text style={styles.intentionText}>&ldquo;{morningIntention}&rdquo;</Text>
+                  </Animated.View>
+                )}
+
+                {/* Wins section */}
+                <Animated.View entering={FadeInUp.duration(400).delay(400)} style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionEmoji}>✦</Text>
+                    <Text style={styles.sectionTitle}>Wins</Text>
+                    <Text style={styles.sectionHint}>what went well</Text>
+                    {!existingReflection && (
+                      <VoiceMode
+                        onTranscription={(text) => {
+                          // Add transcribed text to next empty win slot or create new one
+                          const emptyIdx = wins.findIndex(w => !w.trim());
+                          if (emptyIdx >= 0) {
+                            handleUpdateWin(emptyIdx, text);
+                          } else if (wins.length < 5) {
+                            setWins([...wins, text]);
+                          }
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        }}
+                        isEnabled={true}
+                      />
+                    )}
+                  </View>
+
+                  {wins.map((win, index) => (
+                    <View key={`win-${index}`} style={styles.inputRow}>
+                      <TextInput
+                        style={styles.inputField}
+                        placeholder="Something that went well..."
+                        placeholderTextColor={CL.textTertiary + '80'}
+                        value={win}
+                        onChangeText={(value) => handleUpdateWin(index, value)}
+                        multiline
+                        editable={!existingReflection}
+                        returnKeyType="next"
+                      />
+                      {wins.length > 1 && !existingReflection && (
+                        <TouchableOpacity
+                          style={styles.removeBtn}
+                          onPress={() => handleRemoveWin(index)}
+                        >
+                          <Ionicons name="close-circle" size={18} color={CL.textTertiary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+
+                  {wins.length < 5 && !existingReflection && (
+                    <TouchableOpacity style={styles.addBtn} onPress={handleAddWin}>
+                      <Ionicons name="add" size={16} color={CL.accent} />
+                      <Text style={styles.addBtnText}>Add win</Text>
+                    </TouchableOpacity>
                   )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+                </Animated.View>
+
+                {/* Lessons section */}
+                <Animated.View entering={FadeInUp.duration(400).delay(500)} style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionEmoji}>◆</Text>
+                    <Text style={styles.sectionTitle}>Lessons</Text>
+                    <Text style={styles.sectionHint}>what you learned</Text>
+                    {!existingReflection && (
+                      <VoiceMode
+                        onTranscription={(text) => {
+                          const emptyIdx = lessons.findIndex(l => !l.trim());
+                          if (emptyIdx >= 0) {
+                            handleUpdateLesson(emptyIdx, text);
+                          } else if (lessons.length < 5) {
+                            setLessons([...lessons, text]);
+                          }
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        }}
+                        isEnabled={true}
+                      />
+                    )}
+                  </View>
+
+                  {lessons.map((lesson, index) => (
+                    <View key={`lesson-${index}`} style={styles.inputRow}>
+                      <TextInput
+                        style={styles.inputField}
+                        placeholder="Something you learned..."
+                        placeholderTextColor={CL.textTertiary + '80'}
+                        value={lesson}
+                        onChangeText={(value) => handleUpdateLesson(index, value)}
+                        multiline
+                        editable={!existingReflection}
+                        returnKeyType="next"
+                      />
+                      {lessons.length > 1 && !existingReflection && (
+                        <TouchableOpacity
+                          style={styles.removeBtn}
+                          onPress={() => handleRemoveLesson(index)}
+                        >
+                          <Ionicons name="close-circle" size={18} color={CL.textTertiary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+
+                  {lessons.length < 5 && !existingReflection && (
+                    <TouchableOpacity style={styles.addBtn} onPress={handleAddLesson}>
+                      <Ionicons name="add" size={16} color={CL.accent} />
+                      <Text style={styles.addBtnText}>Add lesson</Text>
+                    </TouchableOpacity>
+                  )}
+                </Animated.View>
+
+                {/* Existing Resonance (for already-completed audits) */}
+                {existingReflection && resonanceLetter && (
+                  <Animated.View entering={FadeInUp.duration(400).delay(600)}>
+                    <AIResonanceNote letter={resonanceLetter} userName={userName} />
+                  </Animated.View>
+                )}
+
+                <View style={styles.bottomSpacer} />
+              </ScrollView>
+
+              {/* Save Button / Generating state */}
+              {!existingReflection && (
+                <Animated.View
+                  entering={FadeInUp.duration(400).delay(700)}
+                  style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}
+                >
+                  <TouchableOpacity
+                    style={[
+                      styles.saveButton,
+                      (!hasContent || isSaving || isGeneratingResonance) && styles.saveButtonDisabled,
+                    ]}
+                    onPress={handleSave}
+                    disabled={!hasContent || isSaving || isGeneratingResonance}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient
+                      colors={
+                        hasContent && !isSaving
+                          ? [CL.accentWarm, CL.accent]
+                          : [CL.cardBorder, CL.cardBorder]
+                      }
+                      style={styles.saveButtonGradient}
+                    >
+                      {isSaving || isGeneratingResonance ? (
+                        <Text style={styles.saveButtonText}>
+                          {isGeneratingResonance ? 'The Oracle is writing...' : 'Saving...'}
+                        </Text>
+                      ) : (
+                        <>
+                          <Ionicons name="moon" size={18} color="#FFFFFF" />
+                          <Text style={styles.saveButtonText}>Complete Day</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </View>
+      )}
+    </PremiumPageTransition>
   );
 }
 

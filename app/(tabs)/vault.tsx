@@ -8,7 +8,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography, Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
@@ -93,195 +94,222 @@ export default function VaultScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={palette.accent}
-          />
-        }
-      >
-        {/* Header */}
-        <Animated.View entering={FadeInUp.duration(400)} style={styles.header}>
-          <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Context Vault</Text>
-          <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
-            Your identity and goals that shape coaching
-          </Text>
-        </Animated.View>
+      <PremiumPageTransition>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={palette.accent}
+            />
+          }
+        >
+          {/* Header */}
+          <Animated.View entering={FadeInUp.duration(400)} style={styles.header}>
+            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>Context Vault</Text>
+            <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
+              Your identity and goals that shape coaching
+            </Text>
+          </Animated.View>
 
-        {/* Values Section */}
-        <Animated.View entering={FadeInUp.duration(400).delay(100)}>
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Core Values</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
-                  What drives your decisions
-                </Text>
-              </View>
-              {editingSection !== 'values' && (
-                <TouchableOpacity onPress={handleEditValues}>
-                  <Ionicons name="pencil" size={20} color={palette.accent} />
-                </TouchableOpacity>
-              )}
-            </View>
+          {/* ... existing content ... */}
 
+          {/* Values Section */}
+          <Animated.View layout={LinearTransition.springify().damping(18).stiffness(120)}>
             {editingSection === 'values' ? (
-              <>
-                <View style={styles.chipsContainer}>
-                  {AVAILABLE_VALUES.map((value) => (
-                    <Chip
-                      key={value}
-                      label={value}
-                      selected={tempValues.includes(value)}
-                      onPress={() => toggleValue(value)}
-                      disabled={
-                        !tempValues.includes(value) && tempValues.length >= 5
-                      }
-                    />
-                  ))}
-                </View>
-                <View style={styles.editActions}>
-                  <Button
-                    title="Cancel"
-                    onPress={() => setEditingSection(null)}
-                    variant="ghost"
-                    size="sm"
-                  />
-                  <Button
-                    title="Save"
-                    onPress={handleSaveValues}
-                    size="sm"
-                  />
-                </View>
-              </>
-            ) : (
-              <View style={styles.valuesDisplay}>
-                {vault.values.map((value) => (
-                  <View key={value} style={[styles.valueBadge, { backgroundColor: palette.accent + '15' }]}>
-                    <Text style={[styles.valueBadgeText, { color: palette.accent }]}>{value}</Text>
+              <Animated.View key="edit-values" entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)}>
+                <Card style={[styles.sectionCard, { borderColor: palette.accent, borderWidth: 1 }]}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Edit Values</Text>
+                      <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
+                        Select up to 5 core values
+                      </Text>
+                    </View>
                   </View>
-                ))}
-              </View>
+
+                  <View style={styles.chipsContainer}>
+                    {AVAILABLE_VALUES.map((value) => {
+                      const isSelected = tempValues.includes(value);
+                      return (
+                        <Chip
+                          key={value}
+                          label={value}
+                          selected={isSelected}
+                          onPress={() => toggleValue(value)}
+                          variant={isSelected ? 'filled' : 'outlined'}
+                          style={{ marginBottom: Spacing.sm, marginRight: Spacing.sm }}
+                        />
+                      );
+                    })}
+                  </View>
+
+                  <View style={styles.editActions}>
+                    <Button
+                      label="Cancel"
+                      variant="ghost"
+                      onPress={() => setEditingSection(null)}
+                      size="sm"
+                    />
+                    <Button
+                      label="Save Changes"
+                      variant="gold"
+                      onPress={handleSaveValues}
+                      size="sm"
+                      icon={<Ionicons name="checkmark" size={16} color={palette.textInverse} />}
+                      disabled={tempValues.length === 0}
+                    />
+                  </View>
+                </Card>
+              </Animated.View>
+            ) : (
+              <Animated.View key="view-values" entering={FadeIn.duration(600)} exiting={FadeOut.duration(400)}>
+                <Card style={styles.sectionCard}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Core Values</Text>
+                      <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
+                        The principles that drive you
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={handleEditValues} style={{ padding: Spacing.sm }}>
+                      <Ionicons name="pencil" size={18} color={palette.accent} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.valuesDisplay}>
+                    {vault.values.map((value) => (
+                      <View key={value} style={[styles.valueBadge, { backgroundColor: palette.backgroundSecondary }]}>
+                        <Text style={[styles.valueBadgeText, { color: palette.textSecondary }]}>{value}</Text>
+                      </View>
+                    ))}
+                    {vault.values.length === 0 && (
+                      <Text style={[styles.emptyText, { color: palette.textTertiary }]}>No values set</Text>
+                    )}
+                  </View>
+                </Card>
+              </Animated.View>
             )}
-          </Card>
-        </Animated.View>
+          </Animated.View>
 
-        {/* Goals Section */}
-        <Animated.View entering={FadeInUp.duration(400).delay(200)}>
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Goals</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
-                  What you&apos;re working toward
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.goalsList}>
-              {vault.goals.map((goal) => (
-                <GoalItem
-                  key={goal.id}
-                  goal={goal}
-                  onUpdate={(updates) => handleUpdateGoal(goal.id, updates)}
-                />
-              ))}
-              {vault.goals.length === 0 && (
-                <Text style={[styles.emptyText, { color: palette.textTertiary }]}>No goals set yet</Text>
-              )}
-            </View>
-          </Card>
-        </Animated.View>
-
-        {/* Constraints Section */}
-        <Animated.View entering={FadeInUp.duration(400).delay(300)}>
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Constraints</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
-                  Your time and energy limits
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.constraintsList}>
-              <ConstraintItem
-                icon="time-outline"
-                label="Daily focus time"
-                value={`${vault.constraints.available_hours_per_day} hours`}
-              />
-              <ConstraintItem
-                icon="battery-half-outline"
-                label="Energy level"
-                value={vault.constraints.energy_level.charAt(0).toUpperCase() +
-                  vault.constraints.energy_level.slice(1)}
-              />
-              <ConstraintItem
-                icon="sunny-outline"
-                label="Best time for focus"
-                value={vault.constraints.best_time_for_focus.charAt(0).toUpperCase() +
-                  vault.constraints.best_time_for_focus.slice(1)}
-              />
-            </View>
-          </Card>
-        </Animated.View>
-
-        {/* Preferences Section */}
-        <Animated.View entering={FadeInUp.duration(400).delay(400)}>
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Coaching Style</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
-                  How you like to be coached
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.preferencesList}>
-              <PreferenceItem
-                label="Tone"
-                value={vault.preferences.tone}
-                leftLabel="Gentle"
-                rightLabel="Direct"
-              />
-              <PreferenceItem
-                label="Directness"
-                value={vault.preferences.directness}
-                leftLabel="Nurturing"
-                rightLabel="Challenging"
-              />
-              <View style={styles.responseLengthItem}>
-                <Text style={[styles.prefLabel, { color: palette.textSecondary }]}>Response length</Text>
-                <View style={[styles.responseLengthBadge, { backgroundColor: palette.backgroundSecondary }]}>
-                  <Text style={[styles.responseLengthText, { color: palette.textSecondary }]}>
-                    {vault.preferences.response_length.charAt(0).toUpperCase() +
-                      vault.preferences.response_length.slice(1)}
+          {/* Goals Section */}
+          <Animated.View entering={FadeInUp.duration(400).delay(200)}>
+            <Card style={styles.sectionCard}>
+              {/* ... */}
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Goals</Text>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
+                    What you&apos;re working toward
                   </Text>
                 </View>
               </View>
-            </View>
-          </Card>
-        </Animated.View>
 
-        {/* Last Updated */}
-        <Animated.View entering={FadeIn.duration(300).delay(500)}>
-          <Text style={[styles.lastUpdated, { color: palette.textTertiary }]}>
-            Last updated:{' '}
-            {new Date(vault.updated_at).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-            })}
-          </Text>
-        </Animated.View>
-      </ScrollView>
+              <View style={styles.goalsList}>
+                {vault.goals.map((goal) => (
+                  <GoalItem
+                    key={goal.id}
+                    goal={goal}
+                    onUpdate={(updates) => handleUpdateGoal(goal.id, updates)}
+                  />
+                ))}
+                {vault.goals.length === 0 && (
+                  <Text style={[styles.emptyText, { color: palette.textTertiary }]}>No goals set yet</Text>
+                )}
+              </View>
+            </Card>
+          </Animated.View>
+
+          {/* Constraints Section */}
+          <Animated.View entering={FadeInUp.duration(400).delay(300)}>
+            <Card style={styles.sectionCard}>
+              {/* ... */}
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Constraints</Text>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
+                    Your time and energy limits
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.constraintsList}>
+                <ConstraintItem
+                  icon="time-outline"
+                  label="Daily focus time"
+                  value={`${vault.constraints.available_hours_per_day} hours`}
+                />
+                <ConstraintItem
+                  icon="battery-half-outline"
+                  label="Energy level"
+                  value={vault.constraints.energy_level.charAt(0).toUpperCase() +
+                    vault.constraints.energy_level.slice(1)}
+                />
+                <ConstraintItem
+                  icon="sunny-outline"
+                  label="Best time for focus"
+                  value={vault.constraints.best_time_for_focus.charAt(0).toUpperCase() +
+                    vault.constraints.best_time_for_focus.slice(1)}
+                />
+              </View>
+            </Card>
+          </Animated.View>
+
+          {/* Preferences Section */}
+          <Animated.View entering={FadeInUp.duration(400).delay(400)}>
+            <Card style={styles.sectionCard}>
+              {/* ... */}
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Coaching Style</Text>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textTertiary }]}>
+                    How you like to be coached
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.preferencesList}>
+                <PreferenceItem
+                  label="Tone"
+                  value={vault.preferences.tone}
+                  leftLabel="Gentle"
+                  rightLabel="Direct"
+                />
+                <PreferenceItem
+                  label="Directness"
+                  value={vault.preferences.directness}
+                  leftLabel="Nurturing"
+                  rightLabel="Challenging"
+                />
+                <View style={styles.responseLengthItem}>
+                  <Text style={[styles.prefLabel, { color: palette.textSecondary }]}>Response length</Text>
+                  <View style={[styles.responseLengthBadge, { backgroundColor: palette.backgroundSecondary }]}>
+                    <Text style={[styles.responseLengthText, { color: palette.textSecondary }]}>
+                      {vault.preferences.response_length.charAt(0).toUpperCase() +
+                        vault.preferences.response_length.slice(1)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </Animated.View>
+
+          {/* Last Updated */}
+          <Animated.View entering={FadeIn.duration(300).delay(500)}>
+            <Text style={[styles.lastUpdated, { color: palette.textTertiary }]}>
+              Last updated:{' '}
+              {new Date(vault.updated_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </Text>
+          </Animated.View>
+        </ScrollView>
+      </PremiumPageTransition>
     </SafeAreaView>
   );
 }
@@ -375,7 +403,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xxxl,
+    paddingBottom: 200,
   },
   header: {
     paddingVertical: Spacing.lg,

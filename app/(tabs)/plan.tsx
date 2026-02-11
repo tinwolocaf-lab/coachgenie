@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -184,183 +185,185 @@ export default function PlanScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={palette.accent}
-          />
-        }
-      >
-        {/* Editorial Header */}
-        <Animated.View entering={FadeInUp.duration(600)} style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={[styles.headerLabel, { color: palette.accent }]}>Your Journey</Text>
-            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>7-Day Timeline</Text>
-            <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
-              A curated plan aligned with your values and goals
-            </Text>
-          </View>
-
-          {/* Generate Button */}
-          {activeCoachId && (
-            <TouchableOpacity
-              style={styles.generateButton}
-              onPress={handleGeneratePlan}
-              disabled={isGeneratingPlan}
-            >
-              <LinearGradient
-                colors={[palette.accent, palette.accentLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.generateGradient}
-              >
-                {isGeneratingPlan ? (
-                  <ActivityIndicator size="small" color={palette.textInverse} />
-                ) : (
-                  <>
-                    <Ionicons name="sparkles" size={18} color={palette.textInverse} />
-                    <Text style={[styles.generateText, { color: palette.textInverse }]}>Generate</Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-
-        {/* Weekly Progress Card */}
-        <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.progressSection}>
-          <BlurView intensity={40} tint={palette.statusBarStyle === 'light' ? 'dark' : 'light'} style={[styles.progressCard, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}>
-            <View style={styles.progressHeader}>
-              <View style={[styles.progressCircle, { backgroundColor: palette.accentMuted, borderColor: palette.accent }]}>
-                <Text style={[styles.progressPercentage, { color: palette.accent }]}>{completionRate}%</Text>
-              </View>
-              <View style={styles.progressInfo}>
-                <Text style={[styles.progressTitle, { color: palette.textPrimary }]}>Week Progress</Text>
-                <Text style={[styles.progressSubtitle, { color: palette.textTertiary }]}>
-                  {weeklyStats.completed} of {totalPriorities} priorities complete
-                </Text>
-              </View>
+      <PremiumPageTransition>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={palette.accent}
+            />
+          }
+        >
+          {/* Editorial Header */}
+          <Animated.View entering={FadeInUp.duration(600)} style={styles.header}>
+            <View style={styles.headerContent}>
+              <Text style={[styles.headerLabel, { color: palette.accent }]}>Your Journey</Text>
+              <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>7-Day Timeline</Text>
+              <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
+                A curated plan aligned with your values and goals
+              </Text>
             </View>
 
-            <View style={[styles.statsRow, { borderTopColor: palette.border }]}>
-              <View style={styles.statItem}>
-                <View style={[styles.statDot, { backgroundColor: palette.success }]} />
-                <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.completed}</Text>
-                <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Done</Text>
-              </View>
-              <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
-              <View style={styles.statItem}>
-                <View style={[styles.statDot, { backgroundColor: palette.accent }]} />
-                <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.remaining}</Text>
-                <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Pending</Text>
-              </View>
-              <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
-              <View style={styles.statItem}>
-                <View style={[styles.statDot, { backgroundColor: palette.textPrimary }]} />
-                <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.timeBlocks}</Text>
-                <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Blocks</Text>
-              </View>
-            </View>
-          </BlurView>
-        </Animated.View>
-
-        {/* Vertical Timeline */}
-        <View style={styles.timelineSection}>
-          <Animated.Text
-            entering={FadeInUp.duration(600).delay(200)}
-            style={[styles.sectionTitle, { color: palette.textPrimary }]}
-          >
-            Your Week Ahead
-          </Animated.Text>
-
-          <View style={styles.timeline}>
-            {weekDates.map((date, index) => {
-              const dateStr = formatDateStr(date);
-              const plan = dayPlans.find(p => p.date === dateStr);
-              const isTodayDate = isToday(date);
-              const hasContent = plan && (plan.top_priorities.length > 0 || plan.time_blocks.length > 0);
-              const dayCompleted = plan?.top_priorities.every(p => p.completed) && plan?.top_priorities.length > 0;
-
-              return (
-                <Animated.View
-                  key={dateStr}
-                  entering={FadeInLeft.duration(500).delay(300 + index * 80)}
-                >
-                  <TimelineDay
-                    date={date}
-                    plan={plan}
-                    isToday={isTodayDate}
-                    isCompleted={dayCompleted ?? false}
-                    hasContent={hasContent ?? false}
-                    isLast={index === weekDates.length - 1}
-                    onTogglePriority={(priorityId) => handleTogglePriority(dateStr, priorityId)}
-                  />
-                </Animated.View>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Empty State */}
-        {dayPlans.length === 0 && (
-          <Animated.View entering={FadeIn.duration(600).delay(400)} style={styles.emptyState}>
-            <View style={[styles.emptyIcon, { backgroundColor: palette.backgroundSecondary }]}>
-              <Ionicons name="calendar-outline" size={48} color={palette.textTertiary} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>Your timeline awaits</Text>
-            <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
-              {activeCoachId
-                ? 'Generate a personalized plan based on your values and goals.'
-                : 'Install a coach to start crafting your ideal week.'}
-            </Text>
+            {/* Generate Button */}
             {activeCoachId && (
-              <Button
-                title="Create My Plan"
+              <TouchableOpacity
+                style={styles.generateButton}
                 onPress={handleGeneratePlan}
-                loading={isGeneratingPlan}
-                variant="gold"
-                style={styles.emptyButton}
-              />
+                disabled={isGeneratingPlan}
+              >
+                <LinearGradient
+                  colors={[palette.accent, palette.accentLight]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.generateGradient}
+                >
+                  {isGeneratingPlan ? (
+                    <ActivityIndicator size="small" color={palette.textInverse} />
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={18} color={palette.textInverse} />
+                      <Text style={[styles.generateText, { color: palette.textInverse }]}>Generate</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
             )}
           </Animated.View>
-        )}
 
-        {/* Adjust with Coach */}
-        {activeCoachId && dayPlans.length > 0 && (
-          <Animated.View entering={FadeInUp.duration(500).delay(600)} style={styles.adjustSection}>
-            <TouchableOpacity
-              style={styles.adjustButton}
-              onPress={handleAdjustWithCoach}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={[palette.textPrimary, '#0D1A11']}
-                style={styles.adjustGradient}
-              >
-                <View style={styles.adjustContent}>
-                  <View style={styles.adjustIconContainer}>
-                    <Ionicons name="chatbubble-ellipses" size={24} color={palette.accent} />
-                  </View>
-                  <View style={styles.adjustTextContainer}>
-                    <Text style={[styles.adjustTitle, { color: palette.textInverse }]}>Refine with your coach</Text>
-                    <Text style={styles.adjustSubtitle}>
-                      Discuss adjustments and optimize your week
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={palette.accent} />
+          {/* Weekly Progress Card */}
+          <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.progressSection}>
+            <BlurView intensity={40} tint={palette.statusBarStyle === 'light' ? 'dark' : 'light'} style={[styles.progressCard, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}>
+              <View style={styles.progressHeader}>
+                <View style={[styles.progressCircle, { backgroundColor: palette.accentMuted, borderColor: palette.accent }]}>
+                  <Text style={[styles.progressPercentage, { color: palette.accent }]}>{completionRate}%</Text>
                 </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+                <View style={styles.progressInfo}>
+                  <Text style={[styles.progressTitle, { color: palette.textPrimary }]}>Week Progress</Text>
+                  <Text style={[styles.progressSubtitle, { color: palette.textTertiary }]}>
+                    {weeklyStats.completed} of {totalPriorities} priorities complete
+                  </Text>
+                </View>
+              </View>
 
-        {/* Bottom Spacer */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+              <View style={[styles.statsRow, { borderTopColor: palette.border }]}>
+                <View style={styles.statItem}>
+                  <View style={[styles.statDot, { backgroundColor: palette.success }]} />
+                  <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.completed}</Text>
+                  <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Done</Text>
+                </View>
+                <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
+                <View style={styles.statItem}>
+                  <View style={[styles.statDot, { backgroundColor: palette.accent }]} />
+                  <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.remaining}</Text>
+                  <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Pending</Text>
+                </View>
+                <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
+                <View style={styles.statItem}>
+                  <View style={[styles.statDot, { backgroundColor: palette.textPrimary }]} />
+                  <Text style={[styles.statValue, { color: palette.textPrimary }]}>{weeklyStats.timeBlocks}</Text>
+                  <Text style={[styles.statLabel, { color: palette.textTertiary }]}>Blocks</Text>
+                </View>
+              </View>
+            </BlurView>
+          </Animated.View>
+
+          {/* Vertical Timeline */}
+          <View style={styles.timelineSection}>
+            <Animated.Text
+              entering={FadeInUp.duration(600).delay(200)}
+              style={[styles.sectionTitle, { color: palette.textPrimary }]}
+            >
+              Your Week Ahead
+            </Animated.Text>
+
+            <View style={styles.timeline}>
+              {weekDates.map((date, index) => {
+                const dateStr = formatDateStr(date);
+                const plan = dayPlans.find(p => p.date === dateStr);
+                const isTodayDate = isToday(date);
+                const hasContent = plan && (plan.top_priorities.length > 0 || plan.time_blocks.length > 0);
+                const dayCompleted = plan?.top_priorities.every(p => p.completed) && plan?.top_priorities.length > 0;
+
+                return (
+                  <Animated.View
+                    key={dateStr}
+                    entering={FadeInLeft.duration(500).delay(300 + index * 80)}
+                  >
+                    <TimelineDay
+                      date={date}
+                      plan={plan}
+                      isToday={isTodayDate}
+                      isCompleted={dayCompleted ?? false}
+                      hasContent={hasContent ?? false}
+                      isLast={index === weekDates.length - 1}
+                      onTogglePriority={(priorityId) => handleTogglePriority(dateStr, priorityId)}
+                    />
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Empty State */}
+          {dayPlans.length === 0 && (
+            <Animated.View entering={FadeIn.duration(600).delay(400)} style={styles.emptyState}>
+              <View style={[styles.emptyIcon, { backgroundColor: palette.backgroundSecondary }]}>
+                <Ionicons name="calendar-outline" size={48} color={palette.textTertiary} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>Your timeline awaits</Text>
+              <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
+                {activeCoachId
+                  ? 'Generate a personalized plan based on your values and goals.'
+                  : 'Install a coach to start crafting your ideal week.'}
+              </Text>
+              {activeCoachId && (
+                <Button
+                  title="Create My Plan"
+                  onPress={handleGeneratePlan}
+                  loading={isGeneratingPlan}
+                  variant="gold"
+                  style={styles.emptyButton}
+                />
+              )}
+            </Animated.View>
+          )}
+
+          {/* Adjust with Coach */}
+          {activeCoachId && dayPlans.length > 0 && (
+            <Animated.View entering={FadeInUp.duration(500).delay(600)} style={styles.adjustSection}>
+              <TouchableOpacity
+                style={styles.adjustButton}
+                onPress={handleAdjustWithCoach}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={[palette.textPrimary, '#0D1A11']}
+                  style={styles.adjustGradient}
+                >
+                  <View style={styles.adjustContent}>
+                    <View style={styles.adjustIconContainer}>
+                      <Ionicons name="chatbubble-ellipses" size={24} color={palette.accent} />
+                    </View>
+                    <View style={styles.adjustTextContainer}>
+                      <Text style={[styles.adjustTitle, { color: palette.textInverse }]}>Refine with your coach</Text>
+                      <Text style={styles.adjustSubtitle}>
+                        Discuss adjustments and optimize your week
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={palette.accent} />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {/* Bottom Spacer */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </PremiumPageTransition>
     </SafeAreaView>
   );
 }
@@ -520,7 +523,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: Spacing.section,
+    paddingBottom: 200,
   },
 
   // Header

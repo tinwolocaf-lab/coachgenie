@@ -10,11 +10,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
-import { getOfferings, restorePurchases , getUserSubscriptionTier } from '@/lib/revenuecat';
+import { getOfferings, restorePurchases, getUserSubscriptionTier } from '@/lib/revenuecat';
 import type { SubscriptionTier } from '@/lib/feature-gates';
 import Purchases from 'react-native-purchases';
 
@@ -128,9 +128,9 @@ export default function PaywallScreen() {
     } catch (error: unknown) {
       const userCancelled = Boolean(
         error &&
-          typeof error === 'object' &&
-          'userCancelled' in error &&
-          (error as { userCancelled?: boolean }).userCancelled
+        typeof error === 'object' &&
+        'userCancelled' in error &&
+        (error as { userCancelled?: boolean }).userCancelled
       );
       if (userCancelled) {
         // User cancelled - do nothing
@@ -162,7 +162,7 @@ export default function PaywallScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
       {/* Header */}
-      <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+      <Animated.View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
           <Ionicons name="close" size={24} color={palette.textSecondary} />
         </TouchableOpacity>
@@ -178,7 +178,6 @@ export default function PaywallScreen() {
         {TIERS.map((tier, index) => (
           <Animated.View
             key={tier.id}
-            entering={FadeInUp.duration(500).delay(100 + index * 100)}
           >
             <TouchableOpacity
               style={[
@@ -243,7 +242,7 @@ export default function PaywallScreen() {
         ))}
 
         {/* Restore purchases */}
-        <Animated.View entering={FadeIn.duration(400).delay(500)}>
+        <Animated.View>
           <TouchableOpacity onPress={handleRestore} style={styles.restoreButton} disabled={isRestoring}>
             <Text style={[styles.restoreText, { color: palette.textTertiary }]}>
               {isRestoring ? 'Restoring...' : 'Restore Purchases'}

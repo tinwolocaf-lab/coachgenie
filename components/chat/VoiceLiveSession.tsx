@@ -18,7 +18,7 @@ import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import {
   GeminiLiveSession, getGeminiLiveSession, ConnectionState,
-  GEMINI_VOICES, GeminiVoiceId,
+  GEMINI_VOICES, GeminiVoiceId, GeminiLiveError,
 } from '@/lib/geminiLive';
 
 interface VoiceLiveSessionProps {
@@ -29,6 +29,39 @@ interface VoiceLiveSessionProps {
   onClose: () => void;
   onTranscriptUpdate?: (userText: string, aiText: string) => void;
   onInsightSaved?: (title: string, content: string) => void;
+}
+
+const FALLBACK_TEXT_MODE_MESSAGE = 'Could not connect to voice service. Falling back to text mode.';
+const VOICE_UNAVAILABLE_MESSAGE = 'Voice service is not available right now. Please continue in text mode.';
+
+function normalizeErrorMessage(error: unknown): string {
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown voice error';
+    }
+  }
+  return 'Unknown voice error';
+}
+
+function isVoiceServiceUnavailableError(error: unknown): boolean {
+  if (error instanceof GeminiLiveError) {
+    return error.kind === 'voice_service_unavailable';
+  }
+
+  const message = normalizeErrorMessage(error).toLowerCase();
+  return (
+    message.includes('"code":"not_found"') ||
+    message.includes('requested function was not found') ||
+    message.includes('voice service is not available')
+  );
 }
 
 export function VoiceLiveSession({
@@ -134,7 +167,10 @@ export function VoiceLiveSession({
       await recorder.current.prepareToRecordAsync();
       recorder.current.record();
     } catch (err) {
-      console.error('[VoiceLive] Failed to start audio capture:', err);
+      console.warn('[VoiceLive] Failed to start audio capture:', err);
+      setIsListening(false);
+      setConnectionState('error');
+      Alert.alert('Microphone Error', 'Could not start microphone capture. Please try again.');
     }
   }, []);
 
@@ -194,14 +230,28 @@ export function VoiceLiveSession({
           },
           onToolCall: (toolCall) => {
             if (toolCall.name === 'save_insight' && toolCall.args) {
+              const title = toolCall.args.title;
+              const content = toolCall.args.content;
+              if (typeof title !== 'string' || typeof content !== 'string') {
+                return;
+              }
               onInsightSaved?.(
-                toolCall.args.title as string,
-                toolCall.args.content as string,
+                title,
+                content,
               );
             }
           },
           onError: (error) => {
-            console.error('[VoiceLive] Error:', error);
+            if (isVoiceServiceUnavailableError(error)) {
+              console.warn('[VoiceLive] Voice service unavailable:', error);
+              setConnectionState('disconnected');
+              setIsListening(false);
+              Alert.alert('Voice Unavailable', VOICE_UNAVAILABLE_MESSAGE);
+              onClose();
+              return;
+            }
+
+            console.warn('[VoiceLive] Error:', error);
             setConnectionState('error');
             Alert.alert('Voice Error', error);
           },
@@ -213,9 +263,20 @@ export function VoiceLiveSession({
         selectedVoice,
       );
     } catch (error) {
-      console.error('[VoiceLive] Connection failed:', error);
-      setConnectionState('error');
-      Alert.alert('Connection Failed', 'Could not connect to voice service. Falling back to text mode.');
+      const isUnavailable = isVoiceServiceUnavailableError(error);
+      const errorMessage = normalizeErrorMessage(error);
+
+      if (isUnavailable) {
+        console.warn('[VoiceLive] Voice service unavailable:', errorMessage);
+      } else {
+        console.warn('[VoiceLive] Connection failed:', error);
+      }
+
+      setConnectionState(isUnavailable ? 'disconnected' : 'error');
+      Alert.alert(
+        isUnavailable ? 'Voice Unavailable' : 'Connection Failed',
+        isUnavailable ? VOICE_UNAVAILABLE_MESSAGE : FALLBACK_TEXT_MODE_MESSAGE,
+      );
       onClose();
     }
   }, [coachId, sessionId, selectedVoice, ensurePermissions, onClose, onTranscriptUpdate, onInsightSaved, startAudioCapture]);
