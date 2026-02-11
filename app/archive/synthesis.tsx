@@ -18,27 +18,13 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { SynthesisReport } from '@/components/archive/SynthesisReport';
 import { getMonthlySynthesis, getAllMonthlySyntheses } from '@/lib/supabase-archive';
 import { generateMonthlySynthesis } from '@/lib/apiClient';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { MonthlySynthesis } from '@/types';
-
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
 
 export default function SynthesisScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [currentMonth, setCurrentMonth] = useState<string>(() => {
     const now = new Date();
@@ -50,7 +36,7 @@ export default function SynthesisScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const loadData = useCallback(async () => {
-    if (!auth?.user?.id) return;
+    if (!auth.user?.id) return;
 
     setIsLoading(true);
     try {
@@ -73,7 +59,7 @@ export default function SynthesisScreen() {
   }, [loadData]);
 
   const handleGenerateSynthesis = async () => {
-    if (!auth?.user?.id) return;
+    if (!auth.user?.id) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsGenerating(true);

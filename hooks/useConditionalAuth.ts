@@ -1,32 +1,37 @@
 // Conditional Auth Hook wrapper
 // Provides auth functionality only when Supabase is configured
-import { useState, useEffect, useCallback } from 'react';
+// Now uses native Supabase auth from @/lib/auth instead of @fastshot/auth
+import { useState, useCallback } from 'react';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
-interface AuthState {
+// Re-export types from our native auth module
+export type { UseAuthReturn, AuthState, AuthActions, AuthError } from '@/lib/auth';
+
+// Import the real hook
+let realUseAuth: (() => import('@/lib/auth').UseAuthReturn) | null = null;
+
+if (isSupabaseConfigured) {
+  try {
+    // Use our native Supabase auth module
+    const authModule = require('@/lib/auth');
+    realUseAuth = authModule.useAuth;
+  } catch {
+    realUseAuth = null;
+  }
+}
+
+interface FallbackAuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
-  error: { message: string } | null;
+  error: { type: string; message: string } | null;
   pendingEmailVerification: boolean;
   pendingPasswordReset: boolean;
-  user: { email?: string } | null;
-  session: unknown | null;
+  user: null;
+  session: null;
 }
-
-interface AuthActions {
-  signInWithGoogle: () => Promise<void>;
-  signInWithApple: () => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<{ emailConfirmationRequired?: boolean; email?: string }>;
-  resetPassword: (email: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  clearError: () => void;
-}
-
-type UseAuthReturn = AuthState & AuthActions;
 
 // Fallback auth state when Supabase is not configured
-const defaultAuthState: AuthState = {
+const defaultAuthState: FallbackAuthState = {
   isAuthenticated: false,
   isLoading: false,
   error: null,
@@ -36,98 +41,55 @@ const defaultAuthState: AuthState = {
   session: null,
 };
 
-// Fallback auth actions
-const defaultAuthActions: AuthActions = {
-  signInWithGoogle: async () => {},
-  signInWithApple: async () => {},
-  signInWithEmail: async () => {},
-  signUpWithEmail: async () => ({ emailConfirmationRequired: false }),
-  resetPassword: async () => {},
-  signOut: async () => {},
-  clearError: () => {},
-};
+/**
+ * Primary conditional auth hook.
+ * Returns real auth state when Supabase is configured,
+ * or fallback no-op state for guest mode.
+ */
+export function useConditionalAuth() {
+  const [localState, setLocalState] = useState(defaultAuthState);
 
-let cachedUseAuth: (() => UseAuthReturn) | null = null;
-
-function getUseAuth(): (() => UseAuthReturn) | null {
-  if (cachedUseAuth !== null) return cachedUseAuth;
-
-  if (isSupabaseConfigured) {
+  // If real auth is available and Supabase is configured, use it
+  if (realUseAuth && isSupabaseConfigured) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const authModule = require('@fastshot/auth');
-      cachedUseAuth = authModule.useAuth;
-      return cachedUseAuth;
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      return realUseAuth();
     } catch {
-      cachedUseAuth = null;
+      // Fall through to fallback
     }
   }
-  return null;
-}
 
-export function useConditionalAuth(): UseAuthReturn {
-  const [localState, setLocalState] = useState<AuthState>(defaultAuthState);
-
-  // Get the real useAuth hook if available
-  const realUseAuth = getUseAuth();
-
-  // Always call the real hook if it exists (to satisfy rules of hooks)
-  // We'll do this in useEffect to avoid issues with conditional rendering
-  const [realAuthState, setRealAuthState] = useState<UseAuthReturn | null>(null);
-
-  useEffect(() => {
-    // This is a workaround - we can't conditionally call hooks
-    // So we just use local state management
-    if (!isSupabaseConfigured) {
-      setLocalState(defaultAuthState);
-    }
-  }, []);
-
-  // If we have real auth, use it (this component should not be used if Supabase is configured)
-  // This hook is meant for graceful degradation
-  if (realAuthState) {
-    return realAuthState;
-  }
-
-  // Return local state with fallback actions
+  // Fallback actions for guest mode
   return {
     ...localState,
-    ...defaultAuthActions,
-    signInWithEmail: async (email: string, password: string) => {
+    signInWithGoogle: async () => {},
+    signInWithApple: async () => {},
+    signInWithEmail: async (_email: string, _password: string) => {
       setLocalState(s => ({ ...s, isLoading: true }));
-      // Simulate loading
       await new Promise(r => setTimeout(r, 500));
       setLocalState(s => ({ ...s, isLoading: false }));
     },
-    signUpWithEmail: async (email: string, password: string) => {
+    signUpWithEmail: async (email: string, _password: string) => {
       setLocalState(s => ({ ...s, isLoading: true }));
       await new Promise(r => setTimeout(r, 500));
       setLocalState(s => ({ ...s, isLoading: false, pendingEmailVerification: true }));
       return { emailConfirmationRequired: true, email };
     },
-    resetPassword: async (email: string) => {
+    resetPassword: async (_email: string) => {
       setLocalState(s => ({ ...s, isLoading: true }));
       await new Promise(r => setTimeout(r, 500));
       setLocalState(s => ({ ...s, isLoading: false, pendingPasswordReset: true }));
     },
+    signOut: async () => {},
+    clearError: () => {},
   };
 }
 
-// Export a hook that uses the real auth if available
+/**
+ * Safe auth hook that tries real auth first, falls back to conditional.
+ * This is the preferred hook for most screens.
+ */
 export function useAuthSafe() {
-  const useAuthHook = getUseAuth();
-
-  // Always call in consistent order
-  const fallback = useConditionalAuth();
-
-  if (useAuthHook && isSupabaseConfigured) {
-    // This is a type assertion - we know the hook exists
-    try {
-      return useAuthHook();
-    } catch {
-      return fallback;
-    }
-  }
-
-  return fallback;
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return useConditionalAuth();
 }

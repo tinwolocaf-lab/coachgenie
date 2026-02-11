@@ -11,29 +11,7 @@ import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
 import { FocusModeProvider } from '@/contexts/FocusModeContext';
 import { usePremiumFonts } from '@/hooks/usePremiumFonts';
 import { initRevenueCat, identifyUser, logOutUser } from '@/lib/revenuecat';
-
-// Conditionally import AuthProvider
-let AuthProvider: React.ComponentType<{
-  supabaseClient: typeof supabase;
-  routes?: {
-    login: string;
-    afterLogin: string;
-  };
-  onSignIn?: (user: { email?: string }) => void;
-  onSignOut?: () => void;
-  onError?: (error: { type: string; message: string }) => void;
-  onEmailVerified?: (user: { email?: string }) => void;
-  children: React.ReactNode;
-}> | null = null;
-
-try {
-  if (isSupabaseConfigured) {
-    const authModule = require('@fastshot/auth');
-    AuthProvider = authModule.AuthProvider;
-  }
-} catch {
-  // Auth not available
-}
+import { AuthProvider } from '@/lib/auth';
 
 /**
  * Parse authentication tokens from URL hash fragment
@@ -367,10 +345,9 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 
-  if (isSupabaseConfigured && AuthProvider) {
+  if (isSupabaseConfigured) {
     return (
       <AuthProvider
-        supabaseClient={supabase}
         routes={{
           login: '/(auth)/login',
           afterLogin: '/(tabs)',
@@ -378,8 +355,7 @@ export default function RootLayout() {
         onSignIn={async (user) => {
           console.log('[Auth] User signed in:', user.email);
           if (user.email) {
-            const { data } = await supabase.auth.getUser();
-            if (data.user) await identifyUser(data.user.id);
+            await identifyUser(user.id);
           }
         }}
         onSignOut={async () => {

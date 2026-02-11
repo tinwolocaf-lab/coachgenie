@@ -52,23 +52,11 @@ import {
   getInstalledCoaches,
 } from '@/store/app';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getFlashbackInsights } from '@/lib/supabase-archive';
 import { getTodayPractice, getTimeOfDay, completeRitual, uncompleteRitual } from '@/lib/supabase-rituals';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
 
 // Get greeting based on time of day
 const getGreeting = () => {
@@ -165,10 +153,8 @@ function getFeaturedRitual(
 export default function HomeScreen() {
   const router = useRouter();
   const { palette, subscriptionTier } = useThemeSafe();
-  const useAuth = getAuthHook();
+  const auth = useAuthSafe();
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
 
   const [activeCoach, setActiveCoach] = useState<Coach | null>(null);
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
@@ -220,7 +206,7 @@ export default function HomeScreen() {
   }, [loadData]);
 
   useEffect(() => {
-    if (auth?.user) {
+    if (auth.user) {
       const metadata = auth.user.user_metadata || {};
       const name = metadata.full_name || metadata.name || auth.user.email?.split('@')[0] || '';
       setUserName(name.split(' ')[0]);
@@ -252,7 +238,7 @@ export default function HomeScreen() {
       };
       loadPractice();
     }
-  }, [auth?.user]);
+  }, [auth.user]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -264,7 +250,7 @@ export default function HomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData();
-    if (auth?.user) {
+    if (auth.user) {
       try {
         const practice = await getTodayPractice(auth.user.id);
         setTodayPractice(practice);
@@ -273,7 +259,7 @@ export default function HomeScreen() {
       }
     }
     setRefreshing(false);
-  }, [loadData, auth?.user]);
+  }, [loadData, auth.user]);
 
   const handleStartCheckIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -327,7 +313,7 @@ export default function HomeScreen() {
 
   // Ritual toggle handler with flourish animation
   const handleRitualToggle = async (ritualId: string, isCompleted: boolean) => {
-    if (!auth?.user) return;
+    if (!auth.user) return;
 
     try {
       if (isCompleted) {
@@ -530,7 +516,7 @@ export default function HomeScreen() {
         {/* ═══════════════════════════════════════════════════════ */}
         {/* SECONDARY RITUALS - Clean vertical editorial stack     */}
         {/* ═══════════════════════════════════════════════════════ */}
-        {auth?.user && todayPractice && todayPractice.rituals.length > 0 && (
+        {auth.user && todayPractice && todayPractice.rituals.length > 0 && (
           <StaggeredFadeIn index={2} baseDelay={200}>
             <View style={styles.secondaryRitualsSection}>
               <View style={styles.sectionHeaderRow}>

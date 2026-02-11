@@ -1,0 +1,491 @@
+/**
+ * Native Supabase Auth Provider
+ * Replaces @fastshot/auth with direct Supabase auth integration.
+ * Provides: AuthProvider, useAuth hook, route protection, OAuth flows.
+ */
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { useRouter, useSegments } from 'expo-router';
+import type { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface AuthState {
+  session: Session | null;
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  error: AuthError | null;
+  pendingEmailVerification: boolean;
+  pendingPasswordReset: boolean;
+}
+
+export interface AuthActions {
+  signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<SignUpResult>;
+  resetPassword: (email: string) => Promise<PasswordResetResult>;
+  signOut: () => Promise<void>;
+  clearError: () => void;
+}
+
+export type UseAuthReturn = AuthState & AuthActions;
+
+export interface AuthError {
+  type: AuthErrorType;
+  message: string;
+}
+
+export type AuthErrorType =
+  | 'INVALID_CREDENTIALS'
+  | 'SIGNUP_FAILED'
+  | 'OAUTH_FAILED'
+  | 'BROWSER_DISMISSED'
+  | 'SESSION_EXPIRED'
+  | 'NETWORK_ERROR'
+  | 'UNKNOWN_ERROR';
+
+export interface SignUpResult {
+  emailConfirmationRequired: boolean;
+  email: string;
+}
+
+export interface PasswordResetResult {
+  emailSent: boolean;
+  email: string;
+}
+
+export interface AuthProviderProps {
+  children: React.ReactNode;
+  routes?: {
+    login: string;
+    afterLogin: string;
+  };
+  onSignIn?: (user: User) => void | Promise<void>;
+  onSignOut?: () => void | Promise<void>;
+  onError?: (error: AuthError) => void;
+  onEmailVerified?: (user: User) => void;
+}
+
+// ─── Context ─────────────────────────────────────────────────────────────────
+
+const AuthContext = createContext<UseAuthReturn | null>(null);
+
+// ─── Helper: build redirect URL ─────────────────────────────────────────────
+
+function getRedirectUrl(): string {
+  return Linking.createURL('auth/callback');
+}
+
+// ─── Helper: create AuthError ───────────────────────────────────────────────
+
+function createAuthError(type: AuthErrorType, message: string): AuthError {
+  return { type, message };
+}
+
+// ─── Provider ────────────────────────────────────────────────────────────────
+
+export function AuthProvider({
+  children,
+  routes,
+  onSignIn,
+  onSignOut,
+  onError,
+  onEmailVerified,
+}: AuthProviderProps) {
+  const router = useRouter();
+  const segments = useSegments();
+
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<AuthError | null>(null);
+  const [pendingEmailVerification, setPendingEmailVerification] = useState(false);
+  const [pendingPasswordReset, setPendingPasswordReset] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  const prevAuthState = useRef<boolean>(false);
+
+  // ── Auto-refresh on app state changes ──
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh();
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  // ── Initialize session ──
+  useEffect(() => {
+    let mounted = true;
+
+    async function init() {
+      try {
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        if (!mounted) return;
+
+        if (sessionError) {
+          console.warn('[Auth] Error getting session:', sessionError.message);
+        }
+
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+      } catch (err) {
+        console.error('[Auth] Init error:', err);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+          setIsInitialized(true);
+        }
+      }
+    }
+
+    init();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event: AuthChangeEvent, newSession: Session | null) => {
+        if (!mounted) return;
+
+        console.log('[Auth] State changed:', event);
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        if (event === 'SIGNED_IN' && newSession?.user) {
+          try {
+            await onSignIn?.(newSession.user);
+          } catch (err) {
+            console.error('[Auth] onSignIn callback error:', err);
+          }
+        }
+
+        if (event === 'SIGNED_OUT') {
+          try {
+            await onSignOut?.();
+          } catch (err) {
+            console.error('[Auth] onSignOut callback error:', err);
+          }
+        }
+
+        if (event === 'USER_UPDATED' && newSession?.user?.email_confirmed_at) {
+          onEmailVerified?.(newSession.user);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Route protection ──
+  useEffect(() => {
+    if (!isInitialized || !routes) return;
+
+    const isAuthenticated = !!session;
+    const inAuthGroup = segments[0] === '(auth)';
+    const inOnboarding = segments[0] === 'onboarding';
+
+    // Don't redirect during onboarding
+    if (inOnboarding) return;
+
+    // Prevent redirect flicker — only redirect when auth state actually changes
+    if (prevAuthState.current === isAuthenticated) return;
+    prevAuthState.current = isAuthenticated;
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Not logged in and not on auth page → send to login
+      router.replace(routes.login as any);
+    } else if (isAuthenticated && inAuthGroup) {
+      // Logged in but on auth page → send to main app
+      router.replace(routes.afterLogin as any);
+    }
+  }, [session, segments, isInitialized, routes, router]);
+
+  // ── Auth methods ──
+
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        const authErr = createAuthError('INVALID_CREDENTIALS', signInError.message);
+        setError(authErr);
+        onError?.(authErr);
+        throw signInError;
+      }
+    } catch (err: any) {
+      if (!err.__isAuthError) {
+        const authErr = createAuthError('NETWORK_ERROR', err.message || 'Sign-in failed');
+        setError(authErr);
+        onError?.(authErr);
+      }
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onError]);
+
+  const signUpWithEmail = useCallback(async (email: string, password: string): Promise<SignUpResult> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const redirectTo = getRedirectUrl();
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: redirectTo },
+      });
+
+      if (signUpError) {
+        const authErr = createAuthError('SIGNUP_FAILED', signUpError.message);
+        setError(authErr);
+        onError?.(authErr);
+        throw signUpError;
+      }
+
+      // If user exists but email not confirmed, Supabase returns the user but no session
+      const needsConfirmation = !data.session && !!data.user;
+      if (needsConfirmation) {
+        setPendingEmailVerification(true);
+      }
+
+      return {
+        emailConfirmationRequired: needsConfirmation,
+        email,
+      };
+    } catch (err: any) {
+      if (!err.__isAuthError) {
+        const authErr = createAuthError('NETWORK_ERROR', err.message || 'Sign-up failed');
+        setError(authErr);
+        onError?.(authErr);
+      }
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onError]);
+
+  const signInWithGoogle = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const redirectTo = getRedirectUrl();
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true, // We handle browser ourselves on native
+        },
+      });
+
+      if (oauthError) {
+        const authErr = createAuthError('OAUTH_FAILED', oauthError.message);
+        setError(authErr);
+        onError?.(authErr);
+        throw oauthError;
+      }
+
+      if (data?.url) {
+        // Open the OAuth URL in the system browser
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectTo,
+          { showInRecents: true }
+        );
+
+        if (result.type === 'cancel' || result.type === 'dismiss') {
+          setIsLoading(false);
+          // Don't show error for user cancellation
+          return;
+        }
+
+        if (result.type === 'success' && result.url) {
+          // Parse tokens from the callback URL
+          await handleOAuthCallback(result.url);
+        }
+      }
+    } catch (err: any) {
+      if (err.type !== 'BROWSER_DISMISSED') {
+        const authErr = createAuthError('OAUTH_FAILED', err.message || 'Google sign-in failed');
+        setError(authErr);
+        onError?.(authErr);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onError]);
+
+  const signInWithApple = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const redirectTo = getRedirectUrl();
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (oauthError) {
+        const authErr = createAuthError('OAUTH_FAILED', oauthError.message);
+        setError(authErr);
+        onError?.(authErr);
+        throw oauthError;
+      }
+
+      if (data?.url) {
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectTo,
+          { showInRecents: true }
+        );
+
+        if (result.type === 'cancel' || result.type === 'dismiss') {
+          setIsLoading(false);
+          return;
+        }
+
+        if (result.type === 'success' && result.url) {
+          await handleOAuthCallback(result.url);
+        }
+      }
+    } catch (err: any) {
+      if (err.type !== 'BROWSER_DISMISSED') {
+        const authErr = createAuthError('OAUTH_FAILED', err.message || 'Apple sign-in failed');
+        setError(authErr);
+        onError?.(authErr);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onError]);
+
+  const handleOAuthCallback = useCallback(async (url: string) => {
+    try {
+      // Extract tokens from URL hash fragment
+      const hashIndex = url.indexOf('#');
+      if (hashIndex === -1) return;
+
+      const hashFragment = url.substring(hashIndex + 1);
+      const params = new URLSearchParams(hashFragment);
+
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (sessionError) {
+          const authErr = createAuthError('OAUTH_FAILED', sessionError.message);
+          setError(authErr);
+          onError?.(authErr);
+        }
+      }
+    } catch (err: any) {
+      console.error('[Auth] OAuth callback error:', err);
+      const authErr = createAuthError('OAUTH_FAILED', err.message || 'Failed to complete sign-in');
+      setError(authErr);
+      onError?.(authErr);
+    }
+  }, [onError]);
+
+  const resetPassword = useCallback(async (email: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const redirectTo = getRedirectUrl();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+
+      if (resetError) {
+        const authErr = createAuthError('UNKNOWN_ERROR', resetError.message);
+        setError(authErr);
+        onError?.(authErr);
+        throw resetError;
+      }
+
+      setPendingPasswordReset(true);
+      return { emailSent: true, email };
+    } catch (err: any) {
+      if (!err.__isAuthError) {
+        const authErr = createAuthError('NETWORK_ERROR', err.message || 'Password reset failed');
+        setError(authErr);
+        onError?.(authErr);
+      }
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onError]);
+
+  const handleSignOut = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        console.error('[Auth] Sign out error:', signOutError);
+      }
+    } catch (err) {
+      console.error('[Auth] Sign out error:', err);
+    } finally {
+      setIsLoading(false);
+      setPendingEmailVerification(false);
+      setPendingPasswordReset(false);
+    }
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // ── Context value ──
+
+  const value: UseAuthReturn = {
+    session,
+    user,
+    isLoading,
+    isAuthenticated: !!session,
+    error,
+    pendingEmailVerification,
+    pendingPasswordReset,
+    signInWithGoogle,
+    signInWithApple,
+    signInWithEmail,
+    signUpWithEmail,
+    resetPassword,
+    signOut: handleSignOut,
+    clearError,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
+
+export function useAuth(): UseAuthReturn {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}

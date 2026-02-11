@@ -13,23 +13,6 @@ import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { Button } from '@/components/ui/Button';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
-// Conditionally import AuthCallbackPage
-let AuthCallbackPage: React.ComponentType<{
-  supabaseClient: typeof supabase;
-  onSuccess: () => void;
-  onError: (error: { message: string; type?: string }) => void;
-  loadingText?: string;
-}> | null = null;
-
-try {
-  if (isSupabaseConfigured) {
-    const authModule = require('@fastshot/auth');
-    AuthCallbackPage = authModule.AuthCallbackPage;
-  }
-} catch {
-  // Auth not available
-}
-
 // Custom loading component with premium styling
 function PremiumLoadingState({ message }: { message: string }) {
   const { palette } = useThemeSafe();
@@ -226,21 +209,8 @@ export default function Callback() {
     return <PremiumLoadingState message="Preparing sign-in" />;
   }
 
-  // Use AuthCallbackPage if available
-  if (AuthCallbackPage) {
-    return (
-      <View style={[styles.container, { backgroundColor: palette.background }]}>
-        <AuthCallbackPage
-          supabaseClient={supabase}
-          onSuccess={handleSuccess}
-          onError={handleError}
-          loadingText="Completing sign in..."
-        />
-      </View>
-    );
-  }
-
-  // Fallback loading state
+  // The deep link handler in _layout.tsx already handles token parsing from URL
+  // This page just shows a loading state while that process completes
   return <PremiumLoadingState message="Completing sign in" />;
 }
 

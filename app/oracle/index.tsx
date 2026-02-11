@@ -36,22 +36,11 @@ import { useFocusMode } from '@/contexts/FocusModeContext';
 import { Message, ContextVault } from '@/types';
 import { getContextVault } from '@/store/app';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { generateOracleResponse, getOracleGreeting } from '@/lib/ai-oracle';
 import { TranscriptEntry } from '@/components/oracle/TranscriptEntry';
 
 // Dimensions removed to avoid lint warnings - not needed for current layout
-
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
 
 export default function OracleScreen() {
   const router = useRouter();
@@ -59,9 +48,7 @@ export default function OracleScreen() {
   const { palette } = useThemeSafe();
   const { enterFocusMode, exitFocusMode } = useFocusMode();
   // Auth ready for future session persistence
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
   void auth; // Reserved for future session persistence
 
   // State

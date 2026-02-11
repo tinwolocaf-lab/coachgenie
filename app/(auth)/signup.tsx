@@ -24,25 +24,11 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { isSupabaseConfigured } from '@/lib/supabase';
-
-// Dynamic import for auth
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
+import { useAuth } from '@/lib/auth';
 
 // Wrapper component when auth is available
 function AuthenticatedSignUp() {
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth ? useAuth() : null;
+  const auth = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,9 +37,9 @@ function AuthenticatedSignUp() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
 
-  const isLoading = auth?.isLoading || false;
-  const error = auth?.error?.message || localError;
-  const pendingVerification = auth?.pendingEmailVerification || emailSent;
+  const isLoading = auth.isLoading;
+  const error = auth.error?.message || localError;
+  const pendingVerification = auth.pendingEmailVerification || emailSent;
 
   const validateForm = (): boolean => {
     if (!email.trim()) {
@@ -84,7 +70,7 @@ function AuthenticatedSignUp() {
     if (!validateForm()) return;
 
     try {
-      const result = await auth?.signUpWithEmail(email, password);
+      const result = await auth.signUpWithEmail(email, password);
       if (result?.emailConfirmationRequired) {
         setEmailSent(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -97,12 +83,12 @@ function AuthenticatedSignUp() {
 
   const handleGoogleSignIn = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await auth?.signInWithGoogle();
+    await auth.signInWithGoogle();
   };
 
   const handleAppleSignIn = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await auth?.signInWithApple();
+    await auth.signInWithApple();
   };
 
   return (

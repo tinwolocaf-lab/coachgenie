@@ -28,6 +28,7 @@ import { Typography, Spacing, Radius, Timing, EditorialSpacing } from '@/constan
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { InkText } from '@/components/ui/InkText';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getDailyReflection,
   saveDailyReflection,
@@ -39,28 +40,13 @@ import { getContextVault } from '@/store/app';
 import { DailyReflection, GrowthChapter, ContextVault } from '@/types';
 import { VoiceMode } from '@/components/chat/VoiceMode';
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 // Phases of the Morning Intention ritual
 type RitualPhase = 'opening' | 'intention' | 'muse' | 'complete';
 
 export default function MorningIntentionScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [phase, setPhase] = useState<RitualPhase>('opening');
   const [intention, setIntention] = useState('');

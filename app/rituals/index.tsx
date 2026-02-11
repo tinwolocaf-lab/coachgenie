@@ -26,6 +26,7 @@ import { Card } from '@/components/ui/Card';
 import { RitualCard, ActionCard } from '@/components/rituals/RitualCard';
 import { FluidProgressBar, SegmentedProgress } from '@/components/rituals/FluidProgressBar';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getTodayPractice,
   getTimeOfDay,
@@ -46,25 +47,10 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function RitualsHubScreen() {
   const router = useRouter();
-  const useAuth = getAuthHook();
   const { palette } = useThemeSafe();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [practice, setPractice] = useState<TodayPractice | null>(null);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay());

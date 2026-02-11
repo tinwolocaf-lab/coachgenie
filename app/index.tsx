@@ -2,31 +2,17 @@ import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useThemeSafe } from '@/contexts/ThemeContext';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { isOnboardingComplete } from '@/store/onboarding';
 import { isNewOnboardingComplete } from '@/lib/onboarding';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
-// Dynamic import for auth
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 // Authenticated index - uses useAuth hook
 function AuthenticatedIndex() {
   const { palette } = useThemeSafe();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth ? useAuth() : null;
-  const isAuthenticated = auth?.isAuthenticated ?? false;
-  const authLoading = auth?.isLoading ?? false;
+  const auth = useAuthSafe();
+  const isAuthenticated = auth.isAuthenticated;
+  const authLoading = auth.isLoading;
 
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);

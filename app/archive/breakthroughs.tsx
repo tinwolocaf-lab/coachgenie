@@ -29,39 +29,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getAllBreakthroughs } from '@/lib/supabase-archive';
 import { Breakthrough, BreakthroughAction } from '@/types';
 import { getCoachById } from '@/data/coaches';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function BreakthroughsScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
   const { id: highlightId } = useLocalSearchParams<{ id?: string }>();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [breakthroughs, setBreakthroughs] = useState<Breakthrough[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(highlightId || null);
 
   const loadBreakthroughs = useCallback(async () => {
-    if (!auth?.user?.id) return;
+    if (!auth.user?.id) return;
 
     try {
       const data = await getAllBreakthroughs(auth.user.id, 50);
@@ -69,7 +55,7 @@ export default function BreakthroughsScreen() {
     } catch (error) {
       console.error('Error loading breakthroughs:', error);
     }
-  }, [auth?.user?.id]);
+  }, [auth.user?.id]);
 
   useEffect(() => {
     loadBreakthroughs();

@@ -28,6 +28,7 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { FluidProgressBar } from '@/components/rituals/FluidProgressBar';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import {
   getGrowthChapters,
   createGrowthChapter,
@@ -53,25 +54,10 @@ const CHAPTER_ICONS = [
   'compass', 'diamond', 'trophy', 'ribbon', 'medal', 'flame',
 ] as const;
 
-// Dynamic auth hook
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 export default function GrowthChaptersScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [chapters, setChapters] = useState<GrowthChapter[]>([]);
   const [showNewChapterModal, setShowNewChapterModal] = useState(false);

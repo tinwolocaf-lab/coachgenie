@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { Typography, Spacing, Radius, EditorialSpacing, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 
 const TOTAL_STEPS = 5;
 
@@ -32,17 +33,6 @@ const COACH_COLORS = [
   '#E07A5F', '#81B29A', '#C67B5B', '#2A9D8F',
 ] as const;
 
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
 function generateSystemPrompt(name: string, tagline: string, method: string): string {
   return `You are ${name}, a coaching AI.${tagline ? ` ${tagline}.` : ''}\n\nYour coaching approach:\n${method || '(Describe your method above to generate a prompt.)'}\n\nGuidelines:\n- Ask thoughtful questions before giving advice.\n- Tailor responses to the user's context and goals.\n- Be direct yet compassionate.\n- Encourage reflection and personal accountability.`;
 }
@@ -50,9 +40,7 @@ function generateSystemPrompt(name: string, tagline: string, method: string): st
 export default function CreateCoachScreen() {
   const router = useRouter();
   const { palette, subscriptionTier } = useThemeSafe();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
@@ -94,7 +82,7 @@ export default function CreateCoachScreen() {
   };
 
   const handleCreate = async () => {
-    if (!auth?.user?.id) {
+    if (!auth.user?.id) {
       Alert.alert('Sign in required', 'Please sign in to create a custom coach.');
       return;
     }

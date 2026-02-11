@@ -20,31 +20,17 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { isSupabaseConfigured } from '@/lib/supabase';
-
-// Dynamic import for auth
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
+import { useAuth } from '@/lib/auth';
 
 // Wrapper component when auth is available
 function AuthenticatedForgotPassword() {
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth ? useAuth() : null;
+  const auth = useAuth();
 
   const [email, setEmail] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
 
-  const isLoading = auth?.isLoading || false;
+  const isLoading = auth.isLoading;
   const error = localError;
   const pendingReset = resetSent;
 
@@ -73,7 +59,7 @@ function AuthenticatedForgotPassword() {
     setLocalError(null);
 
     try {
-      await auth?.resetPassword(email);
+      await auth.resetPassword(email);
       setResetSent(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {

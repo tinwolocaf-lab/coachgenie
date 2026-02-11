@@ -25,27 +25,13 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { isSupabaseConfigured } from '@/lib/supabase';
-
-// Dynamic import for auth
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
+import { useAuth } from '@/lib/auth';
 
 // Wrapper component when auth is available
 function AuthenticatedLogin() {
   const router = useRouter();
   const params = useLocalSearchParams<{ error?: string }>();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth ? useAuth() : null;
+  const auth = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -67,8 +53,8 @@ function AuthenticatedLogin() {
     if (localError) setLocalError(null);
   };
 
-  const isLoading = auth?.isLoading || false;
-  const error = urlError || localError || auth?.error?.message || null;
+  const isLoading = auth.isLoading;
+  const error = urlError || localError || auth.error?.message || null;
 
   const getErrorMessage = (err: unknown): string => {
     if (!err) return 'Sign-in failed. Please try again.';
@@ -97,7 +83,7 @@ function AuthenticatedLogin() {
       return;
     }
     try {
-      await auth?.signInWithEmail(email, password);
+      await auth.signInWithEmail(email, password);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       const message = getErrorMessage(err);
@@ -113,7 +99,7 @@ function AuthenticatedLogin() {
     clearErrors();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await auth?.signInWithGoogle();
+      await auth.signInWithGoogle();
     } catch (err) {
       const message = getErrorMessage(err);
       setLocalError(message);
@@ -128,7 +114,7 @@ function AuthenticatedLogin() {
     clearErrors();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await auth?.signInWithApple();
+      await auth.signInWithApple();
     } catch (err) {
       const message = getErrorMessage(err);
       setLocalError(message);

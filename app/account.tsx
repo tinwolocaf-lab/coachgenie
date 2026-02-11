@@ -29,21 +29,9 @@ import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { AtmosphereGallery } from '@/components/settings/AtmosphereGallery';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { useThemeSafe } from '@/contexts/ThemeContext';
+import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { checkSovereignEntitlement, restorePurchases, getUserSubscriptionTier } from '@/lib/revenuecat';
-
-// Dynamic import for auth
-const getAuthHook = () => {
-  if (isSupabaseConfigured) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('@fastshot/auth').useAuth;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
 
 interface UserProfile {
   email: string;
@@ -54,9 +42,7 @@ interface UserProfile {
 export default function AccountScreen() {
   const router = useRouter();
   const { palette, isSovereignMember, setSovereignMember, subscriptionTier, setSubscriptionTier } = useThemeSafe();
-  const useAuth = getAuthHook();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const auth = useAuth && isSupabaseConfigured ? useAuth() : null;
+  const auth = useAuthSafe();
 
   const [profile, setProfile] = useState<UserProfile>({
     email: '',
@@ -74,7 +60,7 @@ export default function AccountScreen() {
   const headerScale = useSharedValue(1);
 
   useEffect(() => {
-    if (auth?.user) {
+    if (auth.user) {
       const email = auth.user.email || '';
       const metadata = auth.user.user_metadata || {};
       const name = metadata.full_name || metadata.name || email.split('@')[0] || 'User';
@@ -88,7 +74,7 @@ export default function AccountScreen() {
 
       // Sovereign membership is now checked via RevenueCat in ThemeContext
     }
-  }, [auth?.user]);
+  }, [auth.user]);
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
