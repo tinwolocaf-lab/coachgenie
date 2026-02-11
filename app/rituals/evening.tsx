@@ -40,6 +40,7 @@ import { generateClosingThought } from '@/lib/apiClient';
 import { getContextVault } from '@/store/app';
 import { DailyReflection, RitualWithStatus, ContextVault } from '@/types';
 import { AIResonanceNote, CandlelightPalette } from '@/components/oracle/AIResonanceNote';
+import { VoiceMode } from '@/components/chat/VoiceMode';
 
 // Candlelight theme constants
 const CL = CandlelightPalette;
@@ -474,6 +475,21 @@ export default function EveningAuditScreen() {
                 <Text style={styles.sectionEmoji}>✦</Text>
                 <Text style={styles.sectionTitle}>Wins</Text>
                 <Text style={styles.sectionHint}>what went well</Text>
+                {!existingReflection && (
+                  <VoiceMode
+                    onTranscription={(text) => {
+                      // Add transcribed text to next empty win slot or create new one
+                      const emptyIdx = wins.findIndex(w => !w.trim());
+                      if (emptyIdx >= 0) {
+                        handleUpdateWin(emptyIdx, text);
+                      } else if (wins.length < 5) {
+                        setWins([...wins, text]);
+                      }
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }}
+                    isEnabled={true}
+                  />
+                )}
               </View>
 
               {wins.map((win, index) => (
@@ -513,6 +529,20 @@ export default function EveningAuditScreen() {
                 <Text style={styles.sectionEmoji}>◆</Text>
                 <Text style={styles.sectionTitle}>Lessons</Text>
                 <Text style={styles.sectionHint}>what you learned</Text>
+                {!existingReflection && (
+                  <VoiceMode
+                    onTranscription={(text) => {
+                      const emptyIdx = lessons.findIndex(l => !l.trim());
+                      if (emptyIdx >= 0) {
+                        handleUpdateLesson(emptyIdx, text);
+                      } else if (lessons.length < 5) {
+                        setLessons([...lessons, text]);
+                      }
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }}
+                    isEnabled={true}
+                  />
+                )}
               </View>
 
               {lessons.map((lesson, index) => (

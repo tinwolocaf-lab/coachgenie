@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { isOnboardingComplete } from '@/store/onboarding';
+import { isNewOnboardingComplete } from '@/lib/onboarding';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
 // Dynamic import for auth
@@ -36,7 +37,11 @@ function AuthenticatedIndex() {
 
   const checkStatus = async () => {
     try {
-      const completed = await isOnboardingComplete();
+      // Check new 4-step onboarding first, fall back to legacy
+      let completed = await isNewOnboardingComplete();
+      if (!completed) {
+        completed = await isOnboardingComplete();
+      }
       setOnboardingCompleted(completed);
     } catch (error) {
       console.error('Error:', error);
@@ -80,7 +85,11 @@ function GuestIndex() {
 
   const checkStatus = async () => {
     try {
-      const completed = await isOnboardingComplete();
+      // Check new 4-step onboarding first, fall back to legacy
+      let completed = await isNewOnboardingComplete();
+      if (!completed) {
+        completed = await isOnboardingComplete();
+      }
       setOnboardingCompleted(completed);
     } catch (error) {
       console.error('Error:', error);

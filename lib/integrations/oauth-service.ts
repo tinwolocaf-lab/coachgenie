@@ -11,7 +11,7 @@ interface OAuthConfig {
 }
 
 const REDIRECT_URI = AuthSession.makeRedirectUri({
-  scheme: 'fastshot',
+  scheme: 'coachgenie',
   path: 'integrations/callback',
 });
 

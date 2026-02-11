@@ -1,9 +1,11 @@
 {
-  "name": "fastshot-app",
+  "name": "coachgenie-app",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -22,6 +24,7 @@
     "expo-audio": "~1.1.1",
     "expo-auth-session": "~7.0.10",
     "expo-blur": "~15.0.7",
+    "expo-clipboard": "~7.0.1",
     "expo-constants": "~18.0.9",
     "expo-crypto": "~15.0.8",
     "expo-dev-client": "~6.0.20",
@@ -49,6 +52,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-url-polyfill": "^3.0.0",
+    "react-native-android-widget": "^0.15.0",
     "react-native-web": "^0.21.0",
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1"

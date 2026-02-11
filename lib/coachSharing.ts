@@ -1,0 +1,220 @@
+import { supabase } from '@/lib/supabase';
+
+export interface CoachConfig {
+  name: string;
+  system_prompt: string;
+  method: string;
+  icon_name: string;
+  color: string;
+  tagline?: string;
+  description?: string;
+}
+
+export interface ShareLinkResponse {
+  shareId: string;
+  deepLink: string;
+  webUrl: string;
+}
+
+export interface ResolvedCoachShare {
+  coachConfig: CoachConfig;
+  creatorId: string;
+}
+
+/**
+ * Get the base URL for functions
+ */
+function getFunctionsBaseUrl(): string {
+  const explicit = process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL;
+  if (explicit) {
+    const normalized = explicit.replace(/\/$/, '');
+    if (normalized.includes('/functions/v1')) {
+      return normalized;
+    }
+    return `${normalized}/functions/v1`;
+  }
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL');
+  }
+
+  return `${supabaseUrl.replace(/\/$/, '')}/functions/v1`;
+}
+
+/**
+ * Get authorization header for API calls
+ */
+async function getAuthHeader(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) {
+    throw new Error('Missing Supabase access token');
+  }
+
+  return `Bearer ${token}`;
+}
+
+/**
+ * Create a shareable link for a coach
+ * @param coachId - The ID of the coach to share
+ * @param coachConfig - The coach configuration to include in the share
+ * @returns ShareLinkResponse with deepLink and webUrl
+ */
+export async function createShareLink(
+  coachId: string,
+  coachConfig: CoachConfig
+): Promise<ShareLinkResponse> {
+  try {
+    const authHeader = await getAuthHeader();
+    const functionsUrl = getFunctionsBaseUrl();
+
+    const response = await fetch(`${functionsUrl}/coach-share`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        action: 'create',
+        coach_id: coachId,
+        coach_config: coachConfig,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to create share link: ${error}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      shareId: data.share_id,
+      deepLink: data.share_url, // Already in format: coachgenie://coach/share/{share_id}
+      webUrl: `https://coachgenie.app/share/${data.share_id}`,
+    };
+  } catch (error) {
+    console.error('Error creating share link:', error);
+    throw error;
+  }
+}
+
+/**
+ * Resolve a shared coach link and get the coach configuration
+ * @param shareId - The share ID to resolve
+ * @returns ResolvedCoachShare with coach config and creator info
+ */
+export async function resolveShareLink(
+  shareId: string
+): Promise<ResolvedCoachShare> {
+  try {
+    const authHeader = await getAuthHeader();
+    const functionsUrl = getFunctionsBaseUrl();
+
+    const response = await fetch(`${functionsUrl}/coach-share`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        action: 'resolve',
+        share_id: shareId,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Share link not found or has expired');
+      }
+      const error = await response.text();
+      throw new Error(`Failed to resolve share link: ${error}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      coachConfig: data.coach_config,
+      creatorId: data.creator_id,
+    };
+  } catch (error) {
+    console.error('Error resolving share link:', error);
+    throw error;
+  }
+}
+
+/**
+ * Import a shared coach into the user's coaches
+ * @param shareId - The share ID to import
+ * @param coachId - Optional: custom coach ID. If not provided, one will be generated
+ * @returns The created coach data
+ */
+export async function importSharedCoach(
+  shareId: string,
+  coachId?: string
+): Promise<{ id: string; name: string; icon_name: string; color: string }> {
+  try {
+    // First resolve the share to get the coach config
+    const resolved = await resolveShareLink(shareId);
+
+    // Generate a unique ID if not provided
+    const finalCoachId = coachId || `coach-shared-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Get the authenticated user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Create the coach in the user's coaches table
+    const { data, error } = await supabase.from('coaches').insert({
+      id: finalCoachId,
+      user_id: user.id,
+      name: resolved.coachConfig.name,
+      tagline: resolved.coachConfig.tagline,
+      description: resolved.coachConfig.description,
+      icon_name: resolved.coachConfig.icon_name,
+      color: resolved.coachConfig.color,
+      method: resolved.coachConfig.method,
+      system_prompt: resolved.coachConfig.system_prompt,
+      version: '1.0.0',
+      is_public: false,
+      is_imported: true,
+      shared_by: resolved.creatorId,
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      throw new Error(`Failed to import coach: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error('Failed to create coach record');
+    }
+
+    const coach = data[0];
+
+    return {
+      id: coach.id,
+      name: coach.name,
+      icon_name: coach.icon_name,
+      color: coach.color,
+    };
+  } catch (error) {
+    console.error('Error importing shared coach:', error);
+    throw error;
+  }
+}
+
+/**
+ * Validate a share ID format
+ * @param shareId - The share ID to validate
+ * @returns true if valid format, false otherwise
+ */
+export function isValidShareId(shareId: string): boolean {
+  // Share IDs are 8 alphanumeric characters
+  return /^[a-zA-Z0-9]{8}$/.test(shareId);
+}

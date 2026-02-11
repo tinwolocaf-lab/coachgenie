@@ -1,0 +1,427 @@
+// Gemini 2.5 Flash Native Audio - Live Voice Session Manager
+// Handles WebSocket connection, audio streaming, and session lifecycle
+
+import { supabase } from '@/lib/supabase';
+
+const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+
+export interface GeminiLiveConfig {
+  model: string;
+  systemInstruction: string;
+  generationConfig: {
+    responseModalities: string[];
+    speechConfig?: {
+      voiceConfig?: {
+        prebuiltVoiceConfig?: {
+          voiceName: string;
+        };
+      };
+    };
+  };
+  apiKey: string;
+  voiceName?: string;
+}
+
+export interface VoiceSessionCallbacks {
+  onAudioData?: (audioData: ArrayBuffer) => void;
+  onTranscript?: (text: string, isFinal: boolean) => void;
+  onInterrupted?: () => void;
+  onError?: (error: string) => void;
+  onConnected?: () => void;
+  onDisconnected?: () => void;
+  onToolCall?: (toolCall: { name: string; args: Record<string, unknown> }) => void;
+}
+
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+export class GeminiLiveSession {
+  private ws: WebSocket | null = null;
+  private config: GeminiLiveConfig | null = null;
+  private callbacks: VoiceSessionCallbacks = {};
+  private _state: ConnectionState = 'disconnected';
+  private audioBuffer: Int16Array[] = [];
+  private sendInterval: ReturnType<typeof setInterval> | null = null;
+  private transcript: string = '';
+
+  get state(): ConnectionState {
+    return this._state;
+  }
+
+  get currentTranscript(): string {
+    return this.transcript;
+  }
+
+  /**
+   * Fetch session config from edge function, then connect to Gemini Live API
+   */
+  async connect(
+    coachId: string,
+    sessionId: string,
+    callbacks: VoiceSessionCallbacks,
+    voiceName?: string,
+  ): Promise<void> {
+    this.callbacks = callbacks;
+    this._state = 'connecting';
+
+    try {
+      // 1. Get session config from our edge function
+      this.config = await this.fetchSessionConfig(coachId, sessionId, voiceName);
+
+      // 2. Connect to Gemini Live API via WebSocket
+      const wsUrl = `${GEMINI_WS_URL}?key=${this.config.apiKey}`;
+      this.ws = new WebSocket(wsUrl);
+
+      this.ws.binaryType = 'arraybuffer';
+
+      this.ws.onopen = () => {
+        this._state = 'connected';
+        this.sendSetupMessage();
+        this.callbacks.onConnected?.();
+      };
+
+      this.ws.onmessage = (event) => {
+        this.handleMessage(event.data);
+      };
+
+      this.ws.onerror = (event) => {
+        console.error('[GeminiLive] WebSocket error:', event);
+        this._state = 'error';
+        this.callbacks.onError?.('WebSocket connection error');
+      };
+
+      this.ws.onclose = (event) => {
+        this._state = 'disconnected';
+        this.stopAudioStream();
+        this.callbacks.onDisconnected?.();
+      };
+    } catch (error) {
+      this._state = 'error';
+      this.callbacks.onError?.((error as Error).message || 'Failed to connect');
+      throw error;
+    }
+  }
+
+  /**
+   * Send the initial setup message with system instruction and generation config
+   */
+  private sendSetupMessage(): void {
+    if (!this.ws || !this.config) return;
+
+    const setupMessage = {
+      setup: {
+        model: `models/${this.config.model}`,
+        generationConfig: {
+          responseModalities: ['AUDIO', 'TEXT'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: this.config.voiceName || 'Kore',
+              },
+            },
+          },
+        },
+        systemInstruction: {
+          parts: [{ text: this.config.systemInstruction }],
+        },
+        tools: this.getCoachingTools(),
+      },
+    };
+
+    this.ws.send(JSON.stringify(setupMessage));
+  }
+
+  /**
+   * Define function calling tools available during voice coaching
+   */
+  private getCoachingTools(): object[] {
+    return [
+      {
+        functionDeclarations: [
+          {
+            name: 'save_insight',
+            description: 'Save a key insight or breakthrough from the conversation',
+            parameters: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', description: 'Short title for the insight' },
+                content: { type: 'string', description: 'The insight content' },
+                category: { type: 'string', enum: ['mindset', 'strategy', 'productivity', 'systems', 'general'] },
+              },
+              required: ['title', 'content'],
+            },
+          },
+          {
+            name: 'create_action_item',
+            description: 'Create an action item from the coaching conversation',
+            parameters: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', description: 'The action item title' },
+                priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+              },
+              required: ['title'],
+            },
+          },
+          {
+            name: 'get_user_schedule',
+            description: 'Retrieve the user schedule and calendar events for today',
+            parameters: { type: 'object', properties: {} },
+          },
+        ],
+      },
+    ];
+  }
+
+  /**
+   * Handle incoming WebSocket messages from Gemini
+   */
+  private handleMessage(data: string | ArrayBuffer): void {
+    if (data instanceof ArrayBuffer) {
+      // Binary audio data from Gemini
+      this.callbacks.onAudioData?.(data);
+      return;
+    }
+
+    try {
+      const message = JSON.parse(data as string);
+
+      // Setup complete acknowledgment
+      if (message.setupComplete) {
+        return;
+      }
+
+      // Server content (text or audio response)
+      if (message.serverContent) {
+        const content = message.serverContent;
+
+        if (content.interrupted) {
+          this.callbacks.onInterrupted?.();
+          return;
+        }
+
+        if (content.modelTurn?.parts) {
+          for (const part of content.modelTurn.parts) {
+            if (part.text) {
+              this.transcript += part.text;
+              this.callbacks.onTranscript?.(part.text, false);
+            }
+            if (part.inlineData?.data) {
+              // Decode base64 audio and pass to callback
+              const binaryString = atob(part.inlineData.data);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              this.callbacks.onAudioData?.(bytes.buffer);
+            }
+          }
+        }
+
+        if (content.turnComplete) {
+          this.callbacks.onTranscript?.(this.transcript, true);
+        }
+      }
+
+      // Tool call from Gemini
+      if (message.toolCall) {
+        for (const call of message.toolCall.functionCalls || []) {
+          this.callbacks.onToolCall?.({
+            name: call.name,
+            args: call.args || {},
+          });
+          // Auto-respond to tool calls
+          this.respondToToolCall(call);
+        }
+      }
+    } catch (error) {
+      console.error('[GeminiLive] Error parsing message:', error);
+    }
+  }
+
+  /**
+   * Auto-respond to tool calls from the AI
+   */
+  private async respondToToolCall(call: { id?: string; name: string; args?: Record<string, unknown> }): Promise<void> {
+    let result: Record<string, unknown> = { success: true };
+
+    // For now, acknowledge tool calls - full implementation can be added later
+    if (call.name === 'save_insight') {
+      result = { success: true, message: 'Insight saved successfully' };
+    } else if (call.name === 'create_action_item') {
+      result = { success: true, message: 'Action item created' };
+    } else if (call.name === 'get_user_schedule') {
+      result = { success: true, events: [], message: 'Schedule retrieved' };
+    }
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        toolResponse: {
+          functionResponses: [{
+            id: call.id || 'default',
+            name: call.name,
+            response: result,
+          }],
+        },
+      }));
+    }
+  }
+
+  /**
+   * Send audio data to Gemini (PCM 16-bit, 16kHz, mono)
+   */
+  sendAudio(pcmData: Int16Array): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    // Buffer audio for batched sending (~0.5s chunks to avoid bridge overload)
+    this.audioBuffer.push(pcmData);
+
+    if (!this.sendInterval) {
+      this.sendInterval = setInterval(() => {
+        this.flushAudioBuffer();
+      }, 500); // Send every 500ms
+    }
+  }
+
+  /**
+   * Flush buffered audio to WebSocket
+   */
+  private flushAudioBuffer(): void {
+    if (this.audioBuffer.length === 0) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    // Merge all buffered audio chunks
+    const totalLength = this.audioBuffer.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Int16Array(totalLength);
+    let offset = 0;
+    for (const chunk of this.audioBuffer) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    this.audioBuffer = [];
+
+    // Convert to base64 for JSON transport
+    const uint8 = new Uint8Array(merged.buffer);
+    let binary = '';
+    for (let i = 0; i < uint8.length; i++) {
+      binary += String.fromCharCode(uint8[i]);
+    }
+    const base64Audio = btoa(binary);
+
+    const message = {
+      realtimeInput: {
+        mediaChunks: [{
+          mimeType: 'audio/pcm;rate=16000',
+          data: base64Audio,
+        }],
+      },
+    };
+
+    this.ws.send(JSON.stringify(message));
+  }
+
+  /**
+   * Send a text message during voice session
+   */
+  sendText(text: string): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    const message = {
+      clientContent: {
+        turns: [{
+          role: 'user',
+          parts: [{ text }],
+        }],
+        turnComplete: true,
+      },
+    };
+
+    this.ws.send(JSON.stringify(message));
+  }
+
+  /**
+   * Stop streaming audio
+   */
+  stopAudioStream(): void {
+    if (this.sendInterval) {
+      clearInterval(this.sendInterval);
+      this.sendInterval = null;
+    }
+    this.flushAudioBuffer();
+  }
+
+  /**
+   * Disconnect from Gemini Live API
+   */
+  disconnect(): void {
+    this.stopAudioStream();
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this._state = 'disconnected';
+    this.transcript = '';
+    this.config = null;
+  }
+
+  /**
+   * Fetch session configuration from our edge function
+   */
+  private async fetchSessionConfig(
+    coachId: string,
+    sessionId: string,
+    voiceName?: string,
+  ): Promise<GeminiLiveConfig> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) throw new Error('Not authenticated');
+
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL');
+
+    const baseUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1`;
+
+    const response = await fetch(`${baseUrl}/voice-session-config`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        coach_id: coachId,
+        session_id: sessionId,
+        voiceName: voiceName || 'Kore',
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || 'Failed to fetch voice session config');
+    }
+
+    return response.json();
+  }
+}
+
+// Singleton instance for easy access
+let _instance: GeminiLiveSession | null = null;
+
+export function getGeminiLiveSession(): GeminiLiveSession {
+  if (!_instance) {
+    _instance = new GeminiLiveSession();
+  }
+  return _instance;
+}
+
+// Available Gemini HD voices
+export const GEMINI_VOICES = [
+  { id: 'Kore', name: 'Kore', description: 'Calm and clear', gender: 'female' },
+  { id: 'Charon', name: 'Charon', description: 'Deep and warm', gender: 'male' },
+  { id: 'Fenrir', name: 'Fenrir', description: 'Strong and confident', gender: 'male' },
+  { id: 'Aoede', name: 'Aoede', description: 'Gentle and soothing', gender: 'female' },
+  { id: 'Puck', name: 'Puck', description: 'Energetic and bright', gender: 'male' },
+  { id: 'Leda', name: 'Leda', description: 'Warm and nurturing', gender: 'female' },
+  { id: 'Orus', name: 'Orus', description: 'Steady and reassuring', gender: 'male' },
+  { id: 'Zephyr', name: 'Zephyr', description: 'Light and uplifting', gender: 'female' },
+] as const;
+
+export type GeminiVoiceId = typeof GEMINI_VOICES[number]['id'];

@@ -37,6 +37,7 @@ import {
 import { getMorningPrompt } from '@/lib/ritualPrompts';
 import { getContextVault } from '@/store/app';
 import { DailyReflection, GrowthChapter, ContextVault } from '@/types';
+import { VoiceMode } from '@/components/chat/VoiceMode';
 
 // Dynamic auth hook
 const getAuthHook = () => {
@@ -426,30 +427,40 @@ export default function MorningIntentionScreen() {
               />
             )}
 
-            {/* Set Intention Button */}
+            {/* Voice Input + Set Intention Button */}
             {!existingReflection && (
               <View style={styles.intentionFooter}>
-                <TouchableOpacity
-                  style={[
-                    styles.setIntentionBtn,
-                    {
-                      backgroundColor: intention.trim() ? palette.accent : palette.border,
-                    },
-                    intention.trim() ? styles.setIntentionBtnActive : null,
-                  ]}
-                  onPress={handleSetIntention}
-                  disabled={!intention.trim() || isSaving}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.setIntentionBtnText, {
-                    color: intention.trim() ? palette.textInverse : palette.textTertiary,
-                  }]}>
-                    {isSaving ? 'Setting...' : 'Set Intention'}
-                  </Text>
-                  {intention.trim() && !isSaving && (
-                    <Ionicons name="arrow-forward" size={18} color={palette.textInverse} style={{ marginLeft: 8 }} />
-                  )}
-                </TouchableOpacity>
+                <View style={styles.intentionActions}>
+                  <VoiceMode
+                    onTranscription={(text) => {
+                      setIntention(prev => prev ? `${prev} ${text}` : text);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }}
+                    isEnabled={true}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.setIntentionBtn,
+                      {
+                        backgroundColor: intention.trim() ? palette.accent : palette.border,
+                        flex: 1,
+                      },
+                      intention.trim() ? styles.setIntentionBtnActive : null,
+                    ]}
+                    onPress={handleSetIntention}
+                    disabled={!intention.trim() || isSaving}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.setIntentionBtnText, {
+                      color: intention.trim() ? palette.textInverse : palette.textTertiary,
+                    }]}>
+                      {isSaving ? 'Setting...' : 'Set Intention'}
+                    </Text>
+                    {intention.trim() && !isSaving && (
+                      <Ionicons name="arrow-forward" size={18} color={palette.textInverse} style={{ marginLeft: 8 }} />
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
@@ -698,6 +709,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xl,
     paddingBottom: Spacing.section,
     marginTop: 'auto',
+  },
+  intentionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   setIntentionBtn: {
     flexDirection: 'row',

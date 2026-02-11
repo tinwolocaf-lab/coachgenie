@@ -36,7 +36,7 @@ export default function IntegrationCallbackScreen() {
     }
 
     try {
-      const redirectUri = 'fastshot://integrations/callback';
+      const redirectUri = 'coachgenie://integrations/callback';
       await exchangeToken(provider as IntegrationProvider, code, redirectUri);
       setStatus('success');
     } catch (error) {

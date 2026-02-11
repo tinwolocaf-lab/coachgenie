@@ -47,7 +47,8 @@ import {
 } from '@/store/app';
 import { createSession, updateSessionById } from '@/lib/supabase-sanctuary';
 import { streamChat, generateArtifacts } from '@/lib/apiClient';
-import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach } from '@/lib/feature-gates';
+import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach, canAccessFeature, SubscriptionTier } from '@/lib/feature-gates';
+import { VoiceLiveSession } from '@/components/chat/VoiceLiveSession';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -68,6 +69,9 @@ export default function ChatScreen() {
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [isGeneratingArtifacts, setIsGeneratingArtifacts] = useState(false);
+  const [showVoiceMode, setShowVoiceMode] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [currentTier, setCurrentTier] = useState<SubscriptionTier>('free');
 
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useSharedValue(1);
@@ -122,6 +126,11 @@ export default function ChatScreen() {
       );
       return;
     }
+
+    // Check voice coaching availability
+    setCurrentTier(tier);
+    const hasVoice = canAccessFeature(tier, 'voiceCoaching');
+    setVoiceEnabled(hasVoice);
 
     const vault = await getContextVault();
     setUserContext(vault);
@@ -404,6 +413,24 @@ export default function ChatScreen() {
           </View>
         </View>
 
+        {/* Voice Mode Toggle */}
+        <TouchableOpacity
+          onPress={() => {
+            if (!voiceEnabled) {
+              Alert.alert('Voice Coaching', 'Voice coaching is available on Sovereign and Oracle plans.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Upgrade', onPress: () => { router.back(); router.push('/paywall'); } },
+              ]);
+              return;
+            }
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowVoiceMode(true);
+          }}
+          style={[styles.voiceButton, !voiceEnabled && { opacity: 0.4 }]}
+        >
+          <Ionicons name="mic" size={18} color={palette.accent} />
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => sessionResult ? setShowPaperArtifact(true) : generateSessionResults()}
           style={styles.insightsButton}
@@ -504,6 +531,40 @@ export default function ChatScreen() {
           onClose={() => setShowPaperArtifact(false)}
           onConfirm={handleConfirmArtifact}
         />
+      </Modal>
+
+      {/* Voice Live Session Modal */}
+      <Modal
+        visible={showVoiceMode}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowVoiceMode(false)}
+      >
+        <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
+          <VoiceLiveSession
+            coachId={coachId || ''}
+            sessionId={sessionId || ''}
+            coachName={coach?.name || 'Coach'}
+            isVisible={showVoiceMode}
+            onClose={() => setShowVoiceMode(false)}
+            onTranscriptUpdate={(userText, aiText) => {
+              // Add voice transcript to chat messages
+              if (aiText) {
+                const aiMessage: Message = {
+                  id: `voice-${Date.now()}`,
+                  session_id: sessionId || '',
+                  role: 'assistant',
+                  content: aiText,
+                  created_at: new Date().toISOString(),
+                };
+                setMessages(prev => [...prev, aiMessage]);
+              }
+            }}
+            onInsightSaved={(title, content) => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }}
+          />
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -638,6 +699,9 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: Typography.sizes.caption,
     marginTop: 2,
+  },
+  voiceButton: {
+    padding: Spacing.sm,
   },
   insightsButton: {
     padding: Spacing.sm,

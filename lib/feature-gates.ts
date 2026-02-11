@@ -31,7 +31,7 @@ export const FEATURE_GATES: Record<SubscriptionTier, FeatureGate> = {
     customCoaches: false,
     premiumModels: false,
     proactiveNudges: false,
-    voiceCoaching: false,
+    voiceCoaching: true, // 3 voice sessions/day (2 min each) — taste of voice coaching
     longitudinalDashboard: false,
     fullArchive: false,
   },
@@ -46,7 +46,7 @@ export const FEATURE_GATES: Record<SubscriptionTier, FeatureGate> = {
     customCoaches: false,
     premiumModels: false,
     proactiveNudges: false,
-    voiceCoaching: false,
+    voiceCoaching: true, // Unlimited voice (5 min/session)
     longitudinalDashboard: false,
     fullArchive: true,
   },
