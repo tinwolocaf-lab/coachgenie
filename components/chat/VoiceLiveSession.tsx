@@ -84,6 +84,7 @@ export function VoiceLiveSession({
 
   const geminiSession = useRef<GeminiLiveSession>(getGeminiLiveSession());
   const recorder = useRef(useAudioRecorder(RecordingPresets.HIGH_QUALITY));
+  const isRecorderActiveRef = useRef(false);
   const durationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptScrollRef = useRef<ScrollView>(null);
   const aiTranscriptRef = useRef('');
@@ -144,14 +145,29 @@ export function VoiceLiveSession({
     };
   }, [connectionState]);
 
+  const stopAudioCaptureSafely = useCallback(async () => {
+    if (!isRecorderActiveRef.current) {
+      return;
+    }
+
+    isRecorderActiveRef.current = false;
+
+    try {
+      await recorder.current.stop();
+    } catch {
+      // Recorder may already be released during teardown.
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     const liveSession = geminiSession.current;
     return () => {
       liveSession.disconnect();
+      void stopAudioCaptureSafely();
       setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
     };
-  }, []);
+  }, [stopAudioCaptureSafely]);
 
   useEffect(() => {
     aiTranscriptRef.current = aiTranscript;
@@ -166,7 +182,9 @@ export function VoiceLiveSession({
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.current.prepareToRecordAsync();
       recorder.current.record();
+      isRecorderActiveRef.current = true;
     } catch (err) {
+      isRecorderActiveRef.current = false;
       console.warn('[VoiceLive] Failed to start audio capture:', err);
       setIsListening(false);
       setConnectionState('error');
@@ -286,9 +304,7 @@ export function VoiceLiveSession({
     setIsListening(false);
 
     try {
-      if (recorder.current.isRecording) {
-        await recorder.current.stop();
-      }
+      await stopAudioCaptureSafely();
       await setAudioModeAsync({ allowsRecording: false });
     } catch {
       // ignore
@@ -296,7 +312,7 @@ export function VoiceLiveSession({
 
     geminiSession.current.disconnect();
     setConnectionState('disconnected');
-  }, []);
+  }, [stopAudioCaptureSafely]);
 
   const handleClose = useCallback(async () => {
     await stopVoiceSession();

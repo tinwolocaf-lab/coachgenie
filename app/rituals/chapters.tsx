@@ -76,10 +76,6 @@ export default function GrowthChaptersScreen() {
   });
   const [isCreating, setIsCreating] = useState(false);
 
-  useEffect(() => {
-    void loadChapters();
-  }, [loadChapters]);
-
   const loadChapters = useCallback(async () => {
     if (!auth?.user?.id) return;
 
@@ -90,6 +86,10 @@ export default function GrowthChaptersScreen() {
       console.error('Error loading chapters:', error);
     }
   }, [auth?.user?.id]);
+
+  useEffect(() => {
+    void loadChapters();
+  }, [loadChapters]);
 
   const handleCreateChapter = async () => {
     if (!auth?.user?.id || !newChapter.title.trim()) return;

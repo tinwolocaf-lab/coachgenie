@@ -88,13 +88,13 @@ export async function getIntegrationStatus(provider: IntegrationProvider): Promi
     if (!user) return null;
 
     const { data } = await supabase
-      .from('user_integrations' as any)
+      .from('user_integrations')
       .select('status')
       .eq('user_id', user.id)
       .eq('provider', provider)
       .maybeSingle();
 
-    return (data as any)?.status ?? null;
+    return data?.status ?? null;
   } catch {
     return null;
   }

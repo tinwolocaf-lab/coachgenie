@@ -25,12 +25,13 @@ import {
   requestRecordingPermissionsAsync,
   RecordingPresets,
   setAudioModeAsync,
+  type RecordingStatus,
   useAudioRecorder,
 } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { transcribeVoiceNote } from '@/lib/apiClient';
+import { isFunctionUnavailableError, transcribeVoiceNote } from '@/lib/apiClient';
 
 interface VoiceNoteInputProps {
   onTranscription: (text: string) => void;
@@ -49,8 +50,21 @@ export function VoiceNoteInput({
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [transcriptionPreview, setTranscriptionPreview] = useState('');
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recordingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStartTriggeredRef = useRef(false);
+  const onCancelRef = useRef(onCancel);
+  const recordingUrlRef = useRef<string | null>(null);
+  const isRecordingRef = useRef(false);
+  const handleRecorderStatus = useCallback((status: RecordingStatus) => {
+    if (status.url) {
+      recordingUrlRef.current = status.url;
+    }
+  }, []);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY, handleRecorderStatus);
+
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
 
   // Animations
   const pulseScale = useSharedValue(1);
@@ -91,6 +105,45 @@ export function VoiceNoteInput({
     transform: [{ scale: micScale.value }],
   }));
 
+  const closeVoiceInput = useCallback(() => {
+    onCancelRef.current();
+  }, []);
+
+  const clearRecordingTimer = useCallback(() => {
+    if (recordingTimer.current) {
+      clearInterval(recordingTimer.current);
+      recordingTimer.current = null;
+    }
+  }, []);
+
+  const resetAudioModeSafely = useCallback(async () => {
+    await setAudioModeAsync({
+      allowsRecording: false,
+    }).catch(() => undefined);
+  }, []);
+
+  const readRecorderUriSafely = useCallback((): string | null => {
+    try {
+      return recorder.uri;
+    } catch {
+      return null;
+    }
+  }, [recorder]);
+
+  const stopRecorderSafely = useCallback(async () => {
+    if (!isRecordingRef.current) {
+      return;
+    }
+
+    isRecordingRef.current = false;
+
+    try {
+      await recorder.stop();
+    } catch {
+      // Recorder can already be released during rapid unmount/cancel transitions.
+    }
+  }, [recorder]);
+
   // Request permissions
   const ensurePermissions = useCallback(async () => {
     const current = await getRecordingPermissionsAsync();
@@ -111,7 +164,7 @@ export function VoiceNoteInput({
           'Please allow microphone access to use voice notes.',
           [{ text: 'OK' }]
         );
-        onCancel();
+        closeVoiceInput();
         return;
       }
 
@@ -125,49 +178,43 @@ export function VoiceNoteInput({
       micScale.value = withSpring(1.1, Timing.springBouncy);
 
       // Start recording
+      recordingUrlRef.current = null;
       await recorder.prepareToRecordAsync();
       recorder.record();
+      isRecordingRef.current = true;
       setRecordingState('recording');
       setRecordingDuration(0);
 
       // Start duration timer
-      if (recordingTimer.current) {
-        clearInterval(recordingTimer.current);
-      }
+      clearRecordingTimer();
       recordingTimer.current = setInterval(() => {
         setRecordingDuration((prev) => prev + 1);
       }, 1000);
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      isRecordingRef.current = false;
+      console.warn('Failed to start recording:', error);
       Alert.alert('Error', 'Could not start recording. Please try again.');
-      onCancel();
+      closeVoiceInput();
     }
-  }, [ensurePermissions, micScale, onCancel, recorder]);
+  }, [clearRecordingTimer, closeVoiceInput, ensurePermissions, micScale, recorder]);
 
   // Stop recording and transcribe
-  const stopRecording = async () => {
-    if (!recorder) return;
-
+  const stopRecording = useCallback(async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       micScale.value = withSpring(1, Timing.springBouncy);
 
       // Clear timer
-      if (recordingTimer.current) {
-        clearInterval(recordingTimer.current);
-        recordingTimer.current = null;
-      }
+      clearRecordingTimer();
 
       setRecordingState('processing');
       setTranscriptionPreview('');
 
       // Stop recording
-      await recorder.stop();
-      await setAudioModeAsync({
-        allowsRecording: false,
-      });
+      await stopRecorderSafely();
+      await resetAudioModeSafely();
 
-      const uri = recorder.uri;
+      const uri = recordingUrlRef.current ?? readRecorderUriSafely();
 
       if (!uri) {
         throw new Error('No recording URI');
@@ -177,6 +224,7 @@ export function VoiceNoteInput({
       if (info.exists && info.size && info.size > 24 * 1024 * 1024) {
         Alert.alert('Recording too large', 'Please record a shorter note (max ~24MB).');
         setRecordingState('idle');
+        closeVoiceInput();
         return;
       }
 
@@ -213,59 +261,64 @@ export function VoiceNoteInput({
           'We couldn\'t detect any speech. Please try again.',
           [{ text: 'OK' }]
         );
+        closeVoiceInput();
+        return;
       }
 
       setRecordingState('idle');
       setTranscriptionPreview('');
     } catch (error) {
-      console.error('Failed to transcribe:', error);
+      isRecordingRef.current = false;
+      if (isFunctionUnavailableError(error)) {
+        console.warn('Voice transcription unavailable:', error.message);
+        Alert.alert(
+          'Voice Unavailable',
+          'Voice transcription service is unavailable right now. Please type your message instead.'
+        );
+      } else {
+        console.warn('Failed to transcribe:', error);
+        Alert.alert('Transcription Error', 'Could not process your voice note. Please try again.');
+      }
       setRecordingState('idle');
       setTranscriptionPreview('');
-      Alert.alert('Transcription Error', 'Could not process your voice note. Please try again.');
+      closeVoiceInput();
+    } finally {
+      await resetAudioModeSafely();
     }
-  };
+  }, [
+    clearRecordingTimer,
+    closeVoiceInput,
+    micScale,
+    onTranscription,
+    readRecorderUriSafely,
+    resetAudioModeSafely,
+    stopRecorderSafely,
+  ]);
 
   // Cancel recording
   const cancelRecording = async () => {
-    if (recordingTimer.current) {
-      clearInterval(recordingTimer.current);
-      recordingTimer.current = null;
-    }
-
-    if (recorder.isRecording) {
-      try {
-        await recorder.stop();
-        await setAudioModeAsync({
-          allowsRecording: false,
-        });
-      } catch {
-        // Ignore errors during cancellation
-      }
-    }
+    clearRecordingTimer();
+    await stopRecorderSafely();
+    await resetAudioModeSafely();
 
     setRecordingState('idle');
     setRecordingDuration(0);
     setTranscriptionPreview('');
-    onCancel();
+    closeVoiceInput();
   };
 
   useEffect(() => {
-    if (disabled) return;
+    if (disabled || autoStartTriggeredRef.current) return;
+    autoStartTriggeredRef.current = true;
     void startRecording();
 
     return () => {
-      if (recordingTimer.current) {
-        clearInterval(recordingTimer.current);
-        recordingTimer.current = null;
-      }
-      if (recorder.isRecording) {
-        void recorder.stop().catch(() => undefined);
-      }
-      void setAudioModeAsync({
-        allowsRecording: false,
-      }).catch(() => undefined);
+      autoStartTriggeredRef.current = false;
+      clearRecordingTimer();
+      void stopRecorderSafely();
+      void resetAudioModeSafely();
     };
-  }, [disabled, recorder, startRecording]);
+  }, [clearRecordingTimer, disabled, resetAudioModeSafely, startRecording, stopRecorderSafely]);
 
   // Format duration
   const formatDuration = (seconds: number) => {

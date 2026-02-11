@@ -87,6 +87,31 @@ function createAuthError(type: AuthErrorType, message: string): AuthError {
   return { type, message };
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (error && typeof error === 'object') {
+    const maybeMessage = (error as Record<string, unknown>).message;
+    if (typeof maybeMessage === 'string' && maybeMessage.length > 0) {
+      return maybeMessage;
+    }
+  }
+
+  return fallback;
+}
+
+function isAuthTaggedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  return (error as Record<string, unknown>).__isAuthError === true;
+}
+
+function isBrowserDismissedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  return (error as Record<string, unknown>).type === 'BROWSER_DISMISSED';
+}
+
 // ─── Provider ────────────────────────────────────────────────────────────────
 
 export function AuthProvider({
@@ -109,6 +134,9 @@ export function AuthProvider({
   const [isInitialized, setIsInitialized] = useState(false);
 
   const prevAuthState = useRef<boolean>(false);
+  const replaceRoute = useCallback((path: string) => {
+    router.replace(path as never);
+  }, [router]);
 
   // ── Auto-refresh on app state changes ──
   useEffect(() => {
@@ -184,7 +212,7 @@ export function AuthProvider({
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onEmailVerified, onSignIn, onSignOut]);
 
   // ── Route protection ──
   useEffect(() => {
@@ -203,12 +231,12 @@ export function AuthProvider({
 
     if (!isAuthenticated && !inAuthGroup) {
       // Not logged in and not on auth page → send to login
-      router.replace(routes.login as any);
+      replaceRoute(routes.login);
     } else if (isAuthenticated && inAuthGroup) {
       // Logged in but on auth page → send to main app
-      router.replace(routes.afterLogin as any);
+      replaceRoute(routes.afterLogin);
     }
-  }, [session, segments, isInitialized, routes, router]);
+  }, [session, segments, isInitialized, routes, replaceRoute]);
 
   // ── Auth methods ──
 
@@ -223,9 +251,9 @@ export function AuthProvider({
         onError?.(authErr);
         throw signInError;
       }
-    } catch (err: any) {
-      if (!err.__isAuthError) {
-        const authErr = createAuthError('NETWORK_ERROR', err.message || 'Sign-in failed');
+    } catch (err: unknown) {
+      if (!isAuthTaggedError(err)) {
+        const authErr = createAuthError('NETWORK_ERROR', getErrorMessage(err, 'Sign-in failed'));
         setError(authErr);
         onError?.(authErr);
       }
@@ -263,9 +291,9 @@ export function AuthProvider({
         emailConfirmationRequired: needsConfirmation,
         email,
       };
-    } catch (err: any) {
-      if (!err.__isAuthError) {
-        const authErr = createAuthError('NETWORK_ERROR', err.message || 'Sign-up failed');
+    } catch (err: unknown) {
+      if (!isAuthTaggedError(err)) {
+        const authErr = createAuthError('NETWORK_ERROR', getErrorMessage(err, 'Sign-up failed'));
         setError(authErr);
         onError?.(authErr);
       }
@@ -314,9 +342,9 @@ export function AuthProvider({
           await handleOAuthCallback(result.url);
         }
       }
-    } catch (err: any) {
-      if (err.type !== 'BROWSER_DISMISSED') {
-        const authErr = createAuthError('OAUTH_FAILED', err.message || 'Google sign-in failed');
+    } catch (err: unknown) {
+      if (!isBrowserDismissedError(err)) {
+        const authErr = createAuthError('OAUTH_FAILED', getErrorMessage(err, 'Google sign-in failed'));
         setError(authErr);
         onError?.(authErr);
       }
@@ -361,9 +389,9 @@ export function AuthProvider({
           await handleOAuthCallback(result.url);
         }
       }
-    } catch (err: any) {
-      if (err.type !== 'BROWSER_DISMISSED') {
-        const authErr = createAuthError('OAUTH_FAILED', err.message || 'Apple sign-in failed');
+    } catch (err: unknown) {
+      if (!isBrowserDismissedError(err)) {
+        const authErr = createAuthError('OAUTH_FAILED', getErrorMessage(err, 'Apple sign-in failed'));
         setError(authErr);
         onError?.(authErr);
       }
@@ -396,9 +424,9 @@ export function AuthProvider({
           onError?.(authErr);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Auth] OAuth callback error:', err);
-      const authErr = createAuthError('OAUTH_FAILED', err.message || 'Failed to complete sign-in');
+      const authErr = createAuthError('OAUTH_FAILED', getErrorMessage(err, 'Failed to complete sign-in'));
       setError(authErr);
       onError?.(authErr);
     }
@@ -422,9 +450,9 @@ export function AuthProvider({
 
       setPendingPasswordReset(true);
       return { emailSent: true, email };
-    } catch (err: any) {
-      if (!err.__isAuthError) {
-        const authErr = createAuthError('NETWORK_ERROR', err.message || 'Password reset failed');
+    } catch (err: unknown) {
+      if (!isAuthTaggedError(err)) {
+        const authErr = createAuthError('NETWORK_ERROR', getErrorMessage(err, 'Password reset failed'));
         setError(authErr);
         onError?.(authErr);
       }

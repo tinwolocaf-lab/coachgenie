@@ -82,11 +82,6 @@ export default function MorningIntentionScreen() {
   const completeOpacity = useSharedValue(0);
   const inputGlow = useSharedValue(0);
 
-  // Load data on mount
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
   const loadData = useCallback(async () => {
     if (!auth?.user?.id) return;
 
@@ -116,6 +111,11 @@ export default function MorningIntentionScreen() {
       setPrompt('What intention will guide your actions today?');
     }
   }, [auth?.user?.id, intentionOpacity]);
+
+  // Load data on mount
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const transitionToIntention = useCallback(() => {
     // Fade out opening

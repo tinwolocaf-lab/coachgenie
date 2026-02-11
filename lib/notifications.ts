@@ -34,9 +34,10 @@ export async function registerPushToken(): Promise<string | null> {
     if (isSupabaseConfigured) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-         
-        const profilesTable = supabase.from('profiles' as any) as any;
-        await profilesTable.update({ push_token: token }).eq('id', user.id);
+        await supabase
+          .from('profiles')
+          .update({ push_token: token })
+          .eq('id', user.id);
       }
     }
 

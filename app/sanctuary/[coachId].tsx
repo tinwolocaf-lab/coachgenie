@@ -33,10 +33,12 @@ import {
   detectInsightInMessage,
 } from '@/lib/ai-sanctuary';
 import {
+  ApiFunctionError,
   streamChat,
   generateBreakthrough as fetchBreakthrough,
   expandOnPoint,
   generateInsightTitle,
+  isFunctionUnavailableError,
 } from '@/lib/apiClient';
 import {
   createSession,
@@ -202,6 +204,7 @@ export default function SanctuaryScreen() {
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
+    setShowVoiceInput(false);
     setIsGenerating(true);
     setStreamingText('');
     Keyboard.dismiss();
@@ -267,14 +270,20 @@ export default function SanctuaryScreen() {
       // Check for session completion cues
       checkForSessionEnd(messageText);
     } catch (error) {
-      console.error('Error generating response:', error);
+      if (error instanceof ApiFunctionError) {
+        console.warn('Error generating response:', error.message);
+      } else {
+        console.error('Error generating response:', error);
+      }
       setIsGenerating(false);
 
       const errorMessage: EnhancedMessage = {
         id: `msg-${Date.now()}`,
         session_id: sessionId || '',
         role: 'assistant',
-        content: 'I apologize, but I encountered a moment of reflection. Could you share that thought again?',
+        content: isFunctionUnavailableError(error)
+          ? 'The coaching service is temporarily unavailable. Please try again in a moment.'
+          : 'I apologize, but I encountered a moment of reflection. Could you share that thought again?',
         created_at: new Date().toISOString(),
       };
 
@@ -347,8 +356,17 @@ export default function SanctuaryScreen() {
         }
       }
     } catch (error) {
-      console.error('Error generating breakthrough:', error);
-      Alert.alert('Error', 'Could not generate breakthrough. Please try again.');
+      if (error instanceof ApiFunctionError) {
+        console.warn('Error generating breakthrough:', error.message);
+      } else {
+        console.error('Error generating breakthrough:', error);
+      }
+      Alert.alert(
+        isFunctionUnavailableError(error) ? 'Service Unavailable' : 'Error',
+        isFunctionUnavailableError(error)
+          ? 'Breakthrough service is unavailable right now. Please try again later.'
+          : 'Could not generate breakthrough. Please try again.',
+      );
     } finally {
       setIsGeneratingBreakthrough(false);
     }
@@ -365,6 +383,15 @@ export default function SanctuaryScreen() {
       handleSend(text);
     }, 500);
   };
+
+  const handleVoiceInputCancel = useCallback(() => {
+    setShowVoiceInput(false);
+  }, []);
+
+  const handleVoiceInputOpen = useCallback(() => {
+    if (isGenerating || showVoiceInput) return;
+    setShowVoiceInput(true);
+  }, [isGenerating, showVoiceInput]);
 
   // Context menu handlers
   const handleLongPress = (message: EnhancedMessage, position: { x: number; y: number }) => {
@@ -395,8 +422,16 @@ export default function SanctuaryScreen() {
       const expanded = await expandOnPoint(message.content);
       setReflectContent(expanded);
     } catch (error) {
-      console.error('Error expanding point:', error);
-      setReflectContent('I apologize, but I could not expand on this point. Please try again.');
+      if (error instanceof ApiFunctionError) {
+        console.warn('Error expanding point:', error.message);
+      } else {
+        console.error('Error expanding point:', error);
+      }
+      setReflectContent(
+        isFunctionUnavailableError(error)
+          ? 'This service is temporarily unavailable. Please try again shortly.'
+          : 'I apologize, but I could not expand on this point. Please try again.'
+      );
     } finally {
       setIsReflecting(false);
     }
@@ -427,8 +462,17 @@ export default function SanctuaryScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Saved', 'Insight saved to your journal.');
     } catch (error) {
-      console.error('Error saving insight:', error);
-      Alert.alert('Error', 'Could not save insight. Please try again.');
+      if (error instanceof ApiFunctionError) {
+        console.warn('Error saving insight:', error.message);
+      } else {
+        console.error('Error saving insight:', error);
+      }
+      Alert.alert(
+        isFunctionUnavailableError(error) ? 'Service Unavailable' : 'Error',
+        isFunctionUnavailableError(error)
+          ? 'Insight service is unavailable right now. Please try again later.'
+          : 'Could not save insight. Please try again.',
+      );
     }
   };
 
@@ -477,7 +521,11 @@ export default function SanctuaryScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPendingInsight(null);
     } catch (error) {
-      console.error('Error saving insight:', error);
+      if (error instanceof ApiFunctionError) {
+        console.warn('Error saving insight:', error.message);
+      } else {
+        console.error('Error saving insight:', error);
+      }
     }
   };
 
@@ -671,8 +719,8 @@ export default function SanctuaryScreen() {
             <View style={styles.inputActions}>
               {/* Voice note trigger */}
               <VoiceNoteTrigger
-                onPress={() => setShowVoiceInput(true)}
-                disabled={isGenerating}
+                onPress={handleVoiceInputOpen}
+                disabled={isGenerating || showVoiceInput}
               />
 
               {/* Send button */}
@@ -699,7 +747,7 @@ export default function SanctuaryScreen() {
         {showVoiceInput && (
           <VoiceNoteInput
             onTranscription={handleVoiceTranscription}
-            onCancel={() => setShowVoiceInput(false)}
+            onCancel={handleVoiceInputCancel}
           />
         )}
       </KeyboardAvoidingView>

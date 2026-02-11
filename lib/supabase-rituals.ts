@@ -38,10 +38,72 @@ export function getRandomPrompt(type: 'morning' | 'evening'): string {
   return prompts[Math.floor(Math.random() * prompts.length)];
 }
 
+interface PostgrestErrorLike {
+  code?: string;
+  details?: string | null;
+  hint?: string | null;
+  message?: string;
+}
+
+const MISSING_RELATION_CODE = 'PGRST205';
+let isRitualsSchemaUnavailable = false;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
+function toPostgrestError(error: unknown): PostgrestErrorLike | null {
+  if (!isRecord(error)) return null;
+
+  const code = typeof error.code === 'string' ? error.code : undefined;
+  const details = typeof error.details === 'string' || error.details === null
+    ? error.details
+    : undefined;
+  const hint = typeof error.hint === 'string' || error.hint === null
+    ? error.hint
+    : undefined;
+  const message = typeof error.message === 'string' ? error.message : undefined;
+
+  return { code, details, hint, message };
+}
+
+function isMissingRelationError(error: unknown): boolean {
+  const parsed = toPostgrestError(error);
+  if (!parsed) return false;
+
+  if (parsed.code === MISSING_RELATION_CODE) {
+    return true;
+  }
+
+  const message = parsed.message?.toLowerCase() ?? '';
+  return message.includes('could not find the table');
+}
+
+function markSchemaUnavailable(error: unknown): boolean {
+  if (!isMissingRelationError(error)) return false;
+  isRitualsSchemaUnavailable = true;
+  return true;
+}
+
+function shouldSkipRitualsSchema(): boolean {
+  return !isSupabaseConfigured || isRitualsSchemaUnavailable;
+}
+
+function logRitualsDataError(operation: string, error: unknown): void {
+  if (markSchemaUnavailable(error)) {
+    const parsed = toPostgrestError(error);
+    const message = parsed?.message ?? 'Missing relation in public schema cache';
+    console.warn(`[Rituals] ${operation} unavailable: ${message}`);
+    return;
+  }
+
+  console.error(`[Rituals] Error ${operation}:`, error);
+}
+
 // ============ RITUALS ============
 
 export async function getRituals(userId: string): Promise<Ritual[]> {
-  if (!isSupabaseConfigured) return [];
+  if (shouldSkipRitualsSchema()) return [];
 
   try {
     const { data, error } = await supabase
@@ -54,13 +116,13 @@ export async function getRituals(userId: string): Promise<Ritual[]> {
     if (error) throw error;
     return (data || []) as Ritual[];
   } catch (error) {
-    console.error('Error fetching rituals:', error);
+    logRitualsDataError('fetching rituals', error);
     return [];
   }
 }
 
 export async function getRitualsWithStatus(userId: string, date?: string): Promise<RitualWithStatus[]> {
-  if (!isSupabaseConfigured) return [];
+  if (shouldSkipRitualsSchema()) return [];
 
   const targetDate = date || getTodayDate();
 
@@ -93,12 +155,15 @@ export async function getRitualsWithStatus(userId: string, date?: string): Promi
     if (streaksError) throw streaksError;
 
     // Merge data
-    type CompletionRecord = { ritual_id: string; [key: string]: unknown };
-    type StreakRecord = { ritual_id: string; current_streak?: number; [key: string]: unknown };
-    const completionMap = new Map((completions || []).map((c: CompletionRecord) => [c.ritual_id, c]));
-    const streakMap = new Map((streaks || []).map((s: StreakRecord) => [s.ritual_id, s]));
+    type CompletionRecord = RitualCompletion & { ritual_id: string };
+    type StreakRecord = RitualStreak & { ritual_id: string };
+    const completionRows = (completions || []) as unknown as CompletionRecord[];
+    const streakRows = (streaks || []) as unknown as StreakRecord[];
+    const ritualRows = (rituals || []) as unknown as Ritual[];
+    const completionMap = new Map(completionRows.map((completion) => [completion.ritual_id, completion]));
+    const streakMap = new Map(streakRows.map((streak) => [streak.ritual_id, streak]));
 
-    return (rituals || []).map((ritual: Ritual) => {
+    return ritualRows.map((ritual) => {
       const completion = completionMap.get(ritual.id) as RitualCompletion | undefined;
       const streak = streakMap.get(ritual.id) as RitualStreak | undefined;
 
@@ -110,7 +175,7 @@ export async function getRitualsWithStatus(userId: string, date?: string): Promi
       };
     });
   } catch (error) {
-    console.error('Error fetching rituals with status:', error);
+    logRitualsDataError('fetching rituals with status', error);
     return [];
   }
 }
@@ -119,10 +184,10 @@ export async function createRitual(
   userId: string,
   ritual: Omit<Ritual, 'id' | 'user_id' | 'created_at' | 'updated_at'>
 ): Promise<Ritual | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
-    const { data, error } = await (supabase.from('rituals') as any)
+    const { data, error } = await supabase.from('rituals')
       .insert({
         user_id: userId,
         ...ritual,
@@ -133,7 +198,7 @@ export async function createRitual(
     if (error) throw error;
 
     // Initialize streak tracking
-    await (supabase.from('ritual_streaks') as any)
+    await supabase.from('ritual_streaks')
       .insert({
         user_id: userId,
         ritual_id: data.id,
@@ -141,7 +206,7 @@ export async function createRitual(
 
     return data as Ritual;
   } catch (error) {
-    console.error('Error creating ritual:', error);
+    logRitualsDataError('creating ritual', error);
     return null;
   }
 }
@@ -168,10 +233,10 @@ export async function updateRitual(
   ritualId: string,
   updates: Partial<Ritual>
 ): Promise<Ritual | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
-    const { data, error } = await (supabase.from('rituals') as any)
+    const { data, error } = await supabase.from('rituals')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', ritualId)
       .select()
@@ -180,13 +245,13 @@ export async function updateRitual(
     if (error) throw error;
     return data as Ritual;
   } catch (error) {
-    console.error('Error updating ritual:', error);
+    logRitualsDataError('updating ritual', error);
     return null;
   }
 }
 
 export async function deleteRitual(ritualId: string): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
+  if (shouldSkipRitualsSchema()) return false;
 
   try {
     const { error } = await supabase
@@ -197,7 +262,7 @@ export async function deleteRitual(ritualId: string): Promise<boolean> {
     if (error) throw error;
     return true;
   } catch (error) {
-    console.error('Error deleting ritual:', error);
+    logRitualsDataError('deleting ritual', error);
     return false;
   }
 }
@@ -209,13 +274,13 @@ export async function completeRitual(
   ritualId: string,
   note?: string
 ): Promise<RitualCompletion | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   const today = getTodayDate();
 
   try {
     // Insert completion
-    const { data: completion, error: completionError } = await (supabase.from('ritual_completions') as any)
+    const { data: completion, error: completionError } = await supabase.from('ritual_completions')
       .upsert({
         ritual_id: ritualId,
         user_id: userId,
@@ -232,7 +297,7 @@ export async function completeRitual(
 
     return completion as RitualCompletion;
   } catch (error) {
-    console.error('Error completing ritual:', error);
+    logRitualsDataError('completing ritual', error);
     return null;
   }
 }
@@ -241,7 +306,7 @@ export async function uncompleteRitual(
   userId: string,
   ritualId: string
 ): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
+  if (shouldSkipRitualsSchema()) return false;
 
   const today = getTodayDate();
 
@@ -260,13 +325,13 @@ export async function uncompleteRitual(
 
     return true;
   } catch (error) {
-    console.error('Error uncompleting ritual:', error);
+    logRitualsDataError('uncompleting ritual', error);
     return false;
   }
 }
 
 async function updateRitualStreak(userId: string, ritualId: string): Promise<void> {
-  if (!isSupabaseConfigured) return;
+  if (shouldSkipRitualsSchema()) return;
 
   try {
     // Get all completions for this ritual
@@ -278,7 +343,7 @@ async function updateRitualStreak(userId: string, ritualId: string): Promise<voi
       .order('completed_date', { ascending: false });
 
     if (!completions || completions.length === 0) {
-      await (supabase.from('ritual_streaks') as any)
+      await supabase.from('ritual_streaks')
         .upsert({
           user_id: userId,
           ritual_id: ritualId,
@@ -345,7 +410,7 @@ async function updateRitualStreak(userId: string, ritualId: string): Promise<voi
     const recentCompletions = dates.filter(d => new Date(d) >= thirtyDaysAgo).length;
     const consistencyScore = Math.round((recentCompletions / 30) * 100);
 
-    await (supabase.from('ritual_streaks') as any)
+    await supabase.from('ritual_streaks')
       .upsert({
         user_id: userId,
         ritual_id: ritualId,
@@ -358,7 +423,7 @@ async function updateRitualStreak(userId: string, ritualId: string): Promise<voi
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,ritual_id' });
   } catch (error) {
-    console.error('Error updating ritual streak:', error);
+    logRitualsDataError('updating ritual streak', error);
   }
 }
 
@@ -369,7 +434,7 @@ export async function getDailyReflection(
   date: string,
   type: 'morning' | 'evening'
 ): Promise<DailyReflection | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
     const { data, error } = await supabase
@@ -383,7 +448,7 @@ export async function getDailyReflection(
     if (error && error.code !== 'PGRST116') throw error;
     return data as DailyReflection | null;
   } catch (error) {
-    console.error('Error fetching daily reflection:', error);
+    logRitualsDataError('fetching daily reflection', error);
     return null;
   }
 }
@@ -392,10 +457,10 @@ export async function saveDailyReflection(
   userId: string,
   reflection: Omit<DailyReflection, 'id' | 'user_id' | 'created_at' | 'updated_at'>
 ): Promise<DailyReflection | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
-    const { data, error } = await (supabase.from('daily_reflections') as any)
+    const { data, error } = await supabase.from('daily_reflections')
       .upsert({
         user_id: userId,
         ...reflection,
@@ -407,7 +472,7 @@ export async function saveDailyReflection(
     if (error) throw error;
     return data as DailyReflection;
   } catch (error) {
-    console.error('Error saving daily reflection:', error);
+    logRitualsDataError('saving daily reflection', error);
     return null;
   }
 }
@@ -416,7 +481,7 @@ export async function getRecentReflections(
   userId: string,
   limit = 7
 ): Promise<DailyReflection[]> {
-  if (!isSupabaseConfigured) return [];
+  if (shouldSkipRitualsSchema()) return [];
 
   try {
     const { data, error } = await supabase
@@ -429,7 +494,7 @@ export async function getRecentReflections(
     if (error) throw error;
     return (data || []) as DailyReflection[];
   } catch (error) {
-    console.error('Error fetching recent reflections:', error);
+    logRitualsDataError('fetching recent reflections', error);
     return [];
   }
 }
@@ -438,9 +503,9 @@ export async function getRecentReflections(
 
 export async function getGrowthChapters(
   userId: string,
-  status?: string
+  status?: GrowthChapter['status']
 ): Promise<GrowthChapter[]> {
-  if (!isSupabaseConfigured) return [];
+  if (shouldSkipRitualsSchema()) return [];
 
   try {
     let query = supabase
@@ -459,7 +524,7 @@ export async function getGrowthChapters(
     if (error) throw error;
     return (data || []) as GrowthChapter[];
   } catch (error) {
-    console.error('Error fetching growth chapters:', error);
+    logRitualsDataError('fetching growth chapters', error);
     return [];
   }
 }
@@ -467,7 +532,7 @@ export async function getGrowthChapters(
 export async function getChapterWithMilestones(
   chapterId: string
 ): Promise<GrowthChapterWithMilestones | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
     const { data: chapter, error: chapterError } = await supabase
@@ -501,7 +566,7 @@ export async function getChapterWithMilestones(
       linked_rituals: (rituals || []) as Ritual[],
     };
   } catch (error) {
-    console.error('Error fetching chapter with milestones:', error);
+    logRitualsDataError('fetching chapter with milestones', error);
     return null;
   }
 }
@@ -510,18 +575,18 @@ export async function createGrowthChapter(
   userId: string,
   chapter: Omit<GrowthChapter, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'progress_percentage'>
 ): Promise<GrowthChapter | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
     // If this is primary, unset other primaries
     if (chapter.is_primary) {
-      await (supabase.from('growth_chapters') as any)
+      await supabase.from('growth_chapters')
         .update({ is_primary: false })
         .eq('user_id', userId)
         .eq('is_primary', true);
     }
 
-    const { data, error } = await (supabase.from('growth_chapters') as any)
+    const { data, error } = await supabase.from('growth_chapters')
       .insert({
         user_id: userId,
         ...chapter,
@@ -533,7 +598,7 @@ export async function createGrowthChapter(
     if (error) throw error;
     return data as GrowthChapter;
   } catch (error) {
-    console.error('Error creating growth chapter:', error);
+    logRitualsDataError('creating growth chapter', error);
     return null;
   }
 }
@@ -542,10 +607,10 @@ export async function updateGrowthChapter(
   chapterId: string,
   updates: Partial<GrowthChapter>
 ): Promise<GrowthChapter | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
-    const { data, error } = await (supabase.from('growth_chapters') as any)
+    const { data, error } = await supabase.from('growth_chapters')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', chapterId)
       .select()
@@ -554,7 +619,7 @@ export async function updateGrowthChapter(
     if (error) throw error;
     return data as GrowthChapter;
   } catch (error) {
-    console.error('Error updating growth chapter:', error);
+    logRitualsDataError('updating growth chapter', error);
     return null;
   }
 }
@@ -566,10 +631,10 @@ export async function createMilestone(
   chapterId: string,
   milestone: Omit<ChapterMilestone, 'id' | 'chapter_id' | 'user_id' | 'created_at' | 'updated_at'>
 ): Promise<ChapterMilestone | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
-    const { data, error } = await (supabase.from('chapter_milestones') as any)
+    const { data, error } = await supabase.from('chapter_milestones')
       .insert({
         chapter_id: chapterId,
         user_id: userId,
@@ -585,16 +650,16 @@ export async function createMilestone(
 
     return data as ChapterMilestone;
   } catch (error) {
-    console.error('Error creating milestone:', error);
+    logRitualsDataError('creating milestone', error);
     return null;
   }
 }
 
 export async function completeMilestone(milestoneId: string): Promise<ChapterMilestone | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
-    const { data, error } = await (supabase.from('chapter_milestones') as any)
+    const { data, error } = await supabase.from('chapter_milestones')
       .update({
         is_completed: true,
         completed_at: new Date().toISOString(),
@@ -613,13 +678,13 @@ export async function completeMilestone(milestoneId: string): Promise<ChapterMil
 
     return data as ChapterMilestone;
   } catch (error) {
-    console.error('Error completing milestone:', error);
+    logRitualsDataError('completing milestone', error);
     return null;
   }
 }
 
 async function updateChapterProgress(chapterId: string): Promise<void> {
-  if (!isSupabaseConfigured) return;
+  if (shouldSkipRitualsSchema()) return;
 
   try {
     const { data: milestones } = await supabase
@@ -633,18 +698,18 @@ async function updateChapterProgress(chapterId: string): Promise<void> {
     const completedCount = (milestones as MilestoneRecord[]).filter(m => m.is_completed).length;
     const progress = Math.round((completedCount / milestones.length) * 100);
 
-    await (supabase.from('growth_chapters') as any)
+    await supabase.from('growth_chapters')
       .update({ progress_percentage: progress, updated_at: new Date().toISOString() })
       .eq('id', chapterId);
   } catch (error) {
-    console.error('Error updating chapter progress:', error);
+    logRitualsDataError('updating chapter progress', error);
   }
 }
 
 // ============ EDITORIAL NUDGES ============
 
 export async function getUnreadNudges(userId: string, limit = 5): Promise<EditorialNudge[]> {
-  if (!isSupabaseConfigured) return [];
+  if (shouldSkipRitualsSchema()) return [];
 
   try {
     const { data, error } = await supabase
@@ -658,7 +723,7 @@ export async function getUnreadNudges(userId: string, limit = 5): Promise<Editor
     if (error) throw error;
     return (data || []) as EditorialNudge[];
   } catch (error) {
-    console.error('Error fetching unread nudges:', error);
+    logRitualsDataError('fetching unread nudges', error);
     return [];
   }
 }
@@ -667,10 +732,10 @@ export async function createNudge(
   userId: string,
   nudge: Omit<EditorialNudge, 'id' | 'user_id' | 'is_read' | 'created_at'>
 ): Promise<EditorialNudge | null> {
-  if (!isSupabaseConfigured) return null;
+  if (shouldSkipRitualsSchema()) return null;
 
   try {
-    const { data, error } = await (supabase.from('editorial_nudges') as any)
+    const { data, error } = await supabase.from('editorial_nudges')
       .insert({
         user_id: userId,
         ...nudge,
@@ -682,23 +747,23 @@ export async function createNudge(
     if (error) throw error;
     return data as EditorialNudge;
   } catch (error) {
-    console.error('Error creating nudge:', error);
+    logRitualsDataError('creating nudge', error);
     return null;
   }
 }
 
 export async function markNudgeAsRead(nudgeId: string): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
+  if (shouldSkipRitualsSchema()) return false;
 
   try {
-    const { error } = await (supabase.from('editorial_nudges') as any)
+    const { error } = await supabase.from('editorial_nudges')
       .update({ is_read: true })
       .eq('id', nudgeId);
 
     if (error) throw error;
     return true;
   } catch (error) {
-    console.error('Error marking nudge as read:', error);
+    logRitualsDataError('marking nudge as read', error);
     return false;
   }
 }
@@ -706,7 +771,7 @@ export async function markNudgeAsRead(nudgeId: string): Promise<boolean> {
 // ============ TODAY'S PRACTICE SUMMARY ============
 
 export async function getTodayPractice(userId: string): Promise<TodayPractice> {
-  if (!isSupabaseConfigured) {
+  if (shouldSkipRitualsSchema()) {
     return {
       rituals: [],
       overallProgress: 0,
@@ -751,7 +816,7 @@ export async function getTodayPractice(userId: string): Promise<TodayPractice> {
       unreadNudges: nudges,
     };
   } catch (error) {
-    console.error('Error fetching today practice:', error);
+    logRitualsDataError('fetching today practice', error);
     return {
       rituals: [],
       overallProgress: 0,
@@ -769,7 +834,7 @@ export async function getOverallConsistency(userId: string): Promise<{
   weeklyAverage: number;
   monthlyTrend: 'up' | 'down' | 'stable';
 }> {
-  if (!isSupabaseConfigured) {
+  if (shouldSkipRitualsSchema()) {
     return { currentStreak: 0, longestStreak: 0, weeklyAverage: 0, monthlyTrend: 'stable' };
   }
 
@@ -848,7 +913,7 @@ export async function getOverallConsistency(userId: string): Promise<{
 
     return { currentStreak, longestStreak, weeklyAverage, monthlyTrend };
   } catch (error) {
-    console.error('Error fetching overall consistency:', error);
+    logRitualsDataError('fetching overall consistency', error);
     return { currentStreak: 0, longestStreak: 0, weeklyAverage: 0, monthlyTrend: 'stable' };
   }
 }

@@ -1,6 +1,33 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
+import type { AuthResult } from '../_shared/auth.ts';
+
+interface GoogleTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+}
+
+function toGoogleTokenResponse(value: unknown): GoogleTokenResponse | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.access_token !== 'string') return null;
+
+  const refreshToken = typeof candidate.refresh_token === 'string'
+    ? candidate.refresh_token
+    : undefined;
+  const expiresIn = typeof candidate.expires_in === 'number'
+    ? candidate.expires_in
+    : undefined;
+
+  return {
+    access_token: candidate.access_token,
+    refresh_token: refreshToken,
+    expires_in: expiresIn,
+  };
+}
 
 serve(async (request) => {
   const optionsResponse = handleOptions(request);
@@ -121,7 +148,7 @@ serve(async (request) => {
 
 async function refreshGoogleToken(
   refreshToken: string,
-  userClient: ReturnType<typeof import('../_shared/auth.ts').requireAuth extends (...args: unknown[]) => Promise<infer R> ? R['userClient'] : never>,
+  userClient: AuthResult['userClient'],
   integrationId: string
 ): Promise<string | null> {
   const clientId = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
@@ -140,31 +167,33 @@ async function refreshGoogleToken(
     });
 
     if (!response.ok) {
-      // deno-lint-ignore no-explicit-any
-      await (userClient as any)
+      await userClient
         .from('user_integrations')
         .update({ status: 'expired', updated_at: new Date().toISOString() })
         .eq('id', integrationId);
       return null;
     }
 
-    const tokens = await response.json();
-    const expiresAt = tokens.expires_in
-      ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+    const tokenPayload = toGoogleTokenResponse(await response.json());
+    if (!tokenPayload) {
+      return null;
+    }
+
+    const expiresAt = tokenPayload.expires_in
+      ? new Date(Date.now() + tokenPayload.expires_in * 1000).toISOString()
       : null;
 
-    // deno-lint-ignore no-explicit-any
-    await (userClient as any)
+    await userClient
       .from('user_integrations')
       .update({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token ?? refreshToken,
+        access_token: tokenPayload.access_token,
+        refresh_token: tokenPayload.refresh_token ?? refreshToken,
         token_expires_at: expiresAt,
         updated_at: new Date().toISOString(),
       })
       .eq('id', integrationId);
 
-    return tokens.access_token;
+    return tokenPayload.access_token;
   } catch (error) {
     console.error('[Calendar Sync] Token refresh error:', error);
     return null;

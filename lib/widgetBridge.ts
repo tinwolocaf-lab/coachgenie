@@ -26,7 +26,7 @@ const APP_GROUP_ID = 'group.com.coachgenie.app';
 
 interface WidgetSnapshot {
   family: 'systemSmall' | 'systemMedium' | 'systemLarge';
-  data: Record<string, any>;
+  data: WidgetData;
   timestamp: number;
 }
 
@@ -57,6 +57,8 @@ interface ReflectionData {
   timeOfDay: 'morning' | 'afternoon' | 'evening';
 }
 
+type WidgetData = DailyFocusData | QuickCoachData | ReflectionData | Record<string, unknown>;
+
 /**
  * SharedStorage Helper
  * Abstracts reading/writing to UserDefaults (iOS) or SharedPreferences (Android)
@@ -67,7 +69,7 @@ class SharedStorage {
   /**
    * Write data to shared storage
    */
-  static async write(key: string, value: any): Promise<void> {
+  static async write<T extends WidgetData>(key: string, value: T): Promise<void> {
     const fullKey = this.prefix + key;
     const jsonValue = JSON.stringify(value);
 
@@ -94,13 +96,13 @@ class SharedStorage {
   /**
    * Read data from shared storage
    */
-  static async read(key: string): Promise<any | null> {
+  static async read<T>(key: string): Promise<T | null> {
     const fullKey = this.prefix + key;
 
     if (Platform.OS === 'ios') {
       try {
         const value = await this._readFromUserDefaults(fullKey);
-        return value ? JSON.parse(value) : null;
+        return value ? (JSON.parse(value) as T) : null;
       } catch (error) {
         console.error(`Failed to read widget data for key ${key}:`, error);
         return null;
@@ -108,7 +110,7 @@ class SharedStorage {
     } else if (Platform.OS === 'android') {
       try {
         const value = await this._readFromSharedPreferences(fullKey);
-        return value ? JSON.parse(value) : null;
+        return value ? (JSON.parse(value) as T) : null;
       } catch (error) {
         console.error(`Failed to read widget data for key ${key}:`, error);
         return null;
@@ -251,7 +253,7 @@ class WidgetUpdateManager {
    */
   private static async _pushSnapshot(
     family: 'systemSmall' | 'systemMedium' | 'systemLarge',
-    data: any
+    data: WidgetData
   ): Promise<void> {
     try {
       // expo-widgets API (alpha) - implementation may vary
@@ -321,7 +323,7 @@ export const WidgetBridge = {
         widgetData.ritualTotal !== undefined ||
         widgetData.streakCount !== undefined
       ) {
-        const existing = await SharedStorage.read('daily_focus');
+        const existing = await SharedStorage.read<DailyFocusData>('daily_focus');
         updates.daily_focus = {
           topPriority: widgetData.topPriority || existing?.topPriority || 'Focus on what matters',
           ritualsCompleted: widgetData.ritualsCompleted ?? existing?.ritualsCompleted ?? 0,
@@ -336,7 +338,7 @@ export const WidgetBridge = {
         widgetData.coachingPrompt !== undefined ||
         widgetData.recommendedCoach !== undefined
       ) {
-        const existing = await SharedStorage.read('quick_coach');
+        const existing = await SharedStorage.read<QuickCoachData>('quick_coach');
         updates.quick_coach = {
           coachingPrompt: widgetData.coachingPrompt || existing?.coachingPrompt || 'What\'s on your mind?',
           recommendedCoach: widgetData.recommendedCoach || existing?.recommendedCoach || { name: 'Your Coach', emoji: '🧠' },
@@ -361,7 +363,7 @@ export const WidgetBridge = {
    * Update Daily Focus widget specifically
    */
   async updateDailyFocus(data: Partial<DailyFocusData>): Promise<void> {
-    const existing = await SharedStorage.read('daily_focus');
+    const existing = await SharedStorage.read<DailyFocusData>('daily_focus');
     const updated = {
       topPriority: data.topPriority ?? existing?.topPriority ?? 'Focus on what matters',
       ritualsCompleted: data.ritualsCompleted ?? existing?.ritualsCompleted ?? 0,
@@ -376,7 +378,7 @@ export const WidgetBridge = {
    * Update Quick Coach widget specifically
    */
   async updateQuickCoach(data: Partial<QuickCoachData>): Promise<void> {
-    const existing = await SharedStorage.read('quick_coach');
+    const existing = await SharedStorage.read<QuickCoachData>('quick_coach');
     const updated = {
       coachingPrompt: data.coachingPrompt ?? existing?.coachingPrompt ?? 'What\'s on your mind?',
       recommendedCoach: data.recommendedCoach ?? existing?.recommendedCoach ?? { name: 'Your Coach', emoji: '🧠' },
@@ -390,7 +392,7 @@ export const WidgetBridge = {
    * Update Reflection widget specifically
    */
   async updateReflection(data: Partial<ReflectionData>): Promise<void> {
-    const existing = await SharedStorage.read('reflection');
+    const existing = await SharedStorage.read<ReflectionData>('reflection');
     const updated = {
       contentType: data.contentType ?? existing?.contentType ?? 'morning' as const,
       mainContent: data.mainContent ?? existing?.mainContent ?? 'What matters most today?',
@@ -412,11 +414,15 @@ export const WidgetBridge = {
   /**
    * Get current widget data (for debugging)
    */
-  async getWidgetData() {
+  async getWidgetData(): Promise<{
+    dailyFocus: DailyFocusData | null;
+    quickCoach: QuickCoachData | null;
+    reflection: ReflectionData | null;
+  }> {
     return {
-      dailyFocus: await SharedStorage.read('daily_focus'),
-      quickCoach: await SharedStorage.read('quick_coach'),
-      reflection: await SharedStorage.read('reflection'),
+      dailyFocus: await SharedStorage.read<DailyFocusData>('daily_focus'),
+      quickCoach: await SharedStorage.read<QuickCoachData>('quick_coach'),
+      reflection: await SharedStorage.read<ReflectionData>('reflection'),
     };
   },
 };

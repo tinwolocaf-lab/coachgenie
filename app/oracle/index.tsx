@@ -103,15 +103,6 @@ export default function OracleScreen() {
     }
   };
 
-  // Entrance animation
-  const handleEntranceComplete = useCallback(() => {
-    entranceOpacity.value = withTiming(0, { duration: 800 }, () => {
-      runOnJS(setShowEntrance)(false);
-      runOnJS(startSession)();
-    });
-    headerOpacity.value = withTiming(1, { duration: 800 });
-  }, [entranceOpacity, headerOpacity, startSession]);
-
   const startSession = useCallback(() => {
     setSessionStarted(true);
 
@@ -129,6 +120,15 @@ export default function OracleScreen() {
     setIsStreamingEntry(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [userContext]);
+
+  // Entrance animation
+  const handleEntranceComplete = useCallback(() => {
+    entranceOpacity.value = withTiming(0, { duration: 800 }, () => {
+      runOnJS(setShowEntrance)(false);
+      runOnJS(startSession)();
+    });
+    headerOpacity.value = withTiming(1, { duration: 800 });
+  }, [entranceOpacity, headerOpacity, startSession]);
 
   // Auto-start entrance after delay
   useEffect(() => {

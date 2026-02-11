@@ -27,6 +27,14 @@ interface DashboardData {
   activeDays: number;
 }
 
+function parseStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
 const CATEGORIES = ['mindset', 'strategy', 'productivity', 'systems', 'general'];
 const CAT_LABELS: Record<string, string> = {
   mindset: 'Mindset', strategy: 'Strategy', productivity: 'Productivity',
@@ -84,17 +92,27 @@ async function fetchData(): Promise<DashboardData> {
   cutoff.setDate(cutoff.getDate() - 60);
 
   const [sessionsRes, insightsRes, vaultRes, streaksRes] = await Promise.all([
-    supabase.from('coaching_sessions' as any).select('id, coach_id, created_at')
+    supabase.from('coaching_sessions').select('id, coach_id, created_at')
       .eq('user_id', user.id).gte('created_at', cutoff.toISOString())
       .order('created_at', { ascending: true }),
-    supabase.from('key_insights' as any).select('id, category, created_at').eq('user_id', user.id),
-    supabase.from('context_vaults' as any).select('values').eq('user_id', user.id).limit(1).single(),
-    supabase.from('ritual_streaks' as any).select('longest_streak').eq('user_id', user.id),
+    supabase.from('key_insights').select('id, category, created_at').eq('user_id', user.id),
+    supabase.from('context_vaults').select('values').eq('user_id', user.id).limit(1).single(),
+    supabase.from('ritual_streaks').select('longest_streak').eq('user_id', user.id),
   ]);
 
-  const sessions = (sessionsRes.data || []) as { id: string; coach_id: string | null; created_at: string }[];
-  const insights = (insightsRes.data || []) as { id: string; category: string; created_at: string }[];
-  const vaultValues: string[] = (vaultRes.data as any)?.values || [];
+  const sessions = (sessionsRes.data ?? []).map((row) => ({
+    id: row.id,
+    coach_id: row.coach_id,
+    created_at: row.created_at,
+  }));
+
+  const insights = (insightsRes.data ?? []).map((row) => ({
+    id: row.id,
+    category: row.category,
+    created_at: row.created_at,
+  }));
+
+  const vaultValues = parseStringArray(vaultRes.data?.values);
 
   // Weekly sessions (last 8 weeks)
   const now = new Date();
@@ -118,8 +136,8 @@ async function fetchData(): Promise<DashboardData> {
   const coachIds = [...new Set(sessions.map((s) => s.coach_id).filter(Boolean))] as string[];
   let coaches: CoachUsage[] = [];
   if (coachIds.length > 0) {
-    const { data: rows } = await supabase.from('coaches' as any).select('id, name').in('id', coachIds);
-    const nameMap = new Map(((rows || []) as { id: string; name: string }[]).map((r) => [r.id, r.name]));
+    const { data: rows } = await supabase.from('coaches').select('id, name').in('id', coachIds);
+    const nameMap = new Map((rows ?? []).map((row) => [row.id, row.name]));
     const countMap = new Map<string, number>();
     sessions.forEach((s) => { if (s.coach_id) countMap.set(s.coach_id, (countMap.get(s.coach_id) || 0) + 1); });
     coaches = Array.from(countMap.entries())
@@ -127,7 +145,7 @@ async function fetchData(): Promise<DashboardData> {
       .sort((a, b) => b.sessionCount - a.sessionCount);
   }
 
-  const streaks = ((streaksRes.data || []) as { longest_streak: number }[]).map((s) => s.longest_streak || 0);
+  const streaks = (streaksRes.data ?? []).map((row) => row.longest_streak || 0);
   const uniqueDays = new Set(sessions.map((s) => s.created_at.split('T')[0]));
 
   return {

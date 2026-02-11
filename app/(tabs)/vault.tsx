@@ -139,7 +139,6 @@ export default function VaultScreen() {
                           label={value}
                           selected={isSelected}
                           onPress={() => toggleValue(value)}
-                          variant={isSelected ? 'filled' : 'outlined'}
                           style={{ marginBottom: Spacing.sm, marginRight: Spacing.sm }}
                         />
                       );
@@ -148,13 +147,13 @@ export default function VaultScreen() {
 
                   <View style={styles.editActions}>
                     <Button
-                      label="Cancel"
+                      title="Cancel"
                       variant="ghost"
                       onPress={() => setEditingSection(null)}
                       size="sm"
                     />
                     <Button
-                      label="Save Changes"
+                      title="Save Changes"
                       variant="gold"
                       onPress={handleSaveValues}
                       size="sm"

@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { EnhancedMessage } from '@/types';
+import { MarkdownText } from '@/components/ui/MarkdownText';
 
 interface EditorialBlockProps {
   message: EnhancedMessage;
@@ -84,15 +85,19 @@ export function EditorialBlock({
   // Check for insight markers in content
   const renderContent = () => {
     const content = message.content;
+    const messageStyle = [styles.messageText, { color: palette.textSecondary }, isUser && styles.messageTextUser];
 
     // Check for insight pattern
     if (content.includes('💡 INSIGHT:')) {
       const parts = content.split('💡 INSIGHT:');
       return (
         <>
-          <Text style={[styles.messageText, { color: palette.textSecondary }, isUser && styles.messageTextUser]}>
-            {parts[0].trim()}
-          </Text>
+          <MarkdownText
+            content={parts[0].trim()}
+            textStyle={messageStyle}
+            accentColor={palette.accent}
+            mutedColor={palette.textTertiary}
+          />
           {parts[1] && (
             <TouchableOpacity
               style={styles.inlineInsight}
@@ -103,9 +108,14 @@ export function EditorialBlock({
                 style={styles.inlineInsightGradient}
               >
                 <Ionicons name="bulb" size={16} color={palette.accent} />
-                <Text style={[styles.inlineInsightText, { color: palette.textPrimary }]}>
-                  {parts[1].trim()}
-                </Text>
+                <View style={styles.inlineInsightTextContainer}>
+                  <MarkdownText
+                    content={parts[1].trim()}
+                    textStyle={[styles.inlineInsightText, { color: palette.textPrimary }]}
+                    accentColor={palette.accent}
+                    mutedColor={palette.textSecondary}
+                  />
+                </View>
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -114,9 +124,12 @@ export function EditorialBlock({
     }
 
     return (
-      <Text style={[styles.messageText, { color: palette.textSecondary }, isUser && styles.messageTextUser]}>
-        {content}
-      </Text>
+      <MarkdownText
+        content={content}
+        textStyle={messageStyle}
+        accentColor={palette.accent}
+        mutedColor={palette.textTertiary}
+      />
     );
   };
 
@@ -347,6 +360,9 @@ const styles = StyleSheet.create({
     lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
     fontStyle: 'italic',
+  },
+  inlineInsightTextContainer: {
+    flex: 1,
   },
 
   // Key Insight Card

@@ -1,4 +1,4 @@
-import { createAuthClient, createUserClient } from './supabase';
+import { createAuthClient, createUserClient } from './supabase.ts';
 
 export interface AuthResult {
   userId: string;

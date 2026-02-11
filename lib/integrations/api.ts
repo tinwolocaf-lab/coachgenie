@@ -25,7 +25,7 @@ export async function listIntegrations(): Promise<UserIntegration[]> {
   if (!user) return [];
 
   const { data, error } = await supabase
-    .from('user_integrations' as any)
+    .from('user_integrations')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
@@ -35,7 +35,7 @@ export async function listIntegrations(): Promise<UserIntegration[]> {
     if (error.code === 'PGRST205') return [];
     throw error;
   }
-  return (data as UserIntegration[]) || [];
+  return (data ?? []) as UserIntegration[];
 }
 
 export async function exchangeToken(
@@ -86,8 +86,8 @@ export async function disconnectIntegration(provider: IntegrationProvider): Prom
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { error } = await (supabase
-    .from('user_integrations' as any) as any)
+  const { error } = await supabase
+    .from('user_integrations')
     .delete()
     .eq('user_id', user.id)
     .eq('provider', provider);
@@ -102,11 +102,25 @@ export async function getIntegrationData(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  let query = (supabase
-    .from('integration_data' as any) as any)
-    .select('*, user_integrations!inner(provider)')
+  const { data: integrations, error: integrationsError } = await supabase
+    .from('user_integrations')
+    .select('id')
     .eq('user_id', user.id)
-    .eq('user_integrations.provider', provider);
+    .eq('provider', provider);
+
+  if (integrationsError) {
+    if (integrationsError.code === 'PGRST205') return [];
+    throw integrationsError;
+  }
+
+  const integrationIds = (integrations ?? []).map((integration) => integration.id);
+  if (integrationIds.length === 0) return [];
+
+  let query = supabase
+    .from('integration_data')
+    .select('*')
+    .eq('user_id', user.id)
+    .in('integration_id', integrationIds);
 
   if (dataType) {
     query = query.eq('data_type', dataType);
@@ -117,7 +131,7 @@ export async function getIntegrationData(
     if (error.code === 'PGRST205') return [];
     throw error;
   }
-  return (data as IntegrationData[]) || [];
+  return (data ?? []) as IntegrationData[];
 }
 
 export async function getUpcomingEvents(hoursAhead = 24): Promise<IntegrationData[]> {
@@ -128,7 +142,7 @@ export async function getUpcomingEvents(hoursAhead = 24): Promise<IntegrationDat
   const future = new Date(Date.now() + hoursAhead * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
-    .from('integration_data' as any)
+    .from('integration_data')
     .select('*')
     .eq('user_id', user.id)
     .eq('data_type', 'calendar_event')
@@ -140,5 +154,5 @@ export async function getUpcomingEvents(hoursAhead = 24): Promise<IntegrationDat
     if (error.code === 'PGRST205') return [];
     throw error;
   }
-  return (data as IntegrationData[]) || [];
+  return (data ?? []) as IntegrationData[];
 }

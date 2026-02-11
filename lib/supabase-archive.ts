@@ -6,6 +6,7 @@ import {
   KeyInsight,
   Breakthrough,
 } from '@/types';
+import type { Database } from '@/types/database';
 
 // Monthly Synthesis Types
 export interface MonthlySynthesis {
@@ -83,6 +84,180 @@ export interface ArchiveStats {
   currentStreak: number;
   longestStreak: number;
   topCoach: { id: string; name: string; sessions: number } | null;
+}
+
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];
+
+type BreakthroughRow = Database['public']['Tables']['breakthroughs']['Row'];
+type MonthlySynthesisRow = Database['public']['Tables']['monthly_synthesis']['Row'];
+type MonthlySynthesisInsert = Database['public']['Tables']['monthly_synthesis']['Insert'];
+type HistoryQueryRow = Database['public']['Tables']['history_queries']['Row'];
+
+interface BreakthroughActionItem {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+function isBreakthroughActionItem(value: unknown): value is BreakthroughActionItem {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.completed === 'boolean'
+  );
+}
+
+function parseBreakthroughActions(value: unknown): BreakthroughActionItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isBreakthroughActionItem);
+}
+
+function mapBreakthroughRow(row: BreakthroughRow): Breakthrough {
+  return {
+    ...row,
+    session_id: row.session_id ?? undefined,
+    coach_id: row.coach_id ?? '',
+    action_items: parseBreakthroughActions(row.action_items),
+  };
+}
+
+function isThemeItem(value: unknown): value is ThemeItem {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.name === 'string' &&
+    typeof value.frequency === 'number' &&
+    Array.isArray(value.relatedInsights) &&
+    value.relatedInsights.every((item) => typeof item === 'string')
+  );
+}
+
+function parseThemeItems(value: unknown): ThemeItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isThemeItem);
+}
+
+function isPatternItem(value: unknown): value is PatternItem {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.pattern === 'string' &&
+    typeof value.observation === 'string' &&
+    typeof value.recommendation === 'string'
+  );
+}
+
+function parsePatternItems(value: unknown): PatternItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isPatternItem);
+}
+
+function isCoachContribution(value: unknown): value is CoachContribution {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.coachId === 'string' &&
+    typeof value.coachName === 'string' &&
+    typeof value.sessionCount === 'number' &&
+    typeof value.insightCount === 'number'
+  );
+}
+
+function parseCoachContributions(value: unknown): Record<string, CoachContribution> {
+  if (!isRecord(value)) return {};
+
+  const parsed: Record<string, CoachContribution> = {};
+  for (const [coachId, contribution] of Object.entries(value)) {
+    if (isCoachContribution(contribution)) {
+      parsed[coachId] = contribution;
+    }
+  }
+  return parsed;
+}
+
+function mapMonthlySynthesisRow(row: MonthlySynthesisRow): MonthlySynthesis {
+  return {
+    ...row,
+    key_themes: parseThemeItems(row.key_themes),
+    growth_areas: toStringArray(row.growth_areas),
+    patterns_identified: parsePatternItems(row.patterns_identified),
+    coach_contributions: parseCoachContributions(row.coach_contributions),
+  };
+}
+
+function toMonthlySynthesisInsert(
+  synthesis: Omit<MonthlySynthesis, 'id' | 'created_at'>
+): MonthlySynthesisInsert {
+  const keyThemesPayload: JsonValue[] = synthesis.key_themes.map((theme) => ({
+    name: theme.name,
+    frequency: theme.frequency,
+    relatedInsights: [...theme.relatedInsights],
+  }));
+
+  const patternsPayload: JsonValue[] = synthesis.patterns_identified.map((pattern) => ({
+    pattern: pattern.pattern,
+    observation: pattern.observation,
+    recommendation: pattern.recommendation,
+  }));
+
+  const coachContributionsPayload: Record<string, JsonValue> = {};
+  for (const [coachId, contribution] of Object.entries(synthesis.coach_contributions)) {
+    coachContributionsPayload[coachId] = {
+      coachId: contribution.coachId,
+      coachName: contribution.coachName,
+      sessionCount: contribution.sessionCount,
+      insightCount: contribution.insightCount,
+    };
+  }
+
+  return {
+    user_id: synthesis.user_id,
+    month_year: synthesis.month_year,
+    title: synthesis.title,
+    executive_summary: synthesis.executive_summary,
+    key_themes: keyThemesPayload,
+    growth_areas: synthesis.growth_areas,
+    patterns_identified: patternsPayload,
+    coach_contributions: coachContributionsPayload,
+    breakthrough_count: synthesis.breakthrough_count,
+    insight_count: synthesis.insight_count,
+    session_count: synthesis.session_count,
+  };
+}
+
+function isQuerySource(value: unknown): value is QuerySource {
+  if (!isRecord(value)) return false;
+  return (
+    (value.type === 'session' || value.type === 'insight' || value.type === 'breakthrough') &&
+    typeof value.id === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.date === 'string'
+  );
+}
+
+function parseQuerySources(value: unknown): QuerySource[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isQuerySource);
+}
+
+function mapHistoryQueryRow(row: HistoryQueryRow): HistoryQuery {
+  return {
+    ...row,
+    sources: parseQuerySources(row.sources),
+  };
 }
 
 // ============ SESSIONS ============
@@ -171,7 +346,7 @@ export async function getSessionsByDateRange(
 export async function getInsightsWithDetails(
   userId: string,
   limit = 100,
-  category?: string
+  category?: KeyInsight['category'] | 'all'
 ): Promise<KeyInsight[]> {
   if (!isSupabaseConfigured) return [];
 
@@ -236,7 +411,8 @@ export async function getInsightsByCategory(
     if (error) throw error;
 
     const grouped: Record<string, KeyInsight[]> = {};
-    (data || []).forEach((insight: KeyInsight) => {
+    const insights = (data || []) as unknown as KeyInsight[];
+    insights.forEach((insight) => {
       const cat = insight.category || 'general';
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(insight);
@@ -266,7 +442,7 @@ export async function getAllBreakthroughs(
       .limit(limit);
 
     if (error) throw error;
-    return (data || []) as Breakthrough[];
+    return (data || []).map(mapBreakthroughRow);
   } catch (error) {
     console.error('Error fetching breakthroughs:', error);
     return [];
@@ -286,7 +462,7 @@ export async function getBreakthroughById(
       .single();
 
     if (error) throw error;
-    return data as Breakthrough;
+    return data ? mapBreakthroughRow(data) : null;
   } catch (error) {
     console.error('Error fetching breakthrough:', error);
     return null;
@@ -366,7 +542,7 @@ export async function getMonthlySynthesis(
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    return data as MonthlySynthesis | null;
+    return data ? mapMonthlySynthesisRow(data) : null;
   } catch (error) {
     console.error('Error fetching monthly synthesis:', error);
     return null;
@@ -379,15 +555,15 @@ export async function saveMonthlySynthesis(
   if (!isSupabaseConfigured) return null;
 
   try {
-    // Use explicit any for upsert since table may not be in generated types
-    const { data, error } = await (supabase
-      .from('monthly_synthesis') as any)
-      .upsert(synthesis, { onConflict: 'user_id,month_year' })
+    const payload = toMonthlySynthesisInsert(synthesis);
+    const { data, error } = await supabase
+      .from('monthly_synthesis')
+      .upsert(payload, { onConflict: 'user_id,month_year' })
       .select()
       .single();
 
     if (error) throw error;
-    return data as MonthlySynthesis;
+    return data ? mapMonthlySynthesisRow(data) : null;
   } catch (error) {
     console.error('Error saving monthly synthesis:', error);
     return null;
@@ -407,7 +583,7 @@ export async function getAllMonthlySyntheses(
       .order('month_year', { ascending: false });
 
     if (error) throw error;
-    return (data || []) as MonthlySynthesis[];
+    return (data || []).map(mapMonthlySynthesisRow);
   } catch (error) {
     console.error('Error fetching all syntheses:', error);
     return [];
@@ -445,8 +621,8 @@ export async function createCollection(
   if (!isSupabaseConfigured) return null;
 
   try {
-    const { data, error } = await (supabase
-      .from('insight_collections') as any)
+    const { data, error } = await supabase
+      .from('insight_collections')
       .insert({
         user_id: userId,
         name,
@@ -472,14 +648,14 @@ export async function addInsightToCollection(
   if (!isSupabaseConfigured) return false;
 
   try {
-    const { error } = await (supabase
-      .from('insight_collection_items') as any)
+    const { error } = await supabase
+      .from('insight_collection_items')
       .insert({ collection_id: collectionId, insight_id: insightId });
 
     if (error) throw error;
 
     // Update collection count
-    await (supabase as any).rpc('increment_collection_count', {
+    await supabase.rpc('increment_collection_count', {
       collection_id: collectionId,
     });
 
@@ -496,19 +672,27 @@ export async function getCollectionInsights(
   if (!isSupabaseConfigured) return [];
 
   try {
-    const { data, error } = await supabase
+    const { data: collectionItems, error: collectionItemsError } = await supabase
       .from('insight_collection_items')
-      .select(`
-        insight_id,
-        key_insights (*)
-      `)
+      .select('insight_id')
       .eq('collection_id', collectionId);
 
-    if (error) throw error;
+    if (collectionItemsError) throw collectionItemsError;
 
-    return (data || [])
-      .map((item: { key_insights: KeyInsight }) => item.key_insights)
-      .filter(Boolean) as KeyInsight[];
+    const insightIds = (collectionItems || []).map((item) => item.insight_id);
+    if (insightIds.length === 0) return [];
+
+    const { data: insights, error: insightsError } = await supabase
+      .from('key_insights')
+      .select('*')
+      .in('id', insightIds);
+
+    if (insightsError) throw insightsError;
+
+    const insightMap = new Map((insights || []).map((insight) => [insight.id, insight as KeyInsight]));
+    return insightIds
+      .map((insightId) => insightMap.get(insightId))
+      .filter((insight): insight is KeyInsight => Boolean(insight));
   } catch (error) {
     console.error('Error fetching collection insights:', error);
     return [];
@@ -526,19 +710,26 @@ export async function saveHistoryQuery(
   if (!isSupabaseConfigured) return null;
 
   try {
-    const { data, error } = await (supabase
-      .from('history_queries') as any)
+    const sourcesPayload: JsonValue[] = sources.map((source) => ({
+      type: source.type,
+      id: source.id,
+      title: source.title,
+      date: source.date,
+    }));
+
+    const { data, error } = await supabase
+      .from('history_queries')
       .insert({
         user_id: userId,
         query,
         response,
-        sources,
+        sources: sourcesPayload,
       })
       .select()
       .single();
 
     if (error) throw error;
-    return data as HistoryQuery;
+    return data ? mapHistoryQueryRow(data) : null;
   } catch (error) {
     console.error('Error saving history query:', error);
     return null;
@@ -560,7 +751,7 @@ export async function getRecentHistoryQueries(
       .limit(limit);
 
     if (error) throw error;
-    return (data || []) as HistoryQuery[];
+    return (data || []).map(mapHistoryQueryRow);
   } catch (error) {
     console.error('Error fetching history queries:', error);
     return [];
@@ -726,7 +917,7 @@ export async function getMonthlyData(
     return {
       sessions: (sessionsRes.data || []) as EnhancedSession[],
       insights: (insightsRes.data || []) as KeyInsight[],
-      breakthroughs: (breakthroughsRes.data || []) as Breakthrough[],
+      breakthroughs: (breakthroughsRes.data || []).map(mapBreakthroughRow),
     };
   } catch (error) {
     console.error('Error fetching monthly data:', error);
@@ -775,7 +966,7 @@ export async function searchAllContent(
     return {
       sessions: (sessionsRes.data || []) as EnhancedSession[],
       insights: (insightsRes.data || []) as KeyInsight[],
-      breakthroughs: (breakthroughsRes.data || []) as Breakthrough[],
+      breakthroughs: (breakthroughsRes.data || []).map(mapBreakthroughRow),
     };
   } catch (error) {
     console.error('Error searching content:', error);

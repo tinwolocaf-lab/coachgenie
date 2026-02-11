@@ -30,6 +30,7 @@ import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
+import { MarkdownText } from '@/components/ui/MarkdownText';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { Coach, Message, Session, SessionResult, ContextVault } from '@/types';
 import { getCoachById } from '@/data/coaches';
@@ -373,9 +374,12 @@ export default function ChatScreen() {
 
         {/* Message content - transcript style */}
         <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }, isUser && { borderLeftColor: palette.borderLight }]}>
-          <Text style={[styles.transcriptText, { color: palette.textSecondary }, isUser && styles.transcriptTextUser]}>
-            {item.content}
-          </Text>
+          <MarkdownText
+            content={item.content}
+            textStyle={[styles.transcriptText, { color: palette.textSecondary }, isUser && styles.transcriptTextUser]}
+            accentColor={palette.accent}
+            mutedColor={palette.textTertiary}
+          />
         </View>
       </Animated.View>
     );
@@ -466,7 +470,12 @@ export default function ChatScreen() {
                       </Animated.View>
                     </View>
                     <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }]}>
-                      <Text style={[styles.transcriptText, { color: palette.textSecondary }]}>{streamingText}</Text>
+                      <MarkdownText
+                        content={streamingText}
+                        textStyle={[styles.transcriptText, { color: palette.textSecondary }]}
+                        accentColor={palette.accent}
+                        mutedColor={palette.textTertiary}
+                      />
                       <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
                     </View>
                   </Animated.View>

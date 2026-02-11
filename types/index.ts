@@ -1,4 +1,5 @@
 // Coachgenie Types
+import type { ImageSourcePropType } from 'react-native';
 
 // User Profile & Context Vault
 export interface UserProfile {
@@ -47,7 +48,7 @@ export interface Coach {
   tagline: string;
   description: string;
   icon_name: string;
-  image?: any; // ImageSourcePropType - using any to avoid react-native dependency in types package if possible
+  image?: ImageSourcePropType;
   color: string;
   method: string;
   version: string;

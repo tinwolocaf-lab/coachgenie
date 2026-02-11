@@ -10,6 +10,7 @@ interface RawDatabase {
           email: string;
           name: string | null;
           avatar_url: string | null;
+          push_token: string | null;
           onboarding_completed: boolean;
           created_at: string;
           updated_at: string;
@@ -19,6 +20,7 @@ interface RawDatabase {
           email: string;
           name?: string | null;
           avatar_url?: string | null;
+          push_token?: string | null;
           onboarding_completed?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -28,6 +30,7 @@ interface RawDatabase {
           email?: string;
           name?: string | null;
           avatar_url?: string | null;
+          push_token?: string | null;
           onboarding_completed?: boolean;
           updated_at?: string;
         };
@@ -754,9 +757,95 @@ interface RawDatabase {
           is_read?: boolean;
         };
       };
+      user_integrations: {
+        Row: {
+          id: string;
+          user_id: string;
+          provider: 'google_calendar' | 'notion' | 'github' | 'todoist' | 'linear';
+          status: 'active' | 'expired' | 'revoked' | 'error';
+          provider_email: string | null;
+          access_token: string | null;
+          refresh_token: string | null;
+          token_expires_at: string | null;
+          scopes: string[] | null;
+          metadata: Json | null;
+          last_synced_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          provider: 'google_calendar' | 'notion' | 'github' | 'todoist' | 'linear';
+          status?: 'active' | 'expired' | 'revoked' | 'error';
+          provider_email?: string | null;
+          access_token?: string | null;
+          refresh_token?: string | null;
+          token_expires_at?: string | null;
+          scopes?: string[] | null;
+          metadata?: Json | null;
+          last_synced_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: 'active' | 'expired' | 'revoked' | 'error';
+          provider_email?: string | null;
+          access_token?: string | null;
+          refresh_token?: string | null;
+          token_expires_at?: string | null;
+          scopes?: string[] | null;
+          metadata?: Json | null;
+          last_synced_at?: string | null;
+          updated_at?: string;
+        };
+      };
+      integration_data: {
+        Row: {
+          id: string;
+          user_id: string;
+          integration_id: string;
+          data_type: 'calendar_event' | 'notion_page' | 'github_activity' | 'task';
+          external_id: string | null;
+          title: string | null;
+          content: Json | null;
+          starts_at: string | null;
+          ends_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          integration_id: string;
+          data_type: 'calendar_event' | 'notion_page' | 'github_activity' | 'task';
+          external_id?: string | null;
+          title?: string | null;
+          content?: Json | null;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          external_id?: string | null;
+          title?: string | null;
+          content?: Json | null;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          updated_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      increment_collection_count: {
+        Args: {
+          collection_id: string;
+        };
+        Returns: null;
+      };
+    };
     Enums: Record<string, never>;
   };
 }

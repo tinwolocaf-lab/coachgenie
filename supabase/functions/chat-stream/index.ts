@@ -65,12 +65,13 @@ serve(async (request) => {
     .from('session_messages')
     .insert({
       session_id,
+      user_id: userId,
       role: 'user',
       content: user_message.trim(),
     });
 
   if (insertUserError) {
-    return new Response('Failed to save user message', { status: 500, headers: corsHeaders });
+    return new Response(`Failed to save user message: ${insertUserError.message}`, { status: 500, headers: corsHeaders });
   }
 
   const { data: coach } = await userClient
@@ -147,6 +148,7 @@ serve(async (request) => {
         .from('session_messages')
         .insert({
           session_id,
+          user_id: userId,
           role: 'assistant',
           content: assistantText || 'I am here to help. What would you like to focus on?',
         })

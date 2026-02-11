@@ -84,6 +84,19 @@ function shouldCaptureConsoleIssue(level: 'error' | 'warn', message: string): bo
     return false;
   }
 
+  const lowerMessage = message.toLowerCase();
+
+  // These are expected environment/service-availability states that should not
+  // trigger crash-style global issue overlays.
+  if (
+    lowerMessage.includes('"code":"not_found"') ||
+    lowerMessage.includes('requested function was not found') ||
+    lowerMessage.includes('"code":"pgrst205"') ||
+    lowerMessage.includes('could not find the table')
+  ) {
+    return false;
+  }
+
   if (level === 'warn') {
     return (
       message.includes('Possible Unhandled Promise Rejection') ||
@@ -101,9 +114,11 @@ function getErrorUtils(): ErrorUtilsLike | null {
 
 function installGlobalExceptionHandler() {
   const errorUtils = getErrorUtils();
-  if (!errorUtils?.getGlobalHandler || !errorUtils?.setGlobalHandler) return;
+  const getGlobalHandler = errorUtils?.getGlobalHandler;
+  const setGlobalHandler = errorUtils?.setGlobalHandler;
+  if (!getGlobalHandler || !setGlobalHandler) return;
 
-  const previous = errorUtils.getGlobalHandler();
+  const previous = getGlobalHandler();
   const nextHandler = (error: Error, isFatal?: boolean) => {
     emitIssue({
       kind: 'fatal_exception',
@@ -115,10 +130,10 @@ function installGlobalExceptionHandler() {
     previous?.(error, isFatal);
   };
 
-  errorUtils.setGlobalHandler(nextHandler);
+  setGlobalHandler(nextHandler);
   teardownFns.push(() => {
     if (previous) {
-      errorUtils.setGlobalHandler(previous);
+      setGlobalHandler(previous);
     }
   });
 }

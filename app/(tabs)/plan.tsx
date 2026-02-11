@@ -31,6 +31,31 @@ import { createSession } from '@/lib/supabase-sanctuary';
 import { generatePlan } from '@/lib/apiClient';
 import { getCoachById } from '@/data/coaches';
 
+function normalizeErrorMessage(error: unknown): string {
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown error';
+    }
+  }
+  return 'Unknown error';
+}
+
+function isFunctionNotFoundError(error: unknown): boolean {
+  const message = normalizeErrorMessage(error).toLowerCase();
+  return (
+    message.includes('"code":"not_found"') ||
+    message.includes('requested function was not found')
+  );
+}
+
 // Generate dates for the 7-day view
 function generateWeekDates(): Date[] {
   const dates: Date[] = [];
@@ -98,6 +123,7 @@ export default function PlanScreen() {
 
     setIsGeneratingPlan(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    let createdSessionId: string | null = null;
 
     try {
       const { data: authData } = await supabase.auth.getSession();
@@ -118,6 +144,7 @@ export default function PlanScreen() {
         Alert.alert('Error', 'Could not start a planning session. Please try again.');
         return;
       }
+      createdSessionId = session.id;
 
       const response = await generatePlan(session.id, 7);
       const now = new Date().toISOString();
@@ -132,7 +159,7 @@ export default function PlanScreen() {
           completed: false,
           order: idx + 1,
         })),
-        time_blocks: (day.time_blocks || []).map((block: any, idx: number) => ({
+        time_blocks: (day.time_blocks || []).map((block, idx: number) => ({
           id: block.id || `${day.day}-${idx + 1}`,
           start_time: block.start_time || '09:00',
           end_time: block.end_time || '10:00',
@@ -150,7 +177,28 @@ export default function PlanScreen() {
       await loadData();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error('Error generating plan:', error);
+      if (createdSessionId) {
+        const { error: cleanupError } = await supabase
+          .from('coaching_sessions')
+          .delete()
+          .eq('id', createdSessionId);
+
+        if (cleanupError) {
+          console.warn('Failed to clean up plan session after generation failure:', cleanupError.message);
+        }
+      }
+
+      const message = normalizeErrorMessage(error);
+      const unavailable = isFunctionNotFoundError(error);
+      console.warn('Plan generation failed:', message);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      Alert.alert(
+        unavailable ? 'Planning Unavailable' : 'Plan Generation Failed',
+        unavailable
+          ? 'The planning service is not available in this environment yet. Please use chat for planning or try again later.'
+          : 'Could not generate your plan right now. Please try again.',
+      );
     } finally {
       setIsGeneratingPlan(false);
     }

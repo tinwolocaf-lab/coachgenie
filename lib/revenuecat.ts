@@ -13,6 +13,15 @@ const ORACLE_ENTITLEMENT_ID = 'oracle';
 
 let isConfigured = false;
 
+function getErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const maybeCode = (error as Record<string, unknown>).code;
+  return typeof maybeCode === 'string' ? maybeCode : undefined;
+}
+
 export async function initRevenueCat(): Promise<void> {
   if (isConfigured || !REVENUECAT_API_KEY) return;
 
@@ -37,7 +46,7 @@ export async function checkSovereignEntitlement(): Promise<boolean> {
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo.entitlements.active[SOVEREIGN_ENTITLEMENT_ID] !== undefined;
   } catch (error) {
-    console.warn('[RevenueCat] Could not check entitlement (expected in Expo Go):', (error as any)?.code);
+    console.warn('[RevenueCat] Could not check entitlement (expected in Expo Go):', getErrorCode(error));
     return false;
   }
 }
@@ -88,7 +97,7 @@ export async function checkOracleEntitlement(): Promise<boolean> {
     const customerInfo = await Purchases.getCustomerInfo();
     return customerInfo.entitlements.active[ORACLE_ENTITLEMENT_ID] !== undefined;
   } catch (error) {
-    console.warn('[RevenueCat] Could not check oracle entitlement:', (error as any)?.code);
+    console.warn('[RevenueCat] Could not check oracle entitlement:', getErrorCode(error));
     return false;
   }
 }

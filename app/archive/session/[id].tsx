@@ -28,6 +28,7 @@ import { getSessionWithMessages } from '@/lib/supabase-archive';
 import { EnhancedSession, EnhancedMessage } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
+import { MarkdownText } from '@/components/ui/MarkdownText';
 
 export default function SessionReviewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -190,7 +191,12 @@ export default function SessionReviewScreen() {
               <Ionicons name="document-text" size={16} color={palette.accent} />
               <Text style={[styles.summaryLabel, { color: palette.accent }]}>Session Summary</Text>
             </View>
-            <Text style={[styles.summaryText, { color: palette.textSecondary }]}>{session.summary}</Text>
+            <MarkdownText
+              content={session.summary}
+              textStyle={[styles.summaryText, { color: palette.textSecondary }]}
+              accentColor={palette.accent}
+              mutedColor={palette.textTertiary}
+            />
           </Animated.View>
         )}
 
@@ -249,9 +255,12 @@ function MessageBlock({ message, index, coachName, isLastMessage }: MessageBlock
       </View>
 
       {/* Message Content */}
-      <Text style={[styles.messageText, { color: palette.textSecondary }]}>
-        {message.content}
-      </Text>
+      <MarkdownText
+        content={message.content}
+        textStyle={[styles.messageText, { color: palette.textSecondary }]}
+        accentColor={palette.accent}
+        mutedColor={palette.textTertiary}
+      />
 
       {/* Insight Marker */}
       {message.is_insight && (

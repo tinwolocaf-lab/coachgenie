@@ -6,6 +6,48 @@ import {
   KeyInsight,
   Breakthrough,
 } from '@/types';
+import type { Database } from '@/types/database';
+
+interface BreakthroughActionItem {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+type BreakthroughRow = Database['public']['Tables']['breakthroughs']['Row'];
+
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];
+
+function isBreakthroughActionItem(value: unknown): value is BreakthroughActionItem {
+  if (!value || typeof value !== 'object') return false;
+
+  const maybeItem = value as Record<string, unknown>;
+  return (
+    typeof maybeItem.id === 'string' &&
+    typeof maybeItem.title === 'string' &&
+    typeof maybeItem.completed === 'boolean'
+  );
+}
+
+function parseBreakthroughActions(value: unknown): BreakthroughActionItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isBreakthroughActionItem);
+}
+
+function mapBreakthroughRow(row: BreakthroughRow): Breakthrough {
+  return {
+    ...row,
+    session_id: row.session_id ?? undefined,
+    coach_id: row.coach_id ?? '',
+    action_items: parseBreakthroughActions(row.action_items),
+  };
+}
 
 // Sessions
 export async function createSession(
@@ -303,7 +345,7 @@ export async function saveBreakthrough(
       .single();
 
     if (error) throw error;
-    return data as Breakthrough;
+    return data ? mapBreakthroughRow(data) : null;
   } catch (error) {
     console.error('Error saving breakthrough:', error);
     return null;
@@ -326,7 +368,7 @@ export async function getTodaysBreakthrough(
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    return data as Breakthrough | null;
+    return data ? mapBreakthroughRow(data) : null;
   } catch (error) {
     console.error('Error fetching today\'s breakthrough:', error);
     return null;
@@ -347,7 +389,7 @@ export async function getUserBreakthroughs(
       .limit(limit);
 
     if (error) throw error;
-    return (data || []) as Breakthrough[];
+    return (data || []).map(mapBreakthroughRow);
   } catch (error) {
     console.error('Error fetching breakthroughs:', error);
     return [];
@@ -371,14 +413,27 @@ export async function updateBreakthroughAction(
     if (fetchError) throw fetchError;
 
     // Update the action
-    const actionItems = (breakthrough.action_items || []).map(
-      (item: { id: string; title: string; completed: boolean }) =>
-        item.id === actionId ? { ...item, completed } : item
+    const currentActionItems: BreakthroughActionItem[] = [];
+    if (Array.isArray(breakthrough.action_items)) {
+      for (const actionItem of breakthrough.action_items) {
+        if (isBreakthroughActionItem(actionItem)) {
+          currentActionItems.push(actionItem);
+        }
+      }
+    }
+
+    const actionItems = currentActionItems.map((item) =>
+      item.id === actionId ? { ...item, completed } : item
     );
+    const actionItemsPayload: JsonValue[] = actionItems.map((item) => ({
+      id: item.id,
+      title: item.title,
+      completed: item.completed,
+    }));
 
     const { error } = await supabase
       .from('breakthroughs')
-      .update({ action_items: actionItems })
+      .update({ action_items: actionItemsPayload })
       .eq('id', breakthroughId);
 
     if (error) throw error;
@@ -410,10 +465,11 @@ export async function getActiveSession(
     if (!session) return null;
 
     // Get messages for this session
-    const messages = await getSessionMessages(session.id);
+    const sessionData = session as EnhancedSession;
+    const messages = await getSessionMessages(sessionData.id);
 
     return {
-      session: session as EnhancedSession,
+      session: sessionData,
       messages,
     };
   } catch (error) {

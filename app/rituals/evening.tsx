@@ -84,11 +84,6 @@ export default function EveningAuditScreen() {
     opacity: interpolate(glowPulse.value, [0, 1], [0.05, 0.12]),
   }));
 
-  // Load data
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
   useEffect(() => {
     if (auth?.user) {
       const metadata = auth.user.user_metadata || {};
@@ -131,6 +126,11 @@ export default function EveningAuditScreen() {
       console.error('Error loading evening data:', error);
     }
   }, [auth?.user?.id]);
+
+  // Load data
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const handleAddWin = () => {
     if (wins.length < 5) {

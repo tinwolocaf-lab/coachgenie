@@ -9,18 +9,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
   getRecordingPermissionsAsync, requestRecordingPermissionsAsync,
-  RecordingPresets, setAudioModeAsync, useAudioRecorder,
+  RecordingPresets, setAudioModeAsync, type RecordingStatus, useAudioRecorder,
 } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
-import { supabase } from '@/lib/supabase';
 import { Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-
-const getFunctionsBaseUrl = () => {
-  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  if (!url) throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL');
-  return `${url.replace(/\/$/, '')}/functions/v1`;
-};
+import { isFunctionUnavailableError, transcribeVoiceNote } from '@/lib/apiClient';
 
 interface VoiceModeProps {
   onTranscription: (text: string) => void;
@@ -31,7 +25,14 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
   const { palette } = useThemeSafe();
   const [isActive, setIsActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recordingUrlRef = React.useRef<string | null>(null);
+  const isRecordingRef = React.useRef(false);
+  const handleRecorderStatus = useCallback((status: RecordingStatus) => {
+    if (status.url) {
+      recordingUrlRef.current = status.url;
+    }
+  }, []);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY, handleRecorderStatus);
   const pulseScale = useSharedValue(1);
   const pulseOpacity = useSharedValue(0);
 
@@ -67,6 +68,32 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
     return next.status === 'granted';
   }, []);
 
+  const resetAudioModeSafely = useCallback(async () => {
+    await setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+  }, []);
+
+  const readRecorderUriSafely = useCallback((): string | null => {
+    try {
+      return recorder.uri;
+    } catch {
+      return null;
+    }
+  }, [recorder]);
+
+  const stopRecorderSafely = useCallback(async () => {
+    if (!isRecordingRef.current) {
+      return;
+    }
+
+    isRecordingRef.current = false;
+
+    try {
+      await recorder.stop();
+    } catch {
+      // Recorder can already be released during rapid UI transitions.
+    }
+  }, [recorder]);
+
   const startRecording = useCallback(async () => {
     try {
       const hasPermission = await ensurePermissions();
@@ -76,59 +103,63 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      recordingUrlRef.current = null;
       await recorder.prepareToRecordAsync();
       recorder.record();
+      isRecordingRef.current = true;
       setIsActive(true);
     } catch (err) {
-      console.error('VoiceMode: failed to start recording', err);
+      isRecordingRef.current = false;
+      console.warn('VoiceMode: failed to start recording', err);
       Alert.alert('Error', 'Could not start recording.');
     }
   }, [ensurePermissions, recorder]);
 
   const stopRecording = useCallback(async () => {
-    if (!recorder.isRecording) return;
+    if (!isRecordingRef.current) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setIsActive(false);
       setIsProcessing(true);
-      await recorder.stop();
-      await setAudioModeAsync({ allowsRecording: false });
-      const uri = recorder.uri;
+      await stopRecorderSafely();
+      await resetAudioModeSafely();
+      const uri = recordingUrlRef.current ?? readRecorderUriSafely();
       if (!uri) throw new Error('No recording URI');
       const base64Audio = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       const fileName = uri.split('/').pop() || 'voice.m4a';
       const ext = fileName.split('.').pop()?.toLowerCase();
       const mimeType = ext === 'wav' ? 'audio/wav' : ext === 'mp3' ? 'audio/mpeg' : 'audio/m4a';
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) throw new Error('Not authenticated');
-      const res = await fetch(`${getFunctionsBaseUrl()}/voice-transcribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ audio_base64: base64Audio, file_name: fileName, mime_type: mimeType }),
+      const text = await transcribeVoiceNote({
+        audioBase64: base64Audio,
+        fileName,
+        mimeType,
       });
-      if (!res.ok) throw new Error(await res.text());
-      const payload = await res.json();
-      const text = payload.text || '';
+
       if (text.trim()) {
         onTranscription(text.trim());
       } else {
         Alert.alert('No Speech Detected', 'Could not detect speech. Please try again.');
       }
     } catch (err) {
-      console.error('VoiceMode: transcription failed', err);
-      Alert.alert('Error', 'Transcription failed. Please try again.');
+      if (isFunctionUnavailableError(err)) {
+        console.warn('VoiceMode: transcription unavailable:', err.message);
+        Alert.alert('Voice Unavailable', 'Voice transcription service is unavailable right now. Please type instead.');
+      } else {
+        console.warn('VoiceMode: transcription failed', err);
+        Alert.alert('Error', 'Transcription failed. Please try again.');
+      }
     } finally {
+      await resetAudioModeSafely();
       setIsProcessing(false);
     }
-  }, [recorder, onTranscription]);
+  }, [onTranscription, readRecorderUriSafely, resetAudioModeSafely, stopRecorderSafely]);
 
   useEffect(() => {
     return () => {
-      if (recorder.isRecording) void recorder.stop().catch(() => undefined);
-      void setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+      void stopRecorderSafely();
+      void resetAudioModeSafely();
     };
-  }, [recorder]);
+  }, [resetAudioModeSafely, stopRecorderSafely]);
 
   const handlePress = () => {
     if (!isEnabled || isProcessing) return;

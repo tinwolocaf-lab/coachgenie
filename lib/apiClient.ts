@@ -6,6 +6,122 @@ export interface StreamCallbacks {
   onError?: (message: string) => void;
 }
 
+type ApiFunctionErrorKind =
+  | 'function_unavailable'
+  | 'unauthorized'
+  | 'forbidden'
+  | 'bad_request'
+  | 'rate_limited'
+  | 'server'
+  | 'unknown';
+
+export class ApiFunctionError extends Error {
+  readonly kind: ApiFunctionErrorKind;
+  readonly status?: number;
+  readonly code?: string;
+  readonly endpoint?: string;
+
+  constructor({
+    kind,
+    message,
+    status,
+    code,
+    endpoint,
+  }: {
+    kind: ApiFunctionErrorKind;
+    message: string;
+    status?: number;
+    code?: string;
+    endpoint?: string;
+  }) {
+    super(message);
+    this.name = 'ApiFunctionError';
+    this.kind = kind;
+    this.status = status;
+    this.code = code;
+    this.endpoint = endpoint;
+  }
+}
+
+interface JsonRecord {
+  [key: string]: unknown;
+}
+
+interface ParsedFunctionErrorPayload {
+  code?: string;
+  message?: string;
+  error?: string;
+}
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function getStringValue(record: JsonRecord, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function parseFunctionErrorPayload(raw: string): ParsedFunctionErrorPayload | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isJsonRecord(parsed)) return null;
+
+    return {
+      code: getStringValue(parsed, 'code'),
+      message: getStringValue(parsed, 'message'),
+      error: getStringValue(parsed, 'error'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function resolveFunctionErrorKind(
+  status: number,
+  payloadCode: string | undefined,
+  payloadMessage: string
+): ApiFunctionErrorKind {
+  const normalizedCode = payloadCode?.toUpperCase();
+  const normalizedMessage = payloadMessage.toLowerCase();
+
+  if (
+    status === 404 ||
+    normalizedCode === 'NOT_FOUND' ||
+    normalizedMessage.includes('requested function was not found')
+  ) {
+    return 'function_unavailable';
+  }
+  if (status === 401) return 'unauthorized';
+  if (status === 403) return 'forbidden';
+  if (status === 400) return 'bad_request';
+  if (status === 429) return 'rate_limited';
+  if (status >= 500) return 'server';
+  return 'unknown';
+}
+
+async function throwFunctionError(
+  response: Response,
+  fallbackMessage: string,
+  endpoint: string
+): Promise<never> {
+  const text = await response.text();
+  const payload = parseFunctionErrorPayload(text);
+  const message = payload?.message || payload?.error || text || fallbackMessage;
+
+  throw new ApiFunctionError({
+    kind: resolveFunctionErrorKind(response.status, payload?.code, message),
+    status: response.status,
+    code: payload?.code,
+    endpoint,
+    message,
+  });
+}
+
+export function isFunctionUnavailableError(error: unknown): error is ApiFunctionError {
+  return error instanceof ApiFunctionError && error.kind === 'function_unavailable';
+}
+
 function getFunctionsBaseUrl(): string {
   const explicit = process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL;
   if (explicit) {
@@ -104,8 +220,7 @@ export async function streamChat(
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to stream chat');
+    await throwFunctionError(response, 'Failed to stream chat', 'chat-stream');
   }
 
   let fullText = '';
@@ -182,8 +297,7 @@ export async function generateArtifacts(sessionId: string): Promise<{
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to generate artifacts');
+    await throwFunctionError(response, 'Failed to generate artifacts', 'artifacts-generate');
   }
 
   const payload = await response.json();
@@ -191,7 +305,17 @@ export async function generateArtifacts(sessionId: string): Promise<{
   const nextActions = payload?.next_actions?.items || [];
   const days = payload?.seven_day_plan?.days || [];
 
-  const planUpdates = days.map((day: { day: string; top_3?: string[]; time_blocks?: any[] }, index: number) => ({
+  const planUpdates = days.map((day: {
+    day: string;
+    top_3?: string[];
+    time_blocks?: {
+      id?: string;
+      start_time?: string;
+      end_time?: string;
+      title?: string;
+      category?: string;
+    }[];
+  }, index: number) => ({
     date: day.day,
     priorities: (day.top_3 || []).map((title: string, idx: number) => ({
       id: `${index + 1}-${idx + 1}`,
@@ -199,7 +323,7 @@ export async function generateArtifacts(sessionId: string): Promise<{
       completed: false,
       order: idx + 1,
     })),
-    time_blocks: (day.time_blocks || []).map((block: any, idx: number) => ({
+    time_blocks: (day.time_blocks || []).map((block, idx: number) => ({
       id: block.id || `${index + 1}-${idx + 1}`,
       start_time: block.start_time || '09:00',
       end_time: block.end_time || '10:00',
@@ -213,7 +337,18 @@ export async function generateArtifacts(sessionId: string): Promise<{
 
 export async function generatePlan(sessionId: string, horizonDays = 7): Promise<{
   artifact_id: string;
-  days: { day: string; top_3: string[]; time_blocks: unknown[]; notes?: string }[];
+  days: {
+    day: string;
+    top_3: string[];
+    time_blocks: {
+      id?: string;
+      start_time?: string;
+      end_time?: string;
+      title?: string;
+      category?: string;
+    }[];
+    notes?: string;
+  }[];
 }> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
@@ -228,8 +363,7 @@ export async function generatePlan(sessionId: string, horizonDays = 7): Promise<
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to generate plan');
+    await throwFunctionError(response, 'Failed to generate plan', 'plans-generate');
   }
 
   return response.json();
@@ -254,8 +388,7 @@ export async function generateBreakthrough(sessionId: string): Promise<{
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to generate breakthrough');
+    await throwFunctionError(response, 'Failed to generate breakthrough', 'sanctuary-breakthrough');
   }
 
   return response.json();
@@ -289,8 +422,7 @@ export async function generateClosingThought(params: {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to generate closing thought');
+    await throwFunctionError(response, 'Failed to generate closing thought', 'rituals-closing-thought');
   }
 
   const payload = await response.json();
@@ -319,8 +451,7 @@ export async function suggestRitualFromInsight(params: {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to suggest ritual');
+    await throwFunctionError(response, 'Failed to suggest ritual', 'rituals-suggest-ritual');
   }
 
   const payload = await response.json();
@@ -344,8 +475,7 @@ export async function generateInsightTitle(content: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to generate insight title');
+    await throwFunctionError(response, 'Failed to generate insight title', 'sanctuary-insight-title');
   }
 
   const payload = await response.json();
@@ -366,8 +496,7 @@ export async function expandOnPoint(point: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to expand on point');
+    await throwFunctionError(response, 'Failed to expand on point', 'sanctuary-expand');
   }
 
   const payload = await response.json();
@@ -388,8 +517,7 @@ export async function askHistory(query: string): Promise<{ answer: string; sourc
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to ask history');
+    await throwFunctionError(response, 'Failed to ask history', 'archive-ask-history');
   }
 
   return response.json();
@@ -409,8 +537,7 @@ export async function generateMonthlySynthesis(monthYear: string): Promise<unkno
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to generate monthly synthesis');
+    await throwFunctionError(response, 'Failed to generate monthly synthesis', 'archive-monthly-synthesis');
   }
 
   return response.json();
@@ -439,8 +566,7 @@ export async function transcribeVoiceNote(params: {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'Failed to transcribe voice note');
+    await throwFunctionError(response, 'Failed to transcribe voice note', 'voice-transcribe');
   }
 
   const reader = response.body?.getReader?.();
