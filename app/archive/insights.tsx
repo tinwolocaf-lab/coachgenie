@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -42,6 +43,7 @@ const CATEGORIES: { id: FilterCategory; label: string; icon: keyof typeof Ionico
   { id: 'systems', label: 'Systems', icon: 'cog-outline' },
   { id: 'general', label: 'General', icon: 'ellipse-outline' },
 ];
+const NO_INSIGHTS_IMAGE = require('../../assets/images/no-insights.png');
 
 export default function InsightsGalleryScreen() {
   const router = useRouter();
@@ -205,7 +207,7 @@ export default function InsightsGalleryScreen() {
       >
         {filteredInsights.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={48} color={palette.textTertiary} />
+            <Image source={NO_INSIGHTS_IMAGE} style={styles.emptyIllustration} resizeMode="contain" />
             <Text style={[styles.emptyTitle, { color: palette.textSecondary }]}>No insights found</Text>
             <Text style={[styles.emptySubtitle, { color: palette.textTertiary }]}>
               {searchQuery ? 'Try a different search term' : 'Your insights will appear here'}
@@ -483,6 +485,11 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     paddingVertical: Spacing.xxxl,
+  },
+  emptyIllustration: {
+    width: 156,
+    height: 116,
+    marginBottom: Spacing.sm,
   },
   emptyTitle: {
     fontSize: Typography.sizes.title,

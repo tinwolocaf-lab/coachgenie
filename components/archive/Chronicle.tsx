@@ -1,6 +1,6 @@
 // Chronicle - Sophisticated vertical timeline for session history
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -16,6 +16,8 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import { EnhancedSession } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
+
+const EMPTY_NO_SESSIONS_IMAGE = require('../../assets/images/empty-no-sessions.png');
 
 interface ChronicleProps {
   sessions: EnhancedSession[];
@@ -33,7 +35,7 @@ export function Chronicle({ sessions, onSessionPress, maxItems = 10 }: Chronicle
   if (displaySessions.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="time-outline" size={40} color={palette.textTertiary} />
+        <Image source={EMPTY_NO_SESSIONS_IMAGE} style={styles.emptyIllustration} resizeMode="contain" />
         <Text style={[styles.emptyText, { color: palette.textSecondary }]}>Your journey begins</Text>
         <Text style={[styles.emptySubtext, { color: palette.textTertiary }]}>
           Completed sessions will form your chronicle
@@ -224,6 +226,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
+  },
+  emptyIllustration: {
+    width: 148,
+    height: 112,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
     fontSize: Typography.sizes.title,

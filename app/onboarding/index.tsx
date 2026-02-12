@@ -1,13 +1,16 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Asset } from 'expo-asset';
 import { Ionicons } from '@expo/vector-icons';
+import { SvgUri } from 'react-native-svg';
 import Animated, {
   FadeIn,
   FadeInUp,
   FadeInDown,
+  interpolate,
+  useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -17,21 +20,35 @@ import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 
+const ONBOARDING_COACHES_ILLUSTRATION_URI = Asset.fromModule(
+  require('../../assets/images/onboarding-coaches.svg')
+).uri;
+const APP_ICON = require('../../assets/images/icon.png');
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
-  const shimmerPosition = useSharedValue(0);
+  const illustrationProgress = useSharedValue(0);
+  const [showOnboardingIllustration, setShowOnboardingIllustration] = useState(true);
 
   useEffect(() => {
-    shimmerPosition.value = withRepeat(
+    illustrationProgress.value = withRepeat(
       withTiming(1, {
-        duration: 3000,
-        easing: Easing.linear,
+        duration: 2800,
+        easing: Easing.inOut(Easing.quad),
       }),
       -1,
-      false
+      true
     );
-  }, [shimmerPosition]);
+  }, [illustrationProgress]);
+
+  const illustrationAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(illustrationProgress.value, [0, 1], [0, -10]) },
+      { scale: interpolate(illustrationProgress.value, [0, 1], [1, 1.015]) },
+    ],
+    opacity: interpolate(illustrationProgress.value, [0, 1], [0.94, 1]),
+  }));
 
   const handleStart = () => {
     router.push('/onboarding/name');
@@ -46,12 +63,7 @@ export default function WelcomeScreen() {
           style={styles.header}
         >
           <View style={styles.logoContainer}>
-            <LinearGradient
-              colors={[palette.accent, palette.accentLight]}
-              style={styles.logoGradient}
-            >
-              <Ionicons name="compass" size={40} color={palette.textInverse} />
-            </LinearGradient>
+            <Image source={APP_ICON} style={styles.logoImage} resizeMode="contain" />
           </View>
 
           <Text style={[styles.brandName, { color: palette.textPrimary }]}>Coachgenie</Text>
@@ -59,6 +71,22 @@ export default function WelcomeScreen() {
             <Text style={[styles.tagline, { color: palette.textTertiary }]}>Your personal guide to</Text>
             <Text style={[styles.taglineEmphasis, { color: palette.textPrimary }]}>exceptional growth</Text>
           </View>
+
+          {showOnboardingIllustration && (
+            <Animated.View
+              entering={FadeIn.duration(800).delay(450)}
+              style={styles.illustrationContainer}
+            >
+              <Animated.View style={[styles.illustrationMotion, illustrationAnimatedStyle]}>
+                <SvgUri
+                  width="100%"
+                  height="100%"
+                  uri={ONBOARDING_COACHES_ILLUSTRATION_URI}
+                  onError={() => setShowOnboardingIllustration(false)}
+                />
+              </Animated.View>
+            </Animated.View>
+          )}
         </Animated.View>
 
         {/* Editorial feature cards */}
@@ -161,12 +189,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     ...Shadows.gold,
   },
-  logoGradient: {
-    width: 80,
-    height: 80,
+  logoImage: {
+    width: 90,
+    height: 90,
     borderRadius: Radius.squircle,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   brandName: {
     fontSize: Typography.sizes.giant,
@@ -188,6 +214,16 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.serif,
     fontStyle: 'italic',
     marginTop: Spacing.xs,
+  },
+  illustrationContainer: {
+    marginTop: Spacing.xl,
+    width: '100%',
+    maxWidth: 360,
+    height: 172,
+  },
+  illustrationMotion: {
+    width: '100%',
+    height: '100%',
   },
 
   // Features

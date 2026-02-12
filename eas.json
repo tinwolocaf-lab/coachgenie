@@ -10,6 +10,12 @@
         "buildType": "apk"
       }
     },
+    "preview-ios-sim": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
     "production": {
       "android": {
         "buildType": "app-bundle"

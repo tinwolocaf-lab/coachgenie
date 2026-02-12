@@ -1,6 +1,6 @@
 // WisdomGrid - Magazine-style grid displaying Key Insight cards
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -21,6 +21,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = Spacing.md;
 const CARD_WIDTH_SMALL = (SCREEN_WIDTH - Spacing.xxl * 2 - GRID_GAP) / 2;
 const CARD_WIDTH_LARGE = SCREEN_WIDTH - Spacing.xxl * 2;
+const NO_INSIGHTS_IMAGE = require('../../assets/images/no-insights.png');
 
 interface WisdomGridProps {
   insights: KeyInsight[];
@@ -35,7 +36,7 @@ export function WisdomGrid({ insights, onInsightPress, maxItems = 6 }: WisdomGri
   if (displayInsights.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="sparkles-outline" size={40} color={palette.textTertiary} />
+        <Image source={NO_INSIGHTS_IMAGE} style={styles.emptyIllustration} resizeMode="contain" />
         <Text style={[styles.emptyText, { color: palette.textSecondary }]}>Your wisdom collection awaits</Text>
         <Text style={[styles.emptySubtext, { color: palette.textTertiary }]}>
           Insights from your coaching sessions will appear here
@@ -224,6 +225,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.xxxl,
     paddingHorizontal: Spacing.xxl,
+  },
+  emptyIllustration: {
+    width: 164,
+    height: 120,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
     fontSize: Typography.sizes.title,
