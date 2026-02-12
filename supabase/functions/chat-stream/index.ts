@@ -15,7 +15,7 @@ interface ChatStreamBody {
 const TIER_MODELS: Record<string, string> = {
   free: 'google/gemini-2.5-flash-lite',
   sovereign: 'openai/gpt-4o-mini',
-  oracle: 'anthropic/claude-sonnet-4-5-20250929',
+  oracle: 'anthropic/claude-sonnet-4.5',
 };
 
 serve(async (request) => {

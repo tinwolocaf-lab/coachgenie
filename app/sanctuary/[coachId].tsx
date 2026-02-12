@@ -45,6 +45,7 @@ import {
   saveInsight,
   saveBreakthrough,
 } from '@/lib/supabase-sanctuary';
+import { getUserTier, type SubscriptionTier } from '@/lib/feature-gates';
 
 // Components
 import { CoachIcon } from '@/components/ui/CoachIcon';
@@ -70,6 +71,7 @@ export default function SanctuaryScreen() {
   const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
 
   // UI state
   const [showEntryAnimation, setShowEntryAnimation] = useState(true);
@@ -135,6 +137,7 @@ export default function SanctuaryScreen() {
     }
 
     setAuthUserId(authUser.id);
+    setSubscriptionTier(await getUserTier());
 
     const dbSession = await createSession(authUser.id, coachId, 'New Session');
     if (!dbSession) {
@@ -228,6 +231,8 @@ export default function SanctuaryScreen() {
         onError: (message) => {
           throw new Error(message);
         },
+      }, {
+        subscriptionTier,
       });
 
       // Check for insights

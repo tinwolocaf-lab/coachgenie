@@ -44,7 +44,15 @@ import {
 } from '@/store/app';
 import { createSession, updateSessionById } from '@/lib/supabase-sanctuary';
 import { streamChat, generateArtifacts } from '@/lib/apiClient';
-import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach, canAccessFeature, FREE_COACH_ID } from '@/lib/feature-gates';
+import {
+  getUserTier,
+  getRemainingSessionsToday,
+  incrementSessionCount,
+  canAccessCoach,
+  canAccessFeature,
+  FREE_COACH_ID,
+  type SubscriptionTier,
+} from '@/lib/feature-gates';
 import { VoiceLiveSession } from '@/components/chat/VoiceLiveSession';
 
 interface ChatMessageRowProps {
@@ -114,6 +122,7 @@ export default function ChatScreen() {
   const [isGeneratingArtifacts, setIsGeneratingArtifacts] = useState(false);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
 
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useSharedValue(1);
@@ -140,6 +149,7 @@ export default function ChatScreen() {
 
     // Check feature gates
     const tier = await getUserTier();
+    setSubscriptionTier(tier);
     if (!canAccessCoach(tier, coachId)) {
       Alert.alert(
         'Upgrade Required',
@@ -156,7 +166,7 @@ export default function ChatScreen() {
     if (remaining <= 0) {
       Alert.alert(
         'Session Limit Reached',
-        'You\'ve used all 3 free sessions today. Upgrade for unlimited sessions.',
+        'You\'ve used all free sessions for today. Upgrade for higher daily limits.',
         [
           { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
           { text: 'Upgrade', onPress: () => { router.back(); router.push('/paywall'); } },
@@ -287,6 +297,8 @@ export default function ChatScreen() {
         onError: (message) => {
           throw new Error(message);
         },
+      }, {
+        subscriptionTier,
       });
 
       const assistantMessage: Message = {

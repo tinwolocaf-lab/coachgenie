@@ -346,7 +346,7 @@ export default function AccountScreen() {
                     <Ionicons name="checkmark-circle" size={20} color={palette.success} />
                   </View>
                   <View style={styles.settingContent}>
-                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>3 Sessions Per Day</Text>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>2 Sessions Per Day</Text>
                     <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Start your coaching journey today</Text>
                   </View>
                 </View>
@@ -381,7 +381,7 @@ export default function AccountScreen() {
                   <View style={styles.settingContent}>
                     <Text style={[styles.settingValue, { color: palette.textSecondary }]}>Unlock All Features</Text>
                     <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>
-                      Get all coaches, unlimited sessions, voice coaching & more
+                      Get all coaches, higher daily limits, voice tools, and premium models
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={palette.accent} />
@@ -601,16 +601,28 @@ export default function AccountScreen() {
                   <View style={styles.subscriptionFeatures}>
                     <View style={styles.featureItem}>
                       <Ionicons name="checkmark" size={16} color={palette.success} />
-                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>Unlimited AI coaching sessions</Text>
-                    </View>
-                    <View style={styles.featureItem}>
-                      <Ionicons name="checkmark" size={16} color={palette.success} />
-                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>All premium coaches</Text>
+                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>
+                        {subscriptionTier === 'oracle'
+                          ? '12 sessions per day'
+                          : subscriptionTier === 'sovereign'
+                            ? '8 sessions per day'
+                            : '2 sessions per day'}
+                      </Text>
                     </View>
                     <View style={styles.featureItem}>
                       <Ionicons name="checkmark" size={16} color={palette.success} />
                       <Text style={[styles.featureText, { color: palette.textSecondary }]}>
-                        {isSovereignMember ? 'All premium atmospheres' : 'Priority support'}
+                        {subscriptionTier === 'free' ? 'Daily Clarity coach access' : 'All premium coaches'}
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="checkmark" size={16} color={palette.success} />
+                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>
+                        {subscriptionTier === 'oracle'
+                          ? 'Premium reasoning + priority support'
+                          : subscriptionTier === 'sovereign'
+                            ? 'Voice coaching + integrations'
+                            : 'Text coaching with daily limits'}
                       </Text>
                     </View>
                   </View>

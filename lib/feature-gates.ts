@@ -21,8 +21,8 @@ export interface FeatureGate {
 
 export const FEATURE_GATES: Record<SubscriptionTier, FeatureGate> = {
   free: {
-    sessionsPerDay: 3,
-    messagesPerSession: 15,
+    sessionsPerDay: 2,
+    messagesPerSession: 12,
     maxCoaches: 1,
     allowedCoachIds: ['coach-daily-clarity'],
     voiceNotes: false,
@@ -31,13 +31,13 @@ export const FEATURE_GATES: Record<SubscriptionTier, FeatureGate> = {
     customCoaches: false,
     premiumModels: false,
     proactiveNudges: false,
-    voiceCoaching: true, // 3 voice sessions/day (2 min each) — taste of voice coaching
+    voiceCoaching: false,
     longitudinalDashboard: false,
     fullArchive: false,
   },
   sovereign: {
-    sessionsPerDay: Infinity,
-    messagesPerSession: Infinity,
+    sessionsPerDay: 8,
+    messagesPerSession: 40,
     maxCoaches: Infinity,
     allowedCoachIds: 'all',
     voiceNotes: true,
@@ -46,13 +46,13 @@ export const FEATURE_GATES: Record<SubscriptionTier, FeatureGate> = {
     customCoaches: false,
     premiumModels: false,
     proactiveNudges: false,
-    voiceCoaching: true, // Unlimited voice (5 min/session)
+    voiceCoaching: true,
     longitudinalDashboard: false,
     fullArchive: true,
   },
   oracle: {
-    sessionsPerDay: Infinity,
-    messagesPerSession: Infinity,
+    sessionsPerDay: 12,
+    messagesPerSession: 60,
     maxCoaches: Infinity,
     allowedCoachIds: 'all',
     voiceNotes: true,

@@ -6,6 +6,10 @@ export interface StreamCallbacks {
   onError?: (message: string) => void;
 }
 
+export interface StreamChatOptions {
+  subscriptionTier?: 'free' | 'sovereign' | 'oracle';
+}
+
 type ApiFunctionErrorKind =
   | 'function_unavailable'
   | 'unauthorized'
@@ -201,7 +205,8 @@ function handleSsePayload(payload: string, callbacks: StreamCallbacks) {
 export async function streamChat(
   sessionId: string,
   userMessage: string,
-  callbacks: StreamCallbacks = {}
+  callbacks: StreamCallbacks = {},
+  options: StreamChatOptions = {}
 ): Promise<{ text: string; messageId: string | null }> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
@@ -216,6 +221,7 @@ export async function streamChat(
       session_id: sessionId,
       user_message: userMessage,
       client_context: { screen: 'chat' },
+      subscription_tier: options.subscriptionTier,
     }),
   });
 
