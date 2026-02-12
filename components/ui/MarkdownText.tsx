@@ -43,6 +43,22 @@ const BLOCKQUOTE_REGEX = /^\s*>\s?(.*)$/;
 const HR_REGEX = /^\s*([-*_])\1{2,}\s*$/;
 const CODE_FENCE_REGEX = /^\s*```(\w+)?\s*$/;
 const INLINE_TOKEN_REGEX = /(\[[^\]]+\]\((?:https?:\/\/|mailto:|tel:)[^)]+\)|\*\*[^*\n]+?\*\*|__[^_\n]+?__|`[^`\n]+`|\*[^*\n]+?\*|_[^_\n]+?_)/g;
+const BLOCK_CACHE_LIMIT = 200;
+const INLINE_CACHE_LIMIT = 500;
+const markdownBlockCache = new Map<string, MarkdownBlock[]>();
+const inlineTokenCache = new Map<string, InlineToken[]>();
+
+function setCachedValue<T>(cache: Map<string, T>, key: string, value: T, limit: number): void {
+  cache.set(key, value);
+  if (cache.size <= limit) {
+    return;
+  }
+
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey) {
+    cache.delete(oldestKey);
+  }
+}
 
 function isBlockBoundary(line: string): boolean {
   return (
@@ -56,6 +72,11 @@ function isBlockBoundary(line: string): boolean {
 }
 
 function parseMarkdownBlocks(content: string): MarkdownBlock[] {
+  const cached = markdownBlockCache.get(content);
+  if (cached) {
+    return cached;
+  }
+
   const lines = content.replace(/\r\n/g, '\n').split('\n');
   const blocks: MarkdownBlock[] = [];
 
@@ -179,10 +200,16 @@ function parseMarkdownBlocks(content: string): MarkdownBlock[] {
     index += 1;
   }
 
+  setCachedValue(markdownBlockCache, content, blocks, BLOCK_CACHE_LIMIT);
   return blocks;
 }
 
 function parseInlineTokens(text: string): InlineToken[] {
+  const cached = inlineTokenCache.get(text);
+  if (cached) {
+    return cached;
+  }
+
   const tokens: InlineToken[] = [];
   let cursor = 0;
 
@@ -223,6 +250,7 @@ function parseInlineTokens(text: string): InlineToken[] {
     tokens.push({ type: 'text', value: text.slice(cursor) });
   }
 
+  setCachedValue(inlineTokenCache, text, tokens, INLINE_CACHE_LIMIT);
   return tokens;
 }
 

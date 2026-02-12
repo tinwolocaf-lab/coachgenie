@@ -14,6 +14,12 @@ import { initRevenueCat, identifyUser, logOutUser } from '@/lib/revenuecat';
 import { AuthProvider } from '@/lib/auth';
 import { GlobalErrorBoundary } from '@/components/system/GlobalErrorBoundary';
 
+function debugLog(...args: unknown[]): void {
+  if (__DEV__) {
+    console.log(...args);
+  }
+}
+
 /**
  * Parse authentication tokens from URL hash fragment
  * Handles URLs like: http://localhost:3000/#access_token=...&refresh_token=...&type=signup
@@ -64,11 +70,11 @@ function useDeepLinkHandler() {
   const handleDeepLink = useCallback(async (url: string) => {
     if (!url || !isSupabaseConfigured) return;
 
-    console.log('[DeepLink] Received URL:', url);
+    debugLog('[DeepLink] Received URL:', url);
 
     // Check if this is an integrations callback
     if (url.includes('integrations/callback')) {
-      console.log('[DeepLink] Integration callback detected');
+      debugLog('[DeepLink] Integration callback detected');
       const urlObj = new URL(url);
       const code = urlObj.searchParams.get('code');
       const provider = urlObj.searchParams.get('state') || urlObj.searchParams.get('provider');
@@ -85,7 +91,7 @@ function useDeepLinkHandler() {
     const tokens = parseAuthTokensFromUrl(url);
 
     if (tokens) {
-      console.log('[DeepLink] Found auth tokens, type:', tokens.type);
+      debugLog('[DeepLink] Found auth tokens, type:', tokens.type);
       setIsProcessingDeepLink(true);
 
       try {
@@ -99,7 +105,7 @@ function useDeepLinkHandler() {
           console.error('[DeepLink] Error setting session:', error.message);
           router.replace(`/(auth)/login?error=${encodeURIComponent(error.message)}`);
         } else if (data.session) {
-          console.log('[DeepLink] Session established for:', data.session.user?.email);
+          debugLog('[DeepLink] Session established for:', data.session.user?.email);
 
           // Determine navigation based on auth type
           if (tokens.type === 'signup' || tokens.type === 'email_change') {
@@ -338,7 +344,7 @@ function ThemedAppContentWithStatusBar() {
 
 export default function RootLayout() {
   const content = (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <AppContent />
       </SafeAreaProvider>
@@ -359,20 +365,20 @@ export default function RootLayout() {
           afterLogin: '/(tabs)',
         }}
         onSignIn={async (user) => {
-          console.log('[Auth] User signed in:', user.email);
+          debugLog('[Auth] User signed in:', user.email);
           if (user.email) {
             await identifyUser(user.id);
           }
         }}
         onSignOut={async () => {
-          console.log('[Auth] User signed out');
+          debugLog('[Auth] User signed out');
           await logOutUser();
         }}
         onError={(error) => {
-          console.log('[Auth] Error:', error.type, error.message);
+          debugLog('[Auth] Error:', error.type, error.message);
         }}
         onEmailVerified={(user) => {
-          console.log('[Auth] Email verified for:', user.email);
+          debugLog('[Auth] Email verified for:', user.email);
         }}
       >
         {guardedContent}
@@ -384,6 +390,9 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   loading: {
     flex: 1,
     justifyContent: 'center',

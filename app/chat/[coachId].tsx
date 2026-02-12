@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -46,6 +46,52 @@ import { createSession, updateSessionById } from '@/lib/supabase-sanctuary';
 import { streamChat, generateArtifacts } from '@/lib/apiClient';
 import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach, canAccessFeature } from '@/lib/feature-gates';
 import { VoiceLiveSession } from '@/components/chat/VoiceLiveSession';
+
+interface ChatMessageRowProps {
+  item: Message;
+  index: number;
+  coachName: string;
+  palette: ReturnType<typeof useThemeSafe>['palette'];
+}
+
+const ChatMessageRow = React.memo(function ChatMessageRow({
+  item,
+  index,
+  coachName,
+  palette,
+}: ChatMessageRowProps) {
+  const isUser = item.role === 'user';
+  const formattedTime = useMemo(
+    () => new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    [item.created_at],
+  );
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(400).delay(Math.min(index * 50, 200))}
+      style={styles.transcriptEntry}
+    >
+      <View style={styles.speakerRow}>
+        <View style={[styles.speakerDot, { backgroundColor: palette.accent }, isUser && { backgroundColor: palette.textPrimary }]} />
+        <Text style={[styles.speakerLabel, { color: palette.accent }, isUser && { color: palette.textPrimary }]}>
+          {isUser ? 'You' : coachName}
+        </Text>
+        <Text style={[styles.timestamp, { color: palette.textTertiary }]}>
+          {formattedTime}
+        </Text>
+      </View>
+
+      <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }, isUser && { borderLeftColor: palette.borderLight }]}>
+        <MarkdownText
+          content={item.content}
+          textStyle={[styles.transcriptText, { color: palette.textSecondary }, isUser && styles.transcriptTextUser]}
+          accentColor={palette.accent}
+          mutedColor={palette.textTertiary}
+        />
+      </View>
+    </Animated.View>
+  );
+});
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -353,37 +399,59 @@ export default function ChatScreen() {
     opacity: pulseAnim.value,
   }));
 
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const isUser = item.role === 'user';
+  const coachName = coach?.name ?? 'Coach';
 
-    return (
-      <Animated.View
-        entering={FadeInUp.duration(400).delay(Math.min(index * 50, 200))}
-        style={styles.transcriptEntry}
-      >
-        {/* Speaker indicator */}
-        <View style={styles.speakerRow}>
-          <View style={[styles.speakerDot, { backgroundColor: palette.accent }, isUser && { backgroundColor: palette.textPrimary }]} />
-          <Text style={[styles.speakerLabel, { color: palette.accent }, isUser && { color: palette.textPrimary }]}>
-            {isUser ? 'You' : coach?.name || 'Coach'}
-          </Text>
-          <Text style={[styles.timestamp, { color: palette.textTertiary }]}>
-            {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
+  const renderMessage = useCallback(
+    ({ item, index }: { item: Message; index: number }) => (
+      <ChatMessageRow
+        item={item}
+        index={index}
+        coachName={coachName}
+        palette={palette}
+      />
+    ),
+    [coachName, palette],
+  );
 
-        {/* Message content - transcript style */}
-        <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }, isUser && { borderLeftColor: palette.borderLight }]}>
-          <MarkdownText
-            content={item.content}
-            textStyle={[styles.transcriptText, { color: palette.textSecondary }, isUser && styles.transcriptTextUser]}
-            accentColor={palette.accent}
-            mutedColor={palette.textTertiary}
-          />
-        </View>
-      </Animated.View>
-    );
-  };
+  const messageKeyExtractor = useCallback((item: Message) => item.id, []);
+
+  const listFooter = useMemo(
+    () => (
+      <>
+        {isStreaming && streamingText && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.transcriptEntry}>
+            <View style={styles.speakerRow}>
+              <View style={[styles.speakerDot, { backgroundColor: palette.accent }]} />
+              <Text style={[styles.speakerLabel, { color: palette.accent }]}>{coachName}</Text>
+              <Animated.View style={[styles.typingIndicator, { backgroundColor: palette.accentMuted }, pulseStyle]}>
+                <Text style={[styles.typingText, { color: palette.accent }]}>composing</Text>
+              </Animated.View>
+            </View>
+            <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }]}>
+              <MarkdownText
+                content={streamingText}
+                textStyle={[styles.transcriptText, { color: palette.textSecondary }]}
+                accentColor={palette.accent}
+                mutedColor={palette.textTertiary}
+              />
+              <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
+            </View>
+          </Animated.View>
+        )}
+        {isStreaming && !streamingText && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.thinkingContainer}>
+            <View style={styles.thinkingDots}>
+              <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
+              <View style={[styles.thinkingDot, { backgroundColor: palette.accent, marginHorizontal: 4 }]} />
+              <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
+            </View>
+            <Text style={[styles.thinkingText, { color: palette.textTertiary }]}>{coachName} is reflecting...</Text>
+          </Animated.View>
+        )}
+      </>
+    ),
+    [coachName, isStreaming, palette.accent, palette.accentMuted, palette.textSecondary, palette.textTertiary, pulseStyle, streamingText],
+  );
 
   if (!coach) {
     return (
@@ -455,43 +523,15 @@ export default function ChatScreen() {
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
-            keyExtractor={(item) => item.id}
+            keyExtractor={messageKeyExtractor}
             contentContainerStyle={styles.messagesList}
             showsVerticalScrollIndicator={false}
-            ListFooterComponent={() => (
-              <>
-                {isStreaming && streamingText && (
-                  <Animated.View entering={FadeIn.duration(300)} style={styles.transcriptEntry}>
-                    <View style={styles.speakerRow}>
-                      <View style={[styles.speakerDot, { backgroundColor: palette.accent }]} />
-                      <Text style={[styles.speakerLabel, { color: palette.accent }]}>{coach.name}</Text>
-                      <Animated.View style={[styles.typingIndicator, { backgroundColor: palette.accentMuted }, pulseStyle]}>
-                        <Text style={[styles.typingText, { color: palette.accent }]}>composing</Text>
-                      </Animated.View>
-                    </View>
-                    <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }]}>
-                      <MarkdownText
-                        content={streamingText}
-                        textStyle={[styles.transcriptText, { color: palette.textSecondary }]}
-                        accentColor={palette.accent}
-                        mutedColor={palette.textTertiary}
-                      />
-                      <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
-                    </View>
-                  </Animated.View>
-                )}
-                {(isStreaming && !streamingText) && (
-                  <Animated.View entering={FadeIn.duration(300)} style={styles.thinkingContainer}>
-                    <View style={styles.thinkingDots}>
-                      <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
-                      <View style={[styles.thinkingDot, { backgroundColor: palette.accent, marginHorizontal: 4 }]} />
-                      <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
-                    </View>
-                    <Text style={[styles.thinkingText, { color: palette.textTertiary }]}>{coach.name} is reflecting...</Text>
-                  </Animated.View>
-                )}
-              </>
-            )}
+            ListFooterComponent={listFooter}
+            initialNumToRender={8}
+            maxToRenderPerBatch={6}
+            windowSize={9}
+            removeClippedSubviews={Platform.OS === 'android'}
+            keyboardShouldPersistTaps="handled"
           />
 
           {/* Premium Input */}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -222,7 +222,9 @@ export default function HomeScreen() {
           setFlashbackInsight({ insight: flashbacks.monthAgo, type: 'monthAgo' });
         }
       } catch (error) {
-        console.log('No flashback insights available:', error);
+        if (__DEV__) {
+          console.log('No flashback insights available:', error);
+        }
       }
     };
     loadFlashback();
@@ -235,7 +237,9 @@ export default function HomeScreen() {
           setCurrentStreak(practice.streakDays);
         }
       } catch (error) {
-        console.log('No practice data available:', error);
+        if (__DEV__) {
+          console.log('No practice data available:', error);
+        }
       }
     };
     loadPractice();
@@ -262,55 +266,70 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [loadData, auth.user]);
 
-  const handleStartCheckIn = () => {
+  const handleStartCheckIn = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (activeCoach) {
       router.push(`/chat/${activeCoach.id}`);
     } else {
       router.push('/(tabs)/coaches');
     }
-  };
+  }, [activeCoach, router]);
 
-  const handleOpenChat = () => {
+  const handleOpenChat = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (activeCoach) {
       router.push(`/chat/${activeCoach.id}`);
     }
-  };
+  }, [activeCoach, router]);
 
-  const handleAccountPress = () => {
+  const handleAccountPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/account');
-  };
+  }, [router]);
 
-  const handleFeaturedPress = () => {
+  const handleFeaturedPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (featuredCoach) {
       router.push(`/coach/${featuredCoach.id}`);
     }
-  };
+  }, [featuredCoach, router]);
 
-  const handleFlashbackPress = () => {
+  const handleFlashbackPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (flashbackInsight) {
       router.push(`/archive/insight/${flashbackInsight.insight.id}`);
     }
-  };
+  }, [flashbackInsight, router]);
 
-  const handleMorningPress = () => {
+  const handleMorningPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/rituals/morning');
-  };
+  }, [router]);
 
-  const handleEveningPress = () => {
+  const handleEveningPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/rituals/evening');
-  };
+  }, [router]);
 
-  const handlePracticePress = () => {
+  const handlePracticePress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/rituals');
-  };
+  }, [router]);
+
+  const handleOraclePress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/oracle');
+  }, [router]);
+
+  const handleArchivePress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/archive');
+  }, [router]);
+
+  const handleVaultPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/(tabs)/vault');
+  }, [router]);
 
   // Ritual toggle handler with flourish animation
   const handleRitualToggle = async (ritualId: string, isCompleted: boolean) => {
@@ -344,76 +363,93 @@ export default function HomeScreen() {
     }
   };
 
-  const today = new Date();
-  const dateString = today.toLocaleDateString('en-US', {
+  const dateString = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   });
 
-  // Calculate progress
-  const priorities: Priority[] = todayPlan?.top_priorities || [];
-  const completedCount = priorities.filter(p => p.completed).length;
+  const priorities: Priority[] = useMemo(
+    () => todayPlan?.top_priorities || [],
+    [todayPlan],
+  );
+  const completedCount = useMemo(
+    () => priorities.filter((priority) => priority.completed).length,
+    [priorities],
+  );
   const totalCount = priorities.length;
-  const progressPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-  // Overall ritual progress for nebula
-  const nebulaProgress = todayPractice?.overallProgress ?? progressPercentage;
-
-  // Default priorities if no plan exists
-  const displayPriorities = priorities.length > 0 ? priorities : [
-    { id: '1', title: 'Start your first check-in', completed: false, order: 1 },
-    { id: '2', title: 'Explore the Coach Library', completed: false, order: 2 },
-    { id: '3', title: 'Review your Context Vault', completed: false, order: 3 },
-  ];
-
-  // Featured ritual based on time of day
-  const featuredRitual = getFeaturedRitual(
-    timeOfDay,
-    !!todayPractice?.morningReflection,
-    !!todayPractice?.eveningReflection,
-    handleMorningPress,
-    handleEveningPress,
-    handleStartCheckIn,
-    palette,
+  const progressPercentage = useMemo(
+    () => (totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0),
+    [completedCount, totalCount],
   );
 
-  // Quick actions
-  const quickActions = [
-    {
-      id: 'oracle',
-      label: 'The Oracle',
-      icon: 'eye-outline' as keyof typeof Ionicons.glyphMap,
-      onPress: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push('/oracle');
+  const nebulaProgress = todayPractice?.overallProgress ?? progressPercentage;
+
+  const displayPriorities = useMemo(
+    () => (
+      priorities.length > 0
+        ? priorities
+        : [
+            { id: '1', title: 'Start your first check-in', completed: false, order: 1 },
+            { id: '2', title: 'Explore the Coach Library', completed: false, order: 2 },
+            { id: '3', title: 'Review your Context Vault', completed: false, order: 3 },
+          ]
+    ),
+    [priorities],
+  );
+
+  const featuredRitual = useMemo(
+    () => getFeaturedRitual(
+      timeOfDay,
+      !!todayPractice?.morningReflection,
+      !!todayPractice?.eveningReflection,
+      handleMorningPress,
+      handleEveningPress,
+      handleStartCheckIn,
+      palette,
+    ),
+    [
+      handleEveningPress,
+      handleMorningPress,
+      handleStartCheckIn,
+      palette,
+      timeOfDay,
+      todayPractice?.eveningReflection,
+      todayPractice?.morningReflection,
+    ],
+  );
+
+  const quickActions = useMemo(
+    () => [
+      {
+        id: 'oracle',
+        label: 'The Oracle',
+        icon: 'eye-outline' as keyof typeof Ionicons.glyphMap,
+        onPress: handleOraclePress,
       },
-    },
-    {
-      id: 'practice',
-      label: 'The Practice',
-      icon: 'leaf-outline' as keyof typeof Ionicons.glyphMap,
-      onPress: handlePracticePress,
-    },
-    {
-      id: 'archive',
-      label: 'The Archive',
-      icon: 'library-outline' as keyof typeof Ionicons.glyphMap,
-      onPress: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push('/archive');
+      {
+        id: 'practice',
+        label: 'The Practice',
+        icon: 'leaf-outline' as keyof typeof Ionicons.glyphMap,
+        onPress: handlePracticePress,
       },
-    },
-    {
-      id: 'vault',
-      label: 'Context Vault',
-      icon: 'diamond-outline' as keyof typeof Ionicons.glyphMap,
-      onPress: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push('/(tabs)/vault');
+      {
+        id: 'archive',
+        label: 'The Archive',
+        icon: 'library-outline' as keyof typeof Ionicons.glyphMap,
+        onPress: handleArchivePress,
       },
-    },
-  ];
+      {
+        id: 'vault',
+        label: 'Context Vault',
+        icon: 'diamond-outline' as keyof typeof Ionicons.glyphMap,
+        onPress: handleVaultPress,
+      },
+    ],
+    [handleArchivePress, handleOraclePress, handlePracticePress, handleVaultPress],
+  );
+
+  const streakDays = getStreakDays();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
@@ -595,7 +631,7 @@ export default function HomeScreen() {
                     </View>
                     <View style={styles.streakWrapper}>
                       <StreakTimeline
-                        days={getStreakDays()}
+                        days={streakDays}
                         currentStreak={currentStreak}
                       />
                     </View>

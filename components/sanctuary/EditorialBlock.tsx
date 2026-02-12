@@ -1,5 +1,5 @@
 // Editorial Block - Premium message card component
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,7 @@ interface EditorialBlockProps {
   isStreaming?: boolean;
 }
 
-export function EditorialBlock({
+function EditorialBlockComponent({
   message,
   coachName,
   coachColor,
@@ -76,11 +76,10 @@ export function EditorialBlock({
     opacity: highlightOpacity.value,
   }));
 
-  // Format timestamp elegantly
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const formattedTime = useMemo(() => {
+    const date = new Date(message.created_at);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  }, [message.created_at]);
 
   // Check for insight markers in content
   const renderContent = () => {
@@ -151,7 +150,7 @@ export function EditorialBlock({
           <Text style={[styles.speakerName, { color: palette.accent }, isUser && { color: palette.textPrimary }]}>
             {isUser ? 'You' : coachName}
           </Text>
-          <Text style={[styles.timestamp, { color: palette.textTertiary }]}>{formatTime(message.created_at)}</Text>
+          <Text style={[styles.timestamp, { color: palette.textTertiary }]}>{formattedTime}</Text>
           {isInsight && (
             <View style={styles.insightBadge}>
               <Ionicons name="bookmark" size={12} color={palette.accent} />
@@ -188,6 +187,23 @@ export function EditorialBlock({
     </Animated.View>
   );
 }
+
+function areEditorialBlockPropsEqual(
+  prev: Readonly<EditorialBlockProps>,
+  next: Readonly<EditorialBlockProps>,
+): boolean {
+  return (
+    prev.message === next.message &&
+    prev.coachName === next.coachName &&
+    prev.coachColor === next.coachColor &&
+    prev.index === next.index &&
+    prev.onLongPress === next.onLongPress &&
+    prev.onInsightPress === next.onInsightPress &&
+    prev.isStreaming === next.isStreaming
+  );
+}
+
+export const EditorialBlock = React.memo(EditorialBlockComponent, areEditorialBlockPropsEqual);
 
 // Key Insight Card - Appears when an insight is detected
 interface KeyInsightCardProps {

@@ -1,5 +1,5 @@
 // The Private Sanctuary - Premium Coaching Session
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -394,13 +394,13 @@ export default function SanctuaryScreen() {
   }, [isGenerating, showVoiceInput]);
 
   // Context menu handlers
-  const handleLongPress = (message: EnhancedMessage, position: { x: number; y: number }) => {
+  const handleLongPress = useCallback((message: EnhancedMessage, position: { x: number; y: number }) => {
     setSelectedMessage(message);
     setMenuPosition(position);
     setMenuVisible(true);
-  };
+  }, []);
 
-  const handleHighlight = async (message: EnhancedMessage) => {
+  const handleHighlight = useCallback(async (message: EnhancedMessage) => {
     // Toggle insight status
     setMessages(prev =>
       prev.map(m =>
@@ -408,9 +408,9 @@ export default function SanctuaryScreen() {
       )
     );
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, []);
 
-  const handleReflectFurther = async (message: EnhancedMessage) => {
+  const handleReflectFurther = useCallback(async (message: EnhancedMessage) => {
     if (!coach) return;
 
     setSelectedMessage(message);
@@ -435,7 +435,7 @@ export default function SanctuaryScreen() {
     } finally {
       setIsReflecting(false);
     }
-  };
+  }, [coach]);
 
   const handleSaveInsight = async (message: EnhancedMessage) => {
     if (!authUserId || !coachId) return;
@@ -552,23 +552,67 @@ export default function SanctuaryScreen() {
   }));
 
   // Render message
-  const renderMessage = ({ item, index }: { item: EnhancedMessage; index: number }) => (
-    <EditorialBlock
-      message={item}
-      coachName={coach?.name || 'Coach'}
-      coachColor={coach?.color || palette.accent}
-      index={index}
-      onLongPress={handleLongPress}
-      onInsightPress={() => {
-        const insight = detectInsightInMessage(item.content);
-        if (insight.insightContent) {
-          setPendingInsight({
-            content: insight.insightContent,
-            messageId: item.id,
-          });
-        }
-      }}
-    />
+  const coachName = coach?.name ?? 'Coach';
+  const coachColor = coach?.color ?? palette.accent;
+
+  const handleInsightPress = useCallback((message: EnhancedMessage) => {
+    const insight = detectInsightInMessage(message.content);
+    if (insight.insightContent) {
+      setPendingInsight({
+        content: insight.insightContent,
+        messageId: message.id,
+      });
+    }
+  }, []);
+
+  const renderMessage = useCallback(
+    ({ item, index }: { item: EnhancedMessage; index: number }) => (
+      <EditorialBlock
+        message={item}
+        coachName={coachName}
+        coachColor={coachColor}
+        index={index}
+        onLongPress={handleLongPress}
+        onInsightPress={handleInsightPress}
+      />
+    ),
+    [coachColor, coachName, handleInsightPress, handleLongPress],
+  );
+
+  const messageKeyExtractor = useCallback((item: EnhancedMessage) => item.id, []);
+
+  const listFooter = useMemo(
+    () => (
+      <>
+        {isGenerating && streamingText && (
+          <Animated.View entering={FadeIn.duration(300)}>
+            <EditorialBlock
+              message={{
+                id: 'streaming',
+                session_id: sessionId || '',
+                role: 'assistant',
+                content: streamingText,
+                created_at: new Date().toISOString(),
+              }}
+              coachName={coachName}
+              coachColor={coachColor}
+              index={messages.length}
+              isStreaming
+            />
+          </Animated.View>
+        )}
+
+        {isGenerating && !streamingText && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.typingContainer}>
+            <GoldPulseIndicator
+              coachName={coachName}
+              variant="dust"
+            />
+          </Animated.View>
+        )}
+      </>
+    ),
+    [coachColor, coachName, isGenerating, messages.length, sessionId, streamingText],
   );
 
   if (!coach) return null;
@@ -641,41 +685,15 @@ export default function SanctuaryScreen() {
           ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
-          keyExtractor={item => item.id}
+          keyExtractor={messageKeyExtractor}
           contentContainerStyle={styles.messagesList}
           showsVerticalScrollIndicator={false}
-          ListFooterComponent={() => (
-            <>
-              {/* Streaming message */}
-              {isGenerating && streamingText && (
-                <Animated.View entering={FadeIn.duration(300)}>
-                  <EditorialBlock
-                    message={{
-                      id: 'streaming',
-                      session_id: sessionId || '',
-                      role: 'assistant',
-                      content: streamingText,
-                      created_at: new Date().toISOString(),
-                    }}
-                    coachName={coach.name}
-                    coachColor={coach.color}
-                    index={messages.length}
-                    isStreaming
-                  />
-                </Animated.View>
-              )}
-
-              {/* Typing indicator */}
-              {isGenerating && !streamingText && (
-                <Animated.View entering={FadeIn.duration(300)} style={styles.typingContainer}>
-                  <GoldPulseIndicator
-                    coachName={coach.name}
-                    variant="dust"
-                  />
-                </Animated.View>
-              )}
-            </>
-          )}
+          ListFooterComponent={listFooter}
+          initialNumToRender={8}
+          maxToRenderPerBatch={6}
+          windowSize={9}
+          removeClippedSubviews={Platform.OS === 'android'}
+          keyboardShouldPersistTaps="handled"
         />
 
         {/* Pending Insight Card */}
