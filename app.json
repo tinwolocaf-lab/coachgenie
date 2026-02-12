@@ -50,6 +50,10 @@
             "DEFAULT"
           ]
         }
+      ],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -69,11 +73,18 @@
         }
       ],
       "expo-audio",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "baseUrl": ""
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "15b70504-d28c-41bf-b89b-5ab8937f4050"
+      }
     }
   }
 }
