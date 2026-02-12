@@ -4,6 +4,11 @@ import { SAMPLE_COACHES } from '@/data/coaches';
 import { Coach } from '@/types';
 
 const ONBOARDING_DATA_KEY = 'coachgenie_onboarding_data_v2';
+const LEGACY_ONBOARDING_KEY = 'coachgenie_onboarding';
+
+interface LegacyOnboardingState {
+  step?: string;
+}
 
 export interface OnboardingData {
   name: string;
@@ -94,14 +99,62 @@ export async function getOnboardingData(): Promise<OnboardingData> {
 }
 
 /**
- * Check if onboarding is complete (has name, vibes, coach, and completion timestamp)
+ * Check if onboarding is complete.
+ * Completion is represented by `completedAt` so legacy-complete users can be migrated once.
  */
 export async function isNewOnboardingComplete(): Promise<boolean> {
   try {
     const data = await getOnboardingData();
-    return !!(data.name && data.vibes.length > 0 && data.selectedCoachId && data.completedAt);
+    return Boolean(data.completedAt);
   } catch (error) {
     console.error('Error checking onboarding completion:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if legacy onboarding state is marked complete.
+ */
+export async function isLegacyOnboardingComplete(): Promise<boolean> {
+  try {
+    const stored = await AsyncStorage.getItem(LEGACY_ONBOARDING_KEY);
+    if (!stored) {
+      return false;
+    }
+
+    const parsed: unknown = JSON.parse(stored);
+    if (!parsed || typeof parsed !== 'object') {
+      return false;
+    }
+
+    const legacyState = parsed as LegacyOnboardingState;
+    return legacyState.step === 'complete';
+  } catch (error) {
+    console.warn('Error checking legacy onboarding completion:', error);
+    return false;
+  }
+}
+
+/**
+ * One-time migration from legacy onboarding completion marker.
+ * If legacy is complete but new onboarding is not, mark new onboarding complete.
+ */
+export async function migrateLegacyOnboardingCompletionIfNeeded(): Promise<boolean> {
+  try {
+    const legacyComplete = await isLegacyOnboardingComplete();
+    if (!legacyComplete) {
+      return false;
+    }
+
+    const newData = await getOnboardingData();
+    if (newData.completedAt) {
+      return false;
+    }
+
+    await completeNewOnboarding();
+    return true;
+  } catch (error) {
+    console.warn('Error migrating legacy onboarding completion:', error);
     return false;
   }
 }

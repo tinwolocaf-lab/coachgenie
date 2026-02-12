@@ -279,37 +279,166 @@ export default function AccountScreen() {
     );
   }
 
-  // If no auth configured, show guest account
+  // If no auth configured, show guest account with limited features
   if (!isSupabaseConfigured || !auth?.isAuthenticated) {
     return (
       <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'bottom']}>
-        <View style={styles.guestContainer}>
-          <Animated.View entering={FadeIn.duration(500)} style={styles.guestContent}>
-            <View style={styles.guestIconContainer}>
-              <LinearGradient
-                colors={[palette.textTertiary, palette.textSecondary]}
-                style={styles.guestIconBg}
+        <PremiumPageTransition style={styles.container}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
+              <TouchableOpacity
+                onPress={handleBack}
+                style={[styles.backButton, { backgroundColor: palette.cardBg }]}
               >
-                <Ionicons name="person-outline" size={40} color={palette.textInverse} />
-              </LinearGradient>
-            </View>
-            <Text style={[styles.guestTitle, { color: palette.textPrimary }]}>Guest Account</Text>
-            <Text style={[styles.guestText, { color: palette.textTertiary }]}>
-              Sign in to access your profile, sync your progress, and unlock personalized features.
-            </Text>
-            <Button
-              title="Sign In"
-              onPress={() => router.push('/(auth)/login')}
-              variant="gold"
-              size="lg"
-              fullWidth
-              style={styles.guestButton}
-            />
-            <TouchableOpacity onPress={handleBack} style={styles.guestBackButton}>
-              <Text style={[styles.guestBackText, { color: palette.textTertiary }]}>Go Back</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
+                <Ionicons name="arrow-back" size={22} color={palette.textSecondary} />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, dynamicStyles.headerTitle]}>Account</Text>
+              <View style={styles.headerSpacer} />
+            </Animated.View>
+
+            {/* Guest Profile Card */}
+            <Animated.View entering={FadeIn.duration(500).delay(100)} style={styles.guestProfileSection}>
+              <View style={styles.guestIconContainer}>
+                <LinearGradient
+                  colors={[palette.textTertiary, palette.textSecondary]}
+                  style={styles.guestIconBg}
+                >
+                  <Ionicons name="person-outline" size={40} color={palette.textInverse} />
+                </LinearGradient>
+              </View>
+              <Text style={[styles.guestTitle, { color: palette.textPrimary }]}>Guest Account</Text>
+              <Text style={[styles.guestText, { color: palette.textTertiary }]}>
+                Sign in to sync your progress across devices and unlock all features.
+              </Text>
+              <Button
+                title="Sign In"
+                onPress={() => router.push('/(auth)/login')}
+                variant="gold"
+                size="lg"
+                fullWidth
+                style={styles.guestButton}
+              />
+            </Animated.View>
+
+            {/* Guest Features Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(150)}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>What You Can Do</Text>
+              </View>
+
+              <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+                <View style={[styles.settingItem, { borderBottomColor: palette.borderLight }]}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.successLight }]}>
+                    <Ionicons name="checkmark-circle" size={20} color={palette.success} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>Daily Clarity Coach</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Free access to guided coaching sessions</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.settingItem, { borderBottomColor: palette.borderLight }]}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.successLight }]}>
+                    <Ionicons name="checkmark-circle" size={20} color={palette.success} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>3 Sessions Per Day</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Start your coaching journey today</Text>
+                  </View>
+                </View>
+
+                <View style={styles.settingItem}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.successLight }]}>
+                    <Ionicons name="checkmark-circle" size={20} color={palette.success} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>Theme Atmospheres</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Customize your experience</Text>
+                  </View>
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* Upgrade Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(180)}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Unlock More</Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}
+                onPress={() => router.push('/paywall')}
+                activeOpacity={0.9}
+              >
+                <View style={styles.settingItemClickable}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="diamond" size={20} color={palette.accent} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>Unlock All Features</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>
+                      Get all coaches, unlimited sessions, voice coaching & more
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={palette.accent} />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Atmospheres Section - Available in Guest Mode */}
+            <Animated.View entering={FadeInUp.duration(500).delay(200)}>
+              <AtmosphereGallery onPremiumRequired={handlePremiumRequired} />
+            </Animated.View>
+
+            {/* App Info Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(300)}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>App Info</Text>
+              </View>
+
+              <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+                <View style={[styles.settingItem, { borderBottomColor: palette.borderLight }]}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="information-circle-outline" size={20} color={palette.accent} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Version</Text>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>1.0.0</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.settingItemClickable}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    Linking.openURL('https://coachgenie.app/privacy');
+                  }}
+                >
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="shield-checkmark-outline" size={20} color={palette.accent} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Privacy Policy</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>View our privacy practices</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+
+            {/* App Info Footer */}
+            <Animated.View entering={FadeIn.duration(400).delay(400)} style={styles.appInfo}>
+              <Text style={[styles.appVersion, { color: palette.textTertiary }]}>CoachGenie v1.0.0</Text>
+              <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 CoachGenie. All rights reserved.</Text>
+            </Animated.View>
+
+            <View style={styles.bottomSpacer} />
+          </ScrollView>
+        </PremiumPageTransition>
       </SafeAreaView>
     );
   }
@@ -561,8 +690,8 @@ export default function AccountScreen() {
 
             {/* App Info */}
             <Animated.View entering={FadeIn.duration(400).delay(600)} style={styles.appInfo}>
-              <Text style={[styles.appVersion, { color: palette.textTertiary }]}>Coachgenie v1.0.0</Text>
-              <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 Coachgenie. All rights reserved.</Text>
+              <Text style={[styles.appVersion, { color: palette.textTertiary }]}>CoachGenie v1.0.0</Text>
+              <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 CoachGenie. All rights reserved.</Text>
             </Animated.View>
 
             {/* Bottom Spacer */}
@@ -923,6 +1052,13 @@ const styles = StyleSheet.create({
   guestContent: {
     alignItems: 'center',
     width: '100%',
+  },
+  guestProfileSection: {
+    alignItems: 'center',
+    marginHorizontal: EditorialSpacing.breathingMargin,
+    marginBottom: EditorialSpacing.sectionGap,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.xxl,
   },
   guestIconContainer: {
     marginBottom: Spacing.xl,

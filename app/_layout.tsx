@@ -5,7 +5,10 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
-import { isOnboardingComplete } from '@/store/onboarding';
+import {
+  isNewOnboardingComplete,
+  migrateLegacyOnboardingCompletionIfNeeded,
+} from '@/lib/onboarding';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
 import { FocusModeProvider } from '@/contexts/FocusModeContext';
@@ -61,24 +64,57 @@ function parseAuthTokensFromUrl(url: string): {
 }
 
 /**
- * Handle incoming deep link URLs for authentication
+ * Known app routes that can be navigated to via deep links.
+ * Maps deep link path segments to actual router paths.
+ */
+const DEEP_LINK_ROUTES = {
+  oracle: '/oracle',
+  sanctuary: '/(tabs)/coaches',
+  archive: '/archive',
+  rituals: '/rituals',
+  account: '/account',
+  paywall: '/paywall',
+  integrations: '/integrations',
+  'insights-dashboard': '/insights-dashboard',
+} as const;
+
+/**
+ * Handle incoming deep link URLs for authentication and navigation
  */
 function useDeepLinkHandler() {
   const router = useRouter();
   const [isProcessingDeepLink, setIsProcessingDeepLink] = useState(false);
 
+  /**
+   * Reset the navigation stack by dismissing all modals and returning to tabs.
+   * This prevents screens from stacking on top of each other when
+   * navigating via deep links.
+   */
+  const resetNavigationStack = useCallback(() => {
+    try {
+      // Dismiss all presented modals first
+      while (router.canDismiss()) {
+        router.dismiss();
+      }
+    } catch {
+      // Silently handle if dismiss fails (e.g., no modals to dismiss)
+    }
+  }, [router]);
+
   const handleDeepLink = useCallback(async (url: string) => {
-    if (!url || !isSupabaseConfigured) return;
+    if (!url) return;
 
     debugLog('[DeepLink] Received URL:', url);
 
     // Check if this is an integrations callback
     if (url.includes('integrations/callback')) {
+      if (!isSupabaseConfigured) return;
       debugLog('[DeepLink] Integration callback detected');
       const urlObj = new URL(url);
       const code = urlObj.searchParams.get('code');
       const provider = urlObj.searchParams.get('state') || urlObj.searchParams.get('provider');
       const error = urlObj.searchParams.get('error');
+      resetNavigationStack();
       if (error) {
         router.replace(`/integrations/callback?error=${encodeURIComponent(error)}`);
       } else if (code) {
@@ -91,6 +127,7 @@ function useDeepLinkHandler() {
     const tokens = parseAuthTokensFromUrl(url);
 
     if (tokens) {
+      if (!isSupabaseConfigured) return;
       debugLog('[DeepLink] Found auth tokens, type:', tokens.type);
       setIsProcessingDeepLink(true);
 
@@ -100,6 +137,8 @@ function useDeepLinkHandler() {
           access_token: tokens.accessToken!,
           refresh_token: tokens.refreshToken!,
         });
+
+        resetNavigationStack();
 
         if (error) {
           console.error('[DeepLink] Error setting session:', error.message);
@@ -125,8 +164,72 @@ function useDeepLinkHandler() {
       } finally {
         setIsProcessingDeepLink(false);
       }
+      return;
     }
-  }, [router]);
+
+    // Handle general navigation deep links (e.g., coachgenie://oracle, coachgenie://chat/coach-id)
+    try {
+      const parsed = Linking.parse(url);
+      const path = parsed.path;
+      if (!path) return;
+
+      debugLog('[DeepLink] Navigation deep link, path:', path);
+
+      // Reset the modal/screen stack before navigating
+      resetNavigationStack();
+
+      // Handle chat deep links: coachgenie://chat/{coachId}
+      if (path.startsWith('chat/')) {
+        const coachId = path.replace('chat/', '');
+        if (coachId) {
+          router.replace('/(tabs)');
+          // Small delay to let tabs mount before pushing modal
+          setTimeout(() => {
+            router.push(`/chat/${coachId}`);
+          }, 100);
+          return;
+        }
+      }
+
+      // Handle coach detail deep links: coachgenie://coach/{id}
+      if (path.startsWith('coach/')) {
+        const coachId = path.replace('coach/', '');
+        if (coachId) {
+          router.replace('/(tabs)');
+          setTimeout(() => {
+            router.push(`/coach/${coachId}`);
+          }, 100);
+          return;
+        }
+      }
+
+      // Handle known static routes
+      const routePath = DEEP_LINK_ROUTES[path as keyof typeof DEEP_LINK_ROUTES];
+      if (routePath) {
+        router.replace('/(tabs)');
+        setTimeout(() => {
+          router.push(routePath);
+        }, 100);
+        return;
+      }
+
+      // Handle tab deep links directly
+      if (path === 'home' || path === '') {
+        router.replace('/(tabs)');
+        return;
+      }
+      if (path === 'coaches' || path === 'plan' || path === 'vault') {
+        const tabRoute =
+          path === 'coaches' ? '/(tabs)/coaches' : path === 'plan' ? '/(tabs)/plan' : '/(tabs)/vault';
+        router.replace(tabRoute);
+        return;
+      }
+
+      debugLog('[DeepLink] Unknown path, ignoring:', path);
+    } catch (error) {
+      debugLog('[DeepLink] Error parsing navigation deep link:', error);
+    }
+  }, [router, resetNavigationStack]);
 
   useEffect(() => {
     // Handle URL when app is already open
@@ -162,7 +265,8 @@ function ThemedAppContent() {
 
   const checkOnboarding = async () => {
     try {
-      await isOnboardingComplete();
+      await migrateLegacyOnboardingCompletionIfNeeded();
+      await isNewOnboardingComplete();
     } catch (error) {
       console.error('Error checking onboarding:', error);
     } finally {

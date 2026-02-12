@@ -440,8 +440,9 @@ function MasterclassCoachCard({
         </View>
 
         {isLocked && (
-          <View style={styles.lockedOverlay}>
-            <Ionicons name="lock-closed" size={20} color={palette.textTertiary} />
+          <View style={[styles.lockedOverlay, { backgroundColor: palette.backgroundSecondary }]}>
+            <Ionicons name="lock-closed" size={14} color={palette.textTertiary} />
+            <Text style={[styles.lockedText, { color: palette.textTertiary }]}>Premium</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -632,7 +633,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.md,
     right: Spacing.md,
-    opacity: 0.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.pill,
+  },
+  lockedText: {
+    fontSize: Typography.sizes.micro,
+    fontWeight: Typography.weights.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: Typography.letterSpacing.wide,
   },
   masterclassImageContainer: {
     width: 72,

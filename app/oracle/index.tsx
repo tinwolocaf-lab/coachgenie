@@ -247,7 +247,18 @@ export default function OracleScreen() {
   // Render entrance
   if (showEntrance) {
     return (
-      <View style={[styles.entranceContainer, { backgroundColor: palette.background }]}>
+      <SafeAreaView style={[styles.entranceContainer, { backgroundColor: palette.background }]} edges={['top']}>
+        {/* Close button - always visible */}
+        <View style={styles.entranceHeader}>
+          <TouchableOpacity
+            onPress={handleClose}
+            style={[styles.entranceCloseButton, { backgroundColor: palette.cardBg, borderRadius: 20 }]}
+            hitSlop={12}
+          >
+            <Ionicons name="close" size={28} color={palette.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
         <Animated.View style={[styles.entranceContent, entranceAnimStyle]}>
           {/* Oracle symbol */}
           <View style={[styles.oracleSymbol, { borderColor: palette.accent + '30' }]}>
@@ -271,7 +282,7 @@ export default function OracleScreen() {
             />
           </Animated.View>
         </Animated.View>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -279,8 +290,12 @@ export default function OracleScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       {/* Header - Minimal, editorial */}
       <Animated.View style={[styles.header, headerAnimStyle]}>
-        <TouchableOpacity onPress={handleClose} style={styles.headerButton} hitSlop={12}>
-          <Ionicons name="chevron-down" size={24} color={palette.textTertiary} />
+        <TouchableOpacity
+          onPress={handleClose}
+          style={[styles.headerButton, { backgroundColor: palette.cardBg, borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }]}
+          hitSlop={12}
+        >
+          <Ionicons name="close" size={24} color={palette.textSecondary} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -433,11 +448,19 @@ const styles = StyleSheet.create({
   // Entrance
   entranceContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  entranceHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  entranceCloseButton: {
+    padding: Spacing.xs,
   },
   entranceContent: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: EditorialSpacing.breathingMargin,
   },
   oracleSymbol: {

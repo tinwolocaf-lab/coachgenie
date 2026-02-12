@@ -32,8 +32,8 @@ const TIERS: TierInfo[] = [
   {
     id: 'free',
     name: 'Free',
-    price: '$0',
-    yearlyPrice: '$0',
+    price: 'Free',
+    yearlyPrice: 'Free',
     tagline: 'Get started with coaching',
     features: [
       { label: '1 coach (Daily Clarity)', included: true },

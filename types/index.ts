@@ -132,25 +132,6 @@ export interface PlanUpdate {
   time_blocks?: TimeBlock[];
 }
 
-// Onboarding Types
-export interface OnboardingState {
-  step: OnboardingStep;
-  values: string[];
-  goals: Goal[];
-  constraints: Constraints;
-  preferences: Preferences;
-  selected_coach_id?: string;
-}
-
-export type OnboardingStep =
-  | 'welcome'
-  | 'values'
-  | 'goals'
-  | 'constraints'
-  | 'preferences'
-  | 'coach_selection'
-  | 'complete';
-
 // API Response Types
 export interface ApiResponse<T> {
   data?: T;

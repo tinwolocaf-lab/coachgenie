@@ -312,7 +312,14 @@ function StatItem({ value, label, suffix }: { value: number; label: string; suff
       <Text style={[styles.statValue, { color: palette.textPrimary }]}>
         {value}{suffix && <Text style={styles.statSuffix}>{suffix}</Text>}
       </Text>
-      <Text style={[styles.statLabel, { color: palette.textTertiary }]}>{label}</Text>
+      <Text
+        style={[styles.statLabel, { color: palette.textTertiary }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
@@ -383,7 +390,14 @@ function QuickActionCard({
           <Ionicons name={icon} size={20} color={palette.accent} />
         </View>
         <View style={styles.quickActionContent}>
-          <Text style={[styles.quickActionTitle, { color: palette.textSecondary }]}>{title}</Text>
+          <Text
+            style={[styles.quickActionTitle, { color: palette.textSecondary }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
+            {title}
+          </Text>
           <Text style={[styles.quickActionCount, { color: palette.textPrimary }]}>{count}</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />

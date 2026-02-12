@@ -1,26 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  FadeInUp,
-  FadeInDown,
-  useSharedValue,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
+import { Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { saveOnboardingData } from '@/lib/onboarding';
@@ -30,169 +23,78 @@ export default function NameScreen() {
   const { palette } = useThemeSafe();
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const gradientShift = useSharedValue(0);
 
-  // Subtle animated background gradient shift
-  useEffect(() => {
-    gradientShift.value = withTiming(1, {
-      duration: 6000,
-      easing: Easing.inOut(Easing.ease),
-    });
-  }, [gradientShift]);
+  const trimmedName = name.trim();
+  const isNameValid = trimmedName.length > 0;
 
   const handleContinue = async () => {
-    if (!name.trim()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    if (!isNameValid) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
 
     setIsLoading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      await saveOnboardingData({ name: name.trim() });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await saveOnboardingData({ name: trimmedName });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push('/onboarding/vibe');
     } catch (error) {
       console.error('Error saving name:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const isNameValid = name.trim().length > 0;
-
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: palette.background }]}
-      edges={['bottom']}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
-        >
-          {/* Animated gradient background */}
-          <LinearGradient
-            colors={[
-              palette.background,
-              palette.accentMuted,
-              palette.background,
-            ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gradientBg}
-          />
-
-          {/* Welcome Header */}
-          <Animated.View
-            entering={FadeInUp.duration(600).delay(200)}
-            style={styles.headerSection}
-          >
-            <View style={styles.welcomeIcon}>
-              <LinearGradient
-                colors={[palette.accent, palette.accentLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.iconGradient}
-              >
-                <Ionicons name="sparkles" size={32} color={palette.textInverse} />
-              </LinearGradient>
-            </View>
-
-            <Text style={[styles.appName, { color: palette.textPrimary }]}>
-              CoachGenie
-            </Text>
-            <Text style={[styles.appTagline, { color: palette.textTertiary }]}>
-              Your AI coaching companion
-            </Text>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Animated.View entering={FadeInUp.duration(420)} style={styles.headerSection}>
+            <Text style={[styles.title, { color: palette.textPrimary }]}>Let&apos;s start with your name</Text>
+            <Text style={[styles.subtitle, { color: palette.textTertiary }]}>Your coach will use this to personalize every session.</Text>
           </Animated.View>
 
-          {/* Name Input Section */}
           <Animated.View
-            entering={FadeInUp.duration(600).delay(400)}
-            style={styles.inputSection}
+            entering={FadeInUp.duration(420).delay(120)}
+            style={[styles.inputCard, { backgroundColor: palette.cardBg, borderColor: isNameValid ? palette.accent : palette.borderLight }]}
           >
-            <Text style={[styles.inputLabel, { color: palette.textPrimary }]}>
-              What should I call you?
-            </Text>
-
-            <View
-              style={[
-                styles.inputContainer,
-                {
-                  backgroundColor: palette.cardBg,
-                  borderColor: isNameValid ? palette.accent : palette.border,
-                },
-              ]}
-            >
+            <Text style={[styles.inputLabel, { color: palette.textPrimary }]}>Name</Text>
+            <View style={[styles.inputRow, { borderColor: palette.border }]}>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: palette.textPrimary,
-                    fontFamily: Typography.fonts.sans,
-                  },
-                ]}
-                placeholder="Enter your name..."
+                style={[styles.input, { color: palette.textPrimary }]}
+                placeholder="Type your name"
                 placeholderTextColor={palette.textTertiary}
                 value={name}
                 onChangeText={setName}
-                onFocus={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
                 editable={!isLoading}
                 maxLength={50}
+                autoFocus
                 returnKeyType="done"
                 onSubmitEditing={handleContinue}
-                autoFocus
-                selectTextOnFocus
+                onFocus={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
               />
-              {isNameValid && (
-                <Animated.View
-                  entering={FadeInDown.duration(300)}
-                  style={styles.inputIcon}
-                >
-                  <Ionicons name="checkmark-circle" size={20} color={palette.accent} />
-                </Animated.View>
-              )}
+              {isNameValid ? <Ionicons name="checkmark-circle" size={20} color={palette.accent} /> : null}
             </View>
-
-            {/* Character count */}
-            <Text style={[styles.charCount, { color: palette.textTertiary }]}>
-              {name.length} / 50
-            </Text>
+            <Text style={[styles.metaText, { color: palette.textTertiary }]}>{name.length}/50</Text>
           </Animated.View>
 
-          {/* Helpful hint */}
-          <Animated.View
-            entering={FadeInUp.duration(600).delay(600)}
-            style={styles.hintSection}
-          >
-            <View
-              style={[
-                styles.hintBox,
-                { backgroundColor: palette.accentMuted },
-              ]}
-            >
-              <Ionicons name="information-circle" size={16} color={palette.accent} />
-              <Text style={[styles.hintText, { color: palette.textPrimary }]}>
-                {"I'll use your name to personalize your coaching experience"}
-              </Text>
+          <Animated.View entering={FadeInUp.duration(420).delay(220)} style={styles.tipSection}>
+            <View style={[styles.tipCard, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="sparkles" size={16} color={palette.accent} />
+              <Text style={[styles.tipText, { color: palette.textPrimary }]}>You can always update this later in account settings.</Text>
             </View>
           </Animated.View>
         </ScrollView>
 
-        {/* Continue Button */}
-        <Animated.View
-          entering={FadeInUp.duration(400).delay(800)}
-          style={styles.footer}
-        >
+        <Animated.View entering={FadeInUp.duration(360).delay(280)} style={styles.footer}>
           <Button
             title="Continue"
             onPress={handleContinue}
@@ -216,105 +118,74 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    flex: 1,
     paddingHorizontal: Spacing.xxl,
-    paddingTop: Spacing.xxxl,
-    paddingBottom: Spacing.lg,
-    justifyContent: 'flex-start',
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.xl,
+    gap: Spacing.xl,
   },
-  gradientBg: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.3,
-  },
-
-  // Header
   headerSection: {
-    alignItems: 'center',
-    marginBottom: Spacing.xxxl,
-    zIndex: 1,
+    gap: Spacing.sm,
   },
-  welcomeIcon: {
-    marginBottom: Spacing.xl,
-    ...Shadows.gold,
-  },
-  iconGradient: {
-    width: 72,
-    height: 72,
-    borderRadius: Radius.squircle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appName: {
+  title: {
     fontSize: Typography.sizes.display,
-    fontWeight: Typography.weights.light,
     fontFamily: Typography.fonts.serif,
-    marginBottom: Spacing.sm,
+    fontWeight: Typography.weights.light,
     letterSpacing: Typography.letterSpacing.tight,
   },
-  appTagline: {
-    fontSize: Typography.sizes.bodyLarge,
-    fontFamily: Typography.fonts.sans,
-    letterSpacing: Typography.letterSpacing.wide,
+  subtitle: {
+    fontSize: Typography.sizes.body,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
-
-  // Input Section
-  inputSection: {
-    marginBottom: Spacing.xxxl,
-    zIndex: 1,
+  inputCard: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+    ...Shadows.sm,
   },
   inputLabel: {
-    fontSize: Typography.sizes.title,
+    fontSize: Typography.sizes.caption,
+    letterSpacing: Typography.letterSpacing.wide,
+    textTransform: 'uppercase',
     fontWeight: Typography.weights.semibold,
-    fontFamily: Typography.fonts.serif,
-    marginBottom: Spacing.lg,
-    letterSpacing: Typography.letterSpacing.tight,
   },
-  inputContainer: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: Radius.xl,
-    borderWidth: 1.5,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    marginBottom: Spacing.sm,
-    ...Shadows.sm,
+    gap: Spacing.sm,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    minHeight: 52,
   },
   input: {
     flex: 1,
     fontSize: Typography.sizes.bodyLarge,
-    fontWeight: Typography.weights.regular,
+    fontFamily: Typography.fonts.sans,
   },
-  inputIcon: {
-    marginLeft: Spacing.md,
-  },
-  charCount: {
+  metaText: {
+    alignSelf: 'flex-end',
     fontSize: Typography.sizes.caption,
-    textAlign: 'right',
   },
-
-  // Hint
-  hintSection: {
-    marginBottom: Spacing.xxl,
-    zIndex: 1,
+  tipSection: {
+    marginTop: Spacing.xs,
   },
-  hintBox: {
+  tipCard: {
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.lg,
-    gap: Spacing.md,
   },
-  hintText: {
+  tipText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.snug,
   },
-
-  // Footer
   footer: {
     paddingHorizontal: Spacing.xxl,
     paddingBottom: Spacing.xl,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.md,
   },
 });

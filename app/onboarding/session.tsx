@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -91,19 +93,24 @@ export default function FirstSessionScreen() {
   const loadCoachAndStartSession = async () => {
     try {
       const data = await getOnboardingData();
-      const selectedCoach = SAMPLE_COACHES.find((c) => c.id === data.selectedCoachId);
+      // Fallback to Daily Clarity Coach (the free coach) if no coach selected
+      const selectedCoach = SAMPLE_COACHES.find((c) => c.id === data.selectedCoachId)
+        || SAMPLE_COACHES.find((c) => c.id === 'coach-daily-clarity')
+        || SAMPLE_COACHES[0];
 
       if (selectedCoach) {
         setCoachInfo(selectedCoach);
 
         // Generate opening message
-        const vibeLabels = data.vibes.map((v) =>
-          v
-            .replace('-', ' ')
-            .split(' ')
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ')
-        );
+        const vibeLabels = data.vibes.length > 0
+          ? data.vibes.map((v) =>
+              v
+                .replace('-', ' ')
+                .split(' ')
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ')
+            )
+          : ['Personal Growth'];
 
         const openingQuestion = getOpeningQuestion(vibeLabels);
 
@@ -119,6 +126,19 @@ export default function FirstSessionScreen() {
       }
     } catch (error) {
       console.error('Error loading coach:', error);
+      // Even on error, try to start with a default coach
+      const defaultCoach = SAMPLE_COACHES[0];
+      if (defaultCoach) {
+        setCoachInfo(defaultCoach);
+        const openingMessage: ChatMessage = {
+          id: '1',
+          role: 'coach',
+          content: 'Welcome! I\'m here to help you make meaningful progress. What\'s on your mind today?',
+          timestamp: new Date(),
+        };
+        setMessages([openingMessage]);
+        setSessionStarted(true);
+      }
     }
   };
 
@@ -190,6 +210,7 @@ export default function FirstSessionScreen() {
         edges={['bottom']}
       >
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={palette.accent} style={{ marginBottom: 16 }} />
           <Text style={[styles.loadingText, { color: palette.textTertiary }]}>
             Starting your first coaching session...
           </Text>
@@ -213,12 +234,7 @@ export default function FirstSessionScreen() {
           entering={FadeInUp.duration(600).delay(200)}
           style={[styles.header, { borderBottomColor: palette.border }]}
         >
-          <CoachIcon
-            iconName={coachInfo.icon_name}
-            color={coachInfo.color}
-            size="md"
-            variant="default"
-          />
+          <OnboardingCoachAvatar coach={coachInfo} />
           <View style={styles.headerContent}>
             <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>
               {coachInfo.name}
@@ -364,6 +380,24 @@ function ChatBubble({ message }: ChatBubbleProps) {
   );
 }
 
+function OnboardingCoachAvatar({ coach }: { coach: Coach }) {
+  const { palette } = useThemeSafe();
+
+  if (coach.image) {
+    return (
+      <View style={[styles.headerAvatarFrame, { borderColor: palette.borderLight, backgroundColor: palette.cardBg }]}>
+        <Image source={coach.image} style={styles.headerAvatarImage} resizeMode="cover" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.headerAvatarFrame, { borderColor: palette.borderLight, backgroundColor: palette.cardBg }]}>
+      <CoachIcon iconName={coach.icon_name} color={coach.color} size="md" variant="default" />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -392,6 +426,19 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
+  },
+  headerAvatarFrame: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  headerAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   headerTitle: {
     fontSize: Typography.sizes.bodyLarge,

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
@@ -25,13 +26,19 @@ export default function VaultScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [tempValues, setTempValues] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
+      setHasError(false);
       const data = await getContextVault();
       setVault(data);
     } catch (error) {
       console.error('Error loading vault:', error);
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -82,12 +89,67 @@ export default function VaultScreen() {
     }
   };
 
-  if (!vault) {
+  // Loading state
+  if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
         <View style={styles.loading}>
+          <ActivityIndicator size="large" color={palette.accent} style={{ marginBottom: Spacing.md }} />
           <Text style={[styles.loadingText, { color: palette.textTertiary }]}>Loading your vault...</Text>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Error or empty state - show setup prompt
+  if (!vault || hasError) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
+        <PremiumPageTransition>
+          <View style={styles.emptyStateContainer}>
+            <View style={[styles.emptyStateIcon, { backgroundColor: palette.accentMuted }]}>
+              <Ionicons name="diamond-outline" size={48} color={palette.accent} />
+            </View>
+            <Text style={[styles.emptyStateTitle, { color: palette.textPrimary }]}>
+              Set Up Your Context Vault
+            </Text>
+            <Text style={[styles.emptyStateText, { color: palette.textTertiary }]}>
+              Your Context Vault stores your values, goals, and preferences to personalize your coaching experience.
+            </Text>
+            <Button
+              title="Start Setup"
+              onPress={async () => {
+                // Initialize with default vault
+                const defaultVault: ContextVault = {
+                  id: 'local-vault',
+                  user_id: 'local-user',
+                  values: [],
+                  goals: [],
+                  constraints: {
+                    available_hours_per_day: 4,
+                    energy_level: 'medium',
+                    best_time_for_focus: 'morning',
+                  },
+                  preferences: {
+                    tone: 50,
+                    directness: 50,
+                    response_length: 'balanced',
+                  },
+                  updated_at: new Date().toISOString(),
+                };
+                await saveContextVault(defaultVault);
+                setVault(defaultVault);
+              }}
+              variant="gold"
+              size="lg"
+            />
+            {hasError && (
+              <TouchableOpacity onPress={loadData} style={styles.retryButton}>
+                <Text style={[styles.retryText, { color: palette.accent }]}>Try Again</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </PremiumPageTransition>
       </SafeAreaView>
     );
   }
@@ -552,5 +614,41 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.caption,
     textAlign: 'center',
     marginTop: Spacing.lg,
+  },
+  // Empty State
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xxl,
+  },
+  emptyStateIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xl,
+  },
+  emptyStateTitle: {
+    fontSize: Typography.sizes.headline,
+    fontWeight: Typography.weights.bold,
+    fontFamily: Typography.fonts.serif,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  emptyStateText: {
+    fontSize: Typography.sizes.body,
+    textAlign: 'center',
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
+    marginBottom: Spacing.xxl,
+  },
+  retryButton: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+  },
+  retryText: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.medium,
   },
 });

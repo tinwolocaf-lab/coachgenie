@@ -44,7 +44,7 @@ import {
 } from '@/store/app';
 import { createSession, updateSessionById } from '@/lib/supabase-sanctuary';
 import { streamChat, generateArtifacts } from '@/lib/apiClient';
-import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach, canAccessFeature } from '@/lib/feature-gates';
+import { getUserTier, getRemainingSessionsToday, incrementSessionCount, canAccessCoach, canAccessFeature, FREE_COACH_ID } from '@/lib/feature-gates';
 import { VoiceLiveSession } from '@/components/chat/VoiceLiveSession';
 
 interface ChatMessageRowProps {
@@ -174,31 +174,54 @@ export default function ChatScreen() {
 
     const { data: authData } = await supabase.auth.getSession();
     const authUser = authData.session?.user;
-    if (!authUser) {
+
+    // Allow guest access to free coach only
+    const isGuestAccessingFreeCoach = !authUser && coachId === FREE_COACH_ID;
+
+    if (!authUser && !isGuestAccessingFreeCoach) {
       Alert.alert('Sign in required', 'Please sign in to start a coaching session.');
       router.replace('/(auth)/login');
       return;
     }
 
     await incrementSessionCount();
-    const dbSession = await createSession(authUser.id, coachId, 'New Session');
-    if (!dbSession) {
-      Alert.alert('Error', 'Could not start a session. Please try again.');
-      return;
+
+    let currentSessionId: string;
+
+    if (isGuestAccessingFreeCoach) {
+      // Guest mode: create local-only session
+      currentSessionId = `guest-session-${Date.now()}`;
+      const localSession: Session = {
+        id: currentSessionId,
+        user_id: 'guest-user',
+        coach_id: coachId,
+        title: 'Guest Session',
+        status: 'active',
+        created_at: new Date().toISOString(),
+      };
+      await addSession(localSession);
+    } else {
+      // Authenticated user: create database session
+      const dbSession = await createSession(authUser!.id, coachId, 'New Session');
+      if (!dbSession) {
+        Alert.alert('Error', 'Could not start a session. Please try again.');
+        return;
+      }
+      currentSessionId = dbSession.id;
+
+      const newSession: Session = {
+        id: dbSession.id,
+        user_id: authUser!.id,
+        coach_id: coachId,
+        title: dbSession.title,
+        status: dbSession.status as Session['status'],
+        created_at: dbSession.created_at,
+      };
+
+      await addSession(newSession);
     }
 
-    setSessionId(dbSession.id);
-
-    const newSession: Session = {
-      id: dbSession.id,
-      user_id: authUser.id,
-      coach_id: coachId,
-      title: dbSession.title,
-      status: dbSession.status as Session['status'],
-      created_at: dbSession.created_at,
-    };
-
-    await addSession(newSession);
+    setSessionId(currentSessionId);
 
     let greeting = `Welcome. I'm here to help you make meaningful progress today. What's on your mind?`;
 
@@ -213,7 +236,7 @@ export default function ChatScreen() {
 
     const initialMessage: Message = {
       id: Date.now().toString(),
-      session_id: dbSession.id,
+      session_id: currentSessionId,
       role: 'assistant',
       content: greeting,
       created_at: new Date().toISOString(),

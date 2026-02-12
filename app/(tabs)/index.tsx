@@ -55,6 +55,7 @@ import {
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getFlashbackInsights } from '@/lib/supabase-archive';
 import { getTodayPractice, getTimeOfDay, completeRitual, uncompleteRitual } from '@/lib/supabase-rituals';
+import { getOnboardingData } from '@/lib/onboarding';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -206,12 +207,28 @@ export default function HomeScreen() {
   }, [loadData]);
 
   useEffect(() => {
+    const loadUserName = async () => {
+      const user = auth.user;
+      if (user) {
+        const metadata = user.user_metadata || {};
+        const name = metadata.full_name || metadata.name || user.email?.split('@')[0] || '';
+        setUserName(name.split(' ')[0]);
+      } else {
+        // Guest mode - try to get name from onboarding data
+        try {
+          const onboardingData = await getOnboardingData();
+          if (onboardingData.name) {
+            setUserName(onboardingData.name.split(' ')[0]);
+          }
+        } catch {
+          // Silently ignore - user will just see greeting without name
+        }
+      }
+    };
+    loadUserName();
+
     const user = auth.user;
     if (!user) return;
-
-    const metadata = user.user_metadata || {};
-    const name = metadata.full_name || metadata.name || user.email?.split('@')[0] || '';
-    setUserName(name.split(' ')[0]);
 
     const loadFlashback = async () => {
       try {

@@ -3,105 +3,88 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
-import { isOnboardingComplete } from '@/store/onboarding';
-import { isNewOnboardingComplete } from '@/lib/onboarding';
+import {
+  isNewOnboardingComplete,
+  migrateLegacyOnboardingCompletionIfNeeded,
+} from '@/lib/onboarding';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
-// Authenticated index - uses useAuth hook
-function AuthenticatedIndex() {
-  const { palette } = useThemeSafe();
-  const auth = useAuthSafe();
-  const isAuthenticated = auth.isAuthenticated;
-  const authLoading = auth.isLoading;
-
+function useOnboardingStatus() {
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
   useEffect(() => {
-    checkStatus();
+    let mounted = true;
+
+    const checkStatus = async () => {
+      try {
+        await migrateLegacyOnboardingCompletionIfNeeded();
+        const completed = await isNewOnboardingComplete();
+        if (mounted) {
+          setOnboardingCompleted(completed);
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void checkStatus();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const checkStatus = async () => {
-    try {
-      // Check new 4-step onboarding first, fall back to legacy
-      let completed = await isNewOnboardingComplete();
-      if (!completed) {
-        completed = await isOnboardingComplete();
-      }
-      setOnboardingCompleted(completed);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  return { isLoading, onboardingCompleted };
+}
 
-  // Wait for both local state and auth state
-  if (isLoading || authLoading) {
-    return (
-      <View style={[styles.container, { backgroundColor: palette.background }]}>
-        <ActivityIndicator size="large" color={palette.accent} />
-      </View>
-    );
+function LoadingScreen() {
+  const { palette } = useThemeSafe();
+
+  return (
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <ActivityIndicator size="large" color={palette.accent} />
+    </View>
+  );
+}
+
+function AuthenticatedIndex() {
+  const auth = useAuthSafe();
+  const { isLoading, onboardingCompleted } = useOnboardingStatus();
+
+  if (isLoading || auth.isLoading) {
+    return <LoadingScreen />;
   }
 
-  // If user is not authenticated, go to login
-  if (!isAuthenticated) {
+  if (!auth.isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
   }
 
-  // If onboarding is complete, go to main app
   if (onboardingCompleted) {
     return <Redirect href="/(tabs)" />;
   }
 
-  // Otherwise, go to onboarding
   return <Redirect href="/onboarding" />;
 }
 
-// Guest index - no auth hook needed
 function GuestIndex() {
-  const { palette } = useThemeSafe();
-  const [isLoading, setIsLoading] = useState(true);
-  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
-
-  useEffect(() => {
-    checkStatus();
-  }, []);
-
-  const checkStatus = async () => {
-    try {
-      // Check new 4-step onboarding first, fall back to legacy
-      let completed = await isNewOnboardingComplete();
-      if (!completed) {
-        completed = await isOnboardingComplete();
-      }
-      setOnboardingCompleted(completed);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { isLoading, onboardingCompleted } = useOnboardingStatus();
 
   if (isLoading) {
-    return (
-      <View style={[styles.container, { backgroundColor: palette.background }]}>
-        <ActivityIndicator size="large" color={palette.accent} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
-  // If onboarding is complete, go to main app
   if (onboardingCompleted) {
     return <Redirect href="/(tabs)" />;
   }
 
-  // Otherwise, go to onboarding
   return <Redirect href="/onboarding" />;
 }
 
-// Main export - decides which component to render
 export default function Index() {
   if (isSupabaseConfigured) {
     return <AuthenticatedIndex />;

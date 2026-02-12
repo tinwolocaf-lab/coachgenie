@@ -77,7 +77,13 @@ export function getGates(tier: SubscriptionTier): FeatureGate {
   return FEATURE_GATES[tier];
 }
 
+// The free coach ID - always accessible regardless of tier
+export const FREE_COACH_ID = 'coach-daily-clarity';
+
 export function canAccessCoach(tier: SubscriptionTier, coachId: string): boolean {
+  // Daily Clarity Coach is always accessible (it's the free coach)
+  if (coachId === FREE_COACH_ID) return true;
+
   const gates = FEATURE_GATES[tier];
   if (gates.allowedCoachIds === 'all') return true;
   return gates.allowedCoachIds.includes(coachId);

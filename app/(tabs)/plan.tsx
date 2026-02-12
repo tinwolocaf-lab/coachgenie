@@ -365,15 +365,26 @@ export default function PlanScreen() {
               <Text style={[styles.emptyText, { color: palette.textTertiary }]}>
                 {activeCoachId
                   ? 'Generate a personalized plan based on your values and goals.'
-                  : 'Install a coach to start crafting your ideal week.'}
+                  : 'Select a coach to start crafting your ideal week.'}
               </Text>
-              {activeCoachId && (
+              {activeCoachId ? (
                 <Button
-                  title="Create My Plan"
+                  title="Generate Your First Plan"
                   onPress={handleGeneratePlan}
                   loading={isGeneratingPlan}
                   variant="gold"
+                  size="lg"
                   style={styles.emptyButton}
+                  icon={<Ionicons name="sparkles" size={18} color={palette.textInverse} />}
+                />
+              ) : (
+                <Button
+                  title="Explore Coaches"
+                  onPress={() => router.push('/(tabs)/coaches')}
+                  variant="gold"
+                  size="lg"
+                  style={styles.emptyButton}
+                  icon={<Ionicons name="people" size={18} color={palette.textInverse} />}
                 />
               )}
             </Animated.View>
