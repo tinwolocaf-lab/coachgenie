@@ -1,20 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Image,
+  FlatList,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
+  FadeIn,
   FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -22,174 +29,328 @@ import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
+import { MarkdownText } from '@/components/ui/MarkdownText';
+import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
+import { VoiceLiveSession } from '@/components/chat/VoiceLiveSession';
 import { SAMPLE_COACHES } from '@/data/coaches';
-import { Coach } from '@/types';
+import { Coach, Message, Session } from '@/types';
 import {
   getOnboardingData,
   completeNewOnboarding,
   getOpeningQuestion,
 } from '@/lib/onboarding';
+import { supabase } from '@/lib/supabase';
+import { createSession } from '@/lib/supabase-sanctuary';
+import { addSession } from '@/store/app';
+import {
+  isFunctionUnavailableError,
+  isInsufficientCreditsError,
+  streamChat,
+} from '@/lib/apiClient';
+import { getUserTier, canAccessFeature } from '@/lib/feature-gates';
+import { useAlert } from '@/contexts/AlertContext';
 
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'coach';
-  content: string;
-  timestamp: Date;
+const MIN_USER_TURNS_TO_COMPLETE = 3;
+
+interface ChatMessageRowProps {
+  item: Message;
+  index: number;
+  coachName: string;
+  palette: ReturnType<typeof useThemeSafe>['palette'];
 }
 
-const MOCK_RESPONSES = [
-  {
-    follow: 0,
-    responses: [
-      "That's insightful. I'm noticing a pattern here. Can you tell me more about what specifically triggered this feeling?",
-      "I appreciate that honesty. That's actually the first step. How long have you been thinking about this?",
-      "That resonates. A lot of people feel that way. What would solving this unlock for you?",
-    ],
-  },
-  {
-    follow: 1,
-    responses: [
-      "I see. And when that happens, what's your typical response? What do you usually do?",
-      "Interesting. Have you tried anything to address this? What worked, and what didn't?",
-      "That makes sense. What would be the ideal scenario? Paint me a picture of what success looks like.",
-    ],
-  },
-  {
-    follow: 2,
-    responses: [
-      "Great start! I'm seeing some real clarity here. Let's build on this in our future sessions—we're just getting warmed up.",
-      "This is excellent material to work with. You've given me a lot to explore with you next time.",
-      "I can feel your commitment to this. Let's turn these insights into action in our next coaching session.",
-    ],
-  },
-];
+const ChatMessageRow = React.memo(function ChatMessageRow({
+  item,
+  index,
+  coachName,
+  palette,
+}: ChatMessageRowProps) {
+  const isUser = item.role === 'user';
+  const formattedTime = useMemo(
+    () => new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    [item.created_at],
+  );
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(360).delay(Math.min(index * 60, 220))}
+      style={styles.transcriptEntry}
+    >
+      <View style={styles.speakerRow}>
+        <View
+          style={[
+            styles.speakerDot,
+            { backgroundColor: palette.accent },
+            isUser && { backgroundColor: palette.textPrimary },
+          ]}
+        />
+        <Text
+          style={[
+            styles.speakerLabel,
+            { color: palette.accent },
+            isUser && { color: palette.textPrimary },
+          ]}
+        >
+          {isUser ? 'You' : coachName}
+        </Text>
+        <Text style={[styles.timestamp, { color: palette.textTertiary }]}>{formattedTime}</Text>
+      </View>
+
+      <View
+        style={[
+          styles.transcriptContent,
+          { borderLeftColor: palette.accentMuted },
+          isUser && { borderLeftColor: palette.borderLight },
+        ]}
+      >
+        <MarkdownText
+          content={item.content}
+          textStyle={[
+            styles.transcriptText,
+            { color: palette.textSecondary },
+            isUser && styles.transcriptTextUser,
+          ]}
+          accentColor={palette.accent}
+          mutedColor={palette.textTertiary}
+        />
+      </View>
+    </Animated.View>
+  );
+});
 
 export default function FirstSessionScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
+  const { showAlert, showToast } = useAlert();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [coachInfo, setCoachInfo] = useState<Coach | null>(null);
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const [exchangeCount, setExchangeCount] = useState(0);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [isBooting, setIsBooting] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [showVoiceMode, setShowVoiceMode] = useState(false);
+
+  const flatListRef = useRef<FlatList<Message>>(null);
+  const pulseAnim = useSharedValue(1);
 
   useEffect(() => {
-    loadCoachAndStartSession();
-  }, []);
-
-  useEffect(() => {
-    // Auto-scroll to bottom when messages change
-    if (scrollViewRef.current && messages.length > 0) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+    if (isStreaming) {
+      pulseAnim.value = withRepeat(
+        withSequence(
+          withTiming(0.4, { duration: 600 }),
+          withTiming(1, { duration: 600 }),
+        ),
+        -1,
+      );
+    } else {
+      pulseAnim.value = 1;
     }
-  }, [messages]);
+  }, [isStreaming, pulseAnim]);
 
-  const loadCoachAndStartSession = async () => {
+  useEffect(() => {
+    if (!messages.length && !streamingText) return;
+
+    const timeout = setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 80);
+
+    return () => clearTimeout(timeout);
+  }, [messages, streamingText]);
+
+  const initializeSession = useCallback(async () => {
+    setIsBooting(true);
+
     try {
-      const data = await getOnboardingData();
-      // Fallback to Daily Clarity Coach (the free coach) if no coach selected
-      const selectedCoach = SAMPLE_COACHES.find((c) => c.id === data.selectedCoachId)
-        || SAMPLE_COACHES.find((c) => c.id === 'coach-daily-clarity')
-        || SAMPLE_COACHES[0];
+      const onboardingData = await getOnboardingData();
+      const selectedCoach =
+        SAMPLE_COACHES.find((coach) => coach.id === onboardingData.selectedCoachId) ??
+        SAMPLE_COACHES.find((coach) => coach.id === 'coach-daily-clarity') ??
+        SAMPLE_COACHES[0];
 
-      if (selectedCoach) {
-        setCoachInfo(selectedCoach);
+      if (!selectedCoach) {
+        throw new Error('No coach available');
+      }
 
-        // Generate opening message
-        const vibeLabels = data.vibes.length > 0
-          ? data.vibes.map((v) =>
-              v
+      setCoachInfo(selectedCoach);
+
+      let tier: Awaited<ReturnType<typeof getUserTier>> = 'free';
+      try {
+        tier = await getUserTier();
+      } catch (error) {
+        console.warn('Could not resolve subscription tier during onboarding session:', error);
+      }
+      setVoiceEnabled(canAccessFeature(tier, 'voiceCoaching'));
+
+      const { data: authData } = await supabase.auth.getSession();
+      const authUser = authData.session?.user;
+
+      if (!authUser) {
+        showAlert('Sign in required', 'Please sign in to start your live coaching session.');
+        router.replace('/(auth)/login');
+        return;
+      }
+
+      const dbSession = await createSession(authUser.id, selectedCoach.id, 'First Session');
+      if (!dbSession) {
+        throw new Error('Could not create coaching session');
+      }
+
+      const localSession: Session = {
+        id: dbSession.id,
+        user_id: authUser.id,
+        coach_id: selectedCoach.id,
+        title: dbSession.title,
+        status: dbSession.status as Session['status'],
+        created_at: dbSession.created_at,
+      };
+
+      try {
+        await addSession(localSession);
+      } catch (error) {
+        console.warn('Could not cache onboarding session locally:', error);
+      }
+      setSessionId(dbSession.id);
+
+      const vibeLabels =
+        onboardingData.vibes.length > 0
+          ? onboardingData.vibes.map((vibe) =>
+              vibe
                 .replace('-', ' ')
                 .split(' ')
                 .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ')
+                .join(' '),
             )
           : ['Personal Growth'];
 
-        const openingQuestion = getOpeningQuestion(vibeLabels);
+      const openingMessage: Message = {
+        id: `opening-${Date.now()}`,
+        session_id: dbSession.id,
+        role: 'assistant',
+        content: getOpeningQuestion(vibeLabels),
+        created_at: new Date().toISOString(),
+      };
 
-        const openingMessage: ChatMessage = {
-          id: '1',
-          role: 'coach',
-          content: openingQuestion,
-          timestamp: new Date(),
-        };
-
-        setMessages([openingMessage]);
-        setSessionStarted(true);
-      }
+      setMessages([openingMessage]);
     } catch (error) {
-      console.error('Error loading coach:', error);
-      // Even on error, try to start with a default coach
-      const defaultCoach = SAMPLE_COACHES[0];
-      if (defaultCoach) {
-        setCoachInfo(defaultCoach);
-        const openingMessage: ChatMessage = {
-          id: '1',
-          role: 'coach',
-          content: 'Welcome! I\'m here to help you make meaningful progress. What\'s on your mind today?',
-          timestamp: new Date(),
-        };
-        setMessages([openingMessage]);
-        setSessionStarted(true);
-      }
+      console.error('Error starting onboarding session:', error);
+      showToast('Error', {
+        variant: 'error',
+        message: 'Could not start your session. Please try again.',
+      });
+    } finally {
+      setIsBooting(false);
     }
-  };
+  }, [router, showAlert, showToast]);
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+  useEffect(() => {
+    void initializeSession();
+  }, [initializeSession]);
+
+  const handleSendMessage = useCallback(async () => {
+    if (!inputValue.trim() || isStreaming) return;
+
+    if (!sessionId) {
+      showToast('Session unavailable', {
+        variant: 'warning',
+        message: 'Please restart onboarding to begin your session again.',
+      });
+      return;
+    }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: String(messages.length + 1),
+    const userText = inputValue.trim();
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      session_id: sessionId,
       role: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date(),
+      content: userText,
+      created_at: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
+    setIsStreaming(true);
+    setStreamingText('');
 
-    // Simulate coach response
-    setIsLoading(true);
+    try {
+      let streamedText = '';
+      await streamChat(
+        sessionId,
+        userText,
+        {
+          onToken: (chunk) => {
+            streamedText += chunk;
+            setStreamingText(streamedText);
+          },
+          onError: (message) => {
+            throw new Error(message);
+          },
+        },
+      );
 
-    // Determine which response to show based on exchange count
-    const responseSet = MOCK_RESPONSES[Math.min(exchangeCount, 2)];
-    const coachResponse =
-      responseSet.responses[Math.floor(Math.random() * responseSet.responses.length)];
+      const assistantMessage: Message = {
+        id: `assistant-${Date.now()}`,
+        session_id: sessionId,
+        role: 'assistant',
+        content: streamedText || 'I am here with you. What feels most important right now?',
+        created_at: new Date().toISOString(),
+      };
 
-    // Simulate delay
-    await new Promise((resolve) => setTimeout(resolve, 1200 + Math.random() * 800));
+      setMessages((prev) => [...prev, assistantMessage]);
+      setStreamingText('');
+      setIsStreaming(false);
 
-    const coachMessage: ChatMessage = {
-      id: String(messages.length + 2),
-      role: 'coach',
-      content: coachResponse,
-      timestamp: new Date(),
-    };
+      const userTurns = messages.filter((message) => message.role === 'user').length + 1;
+      if (userTurns >= MIN_USER_TURNS_TO_COMPLETE) {
+        setIsComplete(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      setIsStreaming(false);
+      setStreamingText('');
 
-    setMessages((prev) => [...prev, coachMessage]);
-    setExchangeCount((prev) => prev + 1);
-    setIsLoading(false);
+      const unavailable = isFunctionUnavailableError(error);
+      const insufficientCredits = isInsufficientCreditsError(error);
 
-    // Check if session is complete (3 exchanges = 6 messages total)
-    if (messages.length + 2 >= 6) {
-      setIsComplete(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (insufficientCredits) {
+        showAlert(
+          'Out of Credits',
+          'You do not have enough credits to continue. Upgrade your plan to keep coaching.',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            { text: 'View Plans', onPress: () => router.push('/paywall') },
+          ],
+        );
+      }
+
+      const errorMessage: Message = {
+        id: `assistant-error-${Date.now()}`,
+        session_id: sessionId,
+        role: 'assistant',
+        content: unavailable
+          ? 'The coaching service is temporarily unavailable. Please try again in a moment.'
+          : insufficientCredits
+            ? 'You are out of credits for now. Upgrade your plan to continue this conversation.'
+            : 'I hit an issue while responding. Please try once more.',
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
     }
-  };
+  }, [inputValue, isStreaming, messages, router, sessionId, showAlert, showToast]);
 
-  const handleEnterCoachGenie = async () => {
+  const handleEnterCoachGenie = useCallback(async () => {
+    if (isCompleting) return;
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsLoading(true);
+    setIsCompleting(true);
 
     try {
       await completeNewOnboarding();
@@ -198,185 +359,257 @@ export default function FirstSessionScreen() {
     } catch (error) {
       console.error('Error completing onboarding:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showToast('Error', {
+        variant: 'error',
+        message: 'Could not complete onboarding. Please try again.',
+      });
     } finally {
-      setIsLoading(false);
+      setIsCompleting(false);
     }
-  };
+  }, [isCompleting, router, showToast]);
 
-  if (!sessionStarted || !coachInfo) {
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: pulseAnim.value,
+  }));
+
+  const coachName = coachInfo?.name ?? 'Coach';
+
+  const renderMessage = useCallback(
+    ({ item, index }: { item: Message; index: number }) => (
+      <ChatMessageRow item={item} index={index} coachName={coachName} palette={palette} />
+    ),
+    [coachName, palette],
+  );
+
+  const messageKeyExtractor = useCallback((item: Message) => item.id, []);
+
+  const listFooter = useMemo(
+    () => (
+      <>
+        {isStreaming && streamingText.length > 0 && (
+          <Animated.View entering={FadeIn.duration(280)} style={styles.transcriptEntry}>
+            <View style={styles.speakerRow}>
+              <View style={[styles.speakerDot, { backgroundColor: palette.accent }]} />
+              <Text style={[styles.speakerLabel, { color: palette.accent }]}>{coachName}</Text>
+              <Animated.View style={[styles.typingIndicator, { backgroundColor: palette.accentMuted }, pulseStyle]}>
+                <Text style={[styles.typingText, { color: palette.accent }]}>composing</Text>
+              </Animated.View>
+            </View>
+            <View style={[styles.transcriptContent, { borderLeftColor: palette.accentMuted }]}>
+              <MarkdownText
+                content={streamingText}
+                textStyle={[styles.transcriptText, { color: palette.textSecondary }]}
+                accentColor={palette.accent}
+                mutedColor={palette.textTertiary}
+              />
+              <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
+            </View>
+          </Animated.View>
+        )}
+        {isStreaming && !streamingText.length && (
+          <Animated.View entering={FadeIn.duration(280)} style={styles.thinkingContainer}>
+            <View style={styles.thinkingDots}>
+              <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
+              <View style={[styles.thinkingDot, { backgroundColor: palette.accent, marginHorizontal: 4 }]} />
+              <View style={[styles.thinkingDot, { backgroundColor: palette.accent }]} />
+            </View>
+            <Text style={[styles.thinkingText, { color: palette.textTertiary }]}>{coachName} is reflecting...</Text>
+          </Animated.View>
+        )}
+      </>
+    ),
+    [coachName, isStreaming, palette.accent, palette.accentMuted, palette.textSecondary, palette.textTertiary, pulseStyle, streamingText],
+  );
+
+  if (isBooting || !coachInfo) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: palette.background }]}
-        edges={['bottom']}
-      >
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['bottom']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={palette.accent} style={{ marginBottom: 16 }} />
-          <Text style={[styles.loadingText, { color: palette.textTertiary }]}>
-            Starting your first coaching session...
-          </Text>
+          <ActivityIndicator size="large" color={palette.accent} style={{ marginBottom: Spacing.md }} />
+          <Text style={[styles.loadingText, { color: palette.textTertiary }]}>Starting your first coaching session...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: palette.background }]}
-      edges={['bottom']}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={100}
-      >
-        {/* Header */}
-        <Animated.View
-          entering={FadeInUp.duration(600).delay(200)}
-          style={[styles.header, { borderBottomColor: palette.border }]}
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['bottom']}>
+      <PremiumPageTransition style={styles.container}>
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: palette.borderLight,
+              backgroundColor: palette.background,
+            },
+          ]}
         >
-          <OnboardingCoachAvatar coach={coachInfo} />
-          <View style={styles.headerContent}>
-            <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>
-              {coachInfo.name}
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>
-              Your first session
-            </Text>
+          <View style={styles.headerCenter}>
+            <OnboardingCoachAvatar coach={coachInfo} />
+            <View style={styles.headerInfo}>
+              <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>{coachInfo.name}</Text>
+              <Text style={[styles.headerSubtitle, { color: palette.textTertiary }]}>Your first session</Text>
+            </View>
           </View>
-        </Animated.View>
 
-        {/* Chat Messages */}
-        <ScrollView
-          ref={scrollViewRef}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
+          <TouchableOpacity
+            onPress={() => {
+              if (!voiceEnabled) {
+                showAlert('Voice Coaching', 'Voice coaching is available on Sovereign and Oracle plans.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Upgrade', onPress: () => router.push('/paywall') },
+                ]);
+                return;
+              }
+
+              if (!sessionId) {
+                showToast('Session unavailable', {
+                  variant: 'warning',
+                  message: 'Voice will be available once your session starts.',
+                });
+                return;
+              }
+
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowVoiceMode(true);
+            }}
+            style={[styles.voiceButton, !voiceEnabled && { opacity: 0.4 }]}
+          >
+            <Ionicons name="mic" size={18} color={palette.accent} />
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView
+          style={styles.chatContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {messages.map((message, index) => (
-            <Animated.View
-              key={message.id}
-              entering={FadeInUp.duration(400).delay(index * 100)}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={messageKeyExtractor}
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            ListFooterComponent={listFooter}
+            initialNumToRender={8}
+            maxToRenderPerBatch={6}
+            windowSize={9}
+            removeClippedSubviews={Platform.OS === 'android'}
+            keyboardShouldPersistTaps="handled"
+          />
+
+          {!isComplete ? (
+            <View
               style={[
-                styles.messageRow,
-                message.role === 'coach' && styles.coachMessageRow,
+                styles.inputContainer,
+                {
+                  paddingBottom: (insets.bottom || Spacing.md) + Spacing.xs,
+                  backgroundColor: palette.background,
+                  borderTopColor: palette.borderLight,
+                },
               ]}
             >
-              <ChatBubble message={message} />
-            </Animated.View>
-          ))}
-
-          {/* Completion message */}
-          {isComplete && (
+              <View style={[styles.inputWrapper, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+                <TextInput
+                  style={[styles.input, { color: palette.textSecondary }]}
+                  placeholder="Share your thoughts..."
+                  placeholderTextColor={palette.textTertiary}
+                  value={inputValue}
+                  onChangeText={setInputValue}
+                  multiline
+                  maxLength={1000}
+                  editable={!isStreaming}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    { backgroundColor: palette.accent },
+                    (!inputValue.trim() || isStreaming || !sessionId) && {
+                      backgroundColor: palette.backgroundSecondary,
+                    },
+                  ]}
+                  onPress={handleSendMessage}
+                  disabled={!inputValue.trim() || isStreaming || !sessionId}
+                >
+                  <Ionicons
+                    name="arrow-up"
+                    size={20}
+                    color={
+                      !inputValue.trim() || isStreaming || !sessionId
+                        ? palette.textTertiary
+                        : palette.textInverse
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
             <Animated.View
-              entering={FadeInUp.duration(600)}
-              style={styles.completionBubble}
+              entering={FadeInUp.duration(320)}
+              style={[
+                styles.completeFooter,
+                {
+                  borderTopColor: palette.borderLight,
+                  backgroundColor: palette.background,
+                  paddingBottom: insets.bottom || Spacing.xl,
+                },
+              ]}
             >
-              <View
-                style={[
-                  styles.completionContent,
-                  { backgroundColor: palette.accentMuted },
-                ]}
-              >
+              <View style={[styles.completionCard, { backgroundColor: palette.accentMuted }]}>
                 <Ionicons
                   name="checkmark-circle"
-                  size={24}
+                  size={20}
                   color={palette.accent}
                   style={styles.completionIcon}
                 />
                 <Text style={[styles.completionText, { color: palette.textPrimary }]}>
-                  {"Great start! You've laid the foundation for meaningful growth. Let's continue this conversation when you're ready."}
+                  Great start. You&apos;ve built real momentum with your coach.
                 </Text>
               </View>
+              <Button
+                title="Enter CoachGenie"
+                onPress={handleEnterCoachGenie}
+                disabled={isCompleting}
+                loading={isCompleting}
+                variant="gold"
+                size="lg"
+                fullWidth
+              />
             </Animated.View>
           )}
-        </ScrollView>
+        </KeyboardAvoidingView>
+      </PremiumPageTransition>
 
-        {/* Input or Complete Button */}
-        {!isComplete ? (
-          <View style={[styles.inputContainer, { borderTopColor: palette.border }]}>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: palette.textPrimary,
-                    borderColor: palette.border,
-                    backgroundColor: palette.cardBg,
-                  },
-                ]}
-                placeholder="Your response..."
-                placeholderTextColor={palette.textTertiary}
-                value={inputValue}
-                onChangeText={setInputValue}
-                editable={!isLoading}
-                multiline
-                maxLength={500}
-              />
-              <TouchableOpacity
-                onPress={handleSendMessage}
-                disabled={!inputValue.trim() || isLoading}
-                style={[
-                  styles.sendButton,
-                  {
-                    backgroundColor:
-                      inputValue.trim() && !isLoading
-                        ? palette.accent
-                        : palette.border,
-                  },
-                ]}
-              >
-                <Ionicons name="send" size={18} color={palette.textInverse} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <Animated.View
-            entering={FadeInUp.duration(400)}
-            style={styles.completeFooter}
-          >
-            <Button
-              title="Enter CoachGenie"
-              onPress={handleEnterCoachGenie}
-              disabled={isLoading}
-              loading={isLoading}
-              variant="gold"
-              size="lg"
-              fullWidth
-            />
-          </Animated.View>
-        )}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
-}
-
-interface ChatBubbleProps {
-  message: ChatMessage;
-}
-
-function ChatBubble({ message }: ChatBubbleProps) {
-  const { palette } = useThemeSafe();
-  const isCoach = message.role === 'coach';
-
-  return (
-    <View
-      style={[
-        styles.bubble,
-        isCoach
-          ? [styles.coachBubble, { backgroundColor: palette.cardBg }]
-          : [styles.userBubble, { backgroundColor: palette.accent }],
-      ]}
-    >
-      <Text
-        style={[
-          styles.bubbleText,
-          {
-            color: isCoach ? palette.textPrimary : palette.textInverse,
-          },
-        ]}
+      <Modal
+        visible={showVoiceMode}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowVoiceMode(false)}
       >
-        {message.content}
-      </Text>
-    </View>
+        <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
+          <VoiceLiveSession
+            coachId={coachInfo.id}
+            sessionId={sessionId || ''}
+            coachName={coachInfo.name}
+            isVisible={showVoiceMode}
+            onClose={() => setShowVoiceMode(false)}
+            onTranscriptUpdate={(_userText, aiText) => {
+              if (!aiText.trim() || !sessionId) return;
+
+              const aiMessage: Message = {
+                id: `voice-${Date.now()}`,
+                session_id: sessionId,
+                role: 'assistant',
+                content: aiText,
+                created_at: new Date().toISOString(),
+              };
+
+              setMessages((prev) => [...prev, aiMessage]);
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
@@ -385,14 +618,24 @@ function OnboardingCoachAvatar({ coach }: { coach: Coach }) {
 
   if (coach.image) {
     return (
-      <View style={[styles.headerAvatarFrame, { borderColor: palette.borderLight, backgroundColor: palette.cardBg }]}>
+      <View
+        style={[
+          styles.headerAvatarFrame,
+          { borderColor: palette.borderLight, backgroundColor: palette.cardBg },
+        ]}
+      >
         <Image source={coach.image} style={styles.headerAvatarImage} resizeMode="cover" />
       </View>
     );
   }
 
   return (
-    <View style={[styles.headerAvatarFrame, { borderColor: palette.borderLight, backgroundColor: palette.cardBg }]}>
+    <View
+      style={[
+        styles.headerAvatarFrame,
+        { borderColor: palette.borderLight, backgroundColor: palette.cardBg },
+      ]}
+    >
       <CoachIcon iconName={coach.icon_name} color={coach.color} size="md" variant="default" />
     </View>
   );
@@ -402,10 +645,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardView: {
-    flex: 1,
-  },
-
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -415,17 +654,31 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.body,
   },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    gap: Spacing.lg,
   },
-  headerContent: {
+  headerCenter: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  headerInfo: {
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: Typography.sizes.bodyLarge,
+    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.serif,
+  },
+  headerSubtitle: {
+    fontSize: Typography.sizes.caption,
+    marginTop: 2,
   },
   headerAvatarFrame: {
     width: 44,
@@ -440,104 +693,143 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  headerTitle: {
-    fontSize: Typography.sizes.bodyLarge,
+  voiceButton: {
+    padding: Spacing.sm,
+  },
+
+  chatContainer: {
+    flex: 1,
+  },
+  messagesList: {
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.xl,
+    paddingBottom: 260,
+  },
+
+  transcriptEntry: {
+    marginBottom: Spacing.xxl,
+  },
+  speakerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  speakerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: Spacing.sm,
+  },
+  speakerLabel: {
+    fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: Typography.letterSpacing.wider,
+    flex: 1,
+  },
+  timestamp: {
+    fontSize: Typography.sizes.micro,
+  },
+  transcriptContent: {
+    paddingLeft: Spacing.lg,
+    borderLeftWidth: 2,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end',
+  },
+  transcriptText: {
+    fontSize: Typography.sizes.bodyLarge,
+    lineHeight: Typography.sizes.bodyLarge * Typography.lineHeights.relaxed,
     fontFamily: Typography.fonts.serif,
   },
-  headerSubtitle: {
-    fontSize: Typography.sizes.body,
-    marginTop: Spacing.xs,
+  transcriptTextUser: {
+    fontFamily: Typography.fonts.sans,
+  },
+  cursor: {
+    width: 2,
+    height: 20,
+    marginLeft: 4,
+    marginBottom: 2,
+  },
+  typingIndicator: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  typingText: {
+    fontSize: Typography.sizes.micro,
+    fontStyle: 'italic',
   },
 
-  // Messages
-  messagesContent: {
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.lg,
-  },
-  messageRow: {
-    marginBottom: Spacing.md,
+  thinkingContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
   },
-  coachMessageRow: {
-    justifyContent: 'flex-start',
+  thinkingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  thinkingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  thinkingText: {
+    fontSize: Typography.sizes.caption,
+    fontStyle: 'italic',
   },
 
-  bubble: {
-    maxWidth: '85%',
-    paddingVertical: Spacing.md,
+  inputContainer: {
     paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.lg,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
   },
-  userBubble: {
-    marginLeft: 'auto',
-    borderBottomRightRadius: Radius.sm,
-  },
-  coachBubble: {
-    marginRight: 'auto',
-    borderBottomLeftRadius: Radius.sm,
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderRadius: Radius.squircle,
+    borderWidth: 1,
+    paddingLeft: Spacing.lg,
+    paddingRight: Spacing.xs,
+    paddingVertical: Spacing.xs,
     ...Shadows.sm,
   },
-  bubbleText: {
+  input: {
+    flex: 1,
     fontSize: Typography.sizes.body,
-    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
+    maxHeight: 100,
+    paddingVertical: Spacing.sm,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  // Completion
-  completionBubble: {
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.xl,
-  },
-  completionContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: Spacing.lg,
-    borderRadius: Radius.lg,
+  completeFooter: {
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.lg,
+    borderTopWidth: 1,
     gap: Spacing.md,
   },
+  completionCard: {
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   completionIcon: {
-    marginTop: Spacing.xs,
     flexShrink: 0,
   },
   completionText: {
     flex: 1,
     fontSize: Typography.sizes.body,
-    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
-  },
-
-  // Input
-  inputContainer: {
-    borderTopWidth: 1,
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    alignItems: 'flex-end',
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    maxHeight: 100,
-    fontSize: Typography.sizes.body,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Complete Footer
-  completeFooter: {
-    paddingHorizontal: Spacing.xxl,
-    paddingBottom: Spacing.xl,
-    paddingTop: Spacing.lg,
+    lineHeight: Typography.sizes.body * Typography.lineHeights.snug,
   },
 });
