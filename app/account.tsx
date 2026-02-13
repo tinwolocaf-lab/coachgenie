@@ -501,8 +501,8 @@ export default function AccountScreen() {
 
             {/* App Info Footer */}
             <Animated.View entering={FadeIn.duration(400).delay(400)} style={styles.appInfo}>
-              <Text style={[styles.appVersion, { color: palette.textTertiary }]}>CoachGenie v1.0.0</Text>
-              <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 CoachGenie. All rights reserved.</Text>
+              <Text style={[styles.appVersion, { color: palette.textTertiary }]}>CoachZeno v1.0.0</Text>
+              <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 CoachZeno. All rights reserved.</Text>
             </Animated.View>
 
             <View style={styles.bottomSpacer} />
@@ -823,8 +823,8 @@ export default function AccountScreen() {
 
             {/* App Info */}
             <Animated.View entering={FadeIn.duration(400).delay(600)} style={styles.appInfo}>
-              <Text style={[styles.appVersion, { color: palette.textTertiary }]}>CoachGenie v1.0.0</Text>
-              <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 CoachGenie. All rights reserved.</Text>
+              <Text style={[styles.appVersion, { color: palette.textTertiary }]}>CoachZeno v1.0.0</Text>
+              <Text style={[styles.appCopyright, { color: palette.textTertiary }]}>© 2024 CoachZeno. All rights reserved.</Text>
             </Animated.View>
 
             {/* Bottom Spacer */}

@@ -567,7 +567,7 @@ export default function FirstSessionScreen() {
                 </Text>
               </View>
               <Button
-                title="Enter CoachGenie"
+                title="Enter CoachZeno"
                 onPress={handleEnterCoachGenie}
                 disabled={isCompleting}
                 loading={isCompleting}

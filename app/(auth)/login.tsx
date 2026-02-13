@@ -313,7 +313,7 @@ function LoginUI({
                 <Ionicons name="sparkles" size={32} color={palette.textInverse} />
               </LinearGradient>
             </View>
-            <Text style={[styles.brandName, { color: palette.textPrimary }]}>CoachGenie</Text>
+            <Text style={[styles.brandName, { color: palette.textPrimary }]}>CoachZeno</Text>
             <Text style={[styles.tagline, { color: palette.textTertiary }]}>Personal growth, elevated.</Text>
           </Animated.View>
 
@@ -449,7 +449,7 @@ function LoginUI({
           {/* Sign Up Link */}
           <Animated.View entering={FadeIn.duration(400).delay(600)} style={styles.signUpContainer}>
             <View style={[styles.signUpDivider, { backgroundColor: palette.border }]} />
-            <Text style={[styles.signUpText, { color: palette.textTertiary }]}>New to CoachGenie?</Text>
+            <Text style={[styles.signUpText, { color: palette.textTertiary }]}>New to CoachZeno?</Text>
             <Link href="/(auth)/signup" asChild>
               <TouchableOpacity style={styles.signUpButton}>
                 <Text style={[styles.signUpLink, { color: palette.accent }]}>Create an account</Text>
