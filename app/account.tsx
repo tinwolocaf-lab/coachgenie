@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -42,6 +41,7 @@ import {
   type AvailableModel,
   type CreditStatusResponse,
 } from '@/lib/apiClient';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface UserProfile {
   email: string;
@@ -53,6 +53,7 @@ export default function AccountScreen() {
   const router = useRouter();
   const { palette, isSovereignMember, setSovereignMember, subscriptionTier, setSubscriptionTier } = useThemeSafe();
   const auth = useAuthSafe();
+  const { showToast, showAlert } = useAlert();
 
   const [profile, setProfile] = useState<UserProfile>({
     email: '',
@@ -142,7 +143,7 @@ export default function AccountScreen() {
   const handleSaveProfile = async () => {
     if (!editedName.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert('Invalid Name', 'Please enter your name');
+      showAlert('Invalid Name', 'Please enter your name');
       return;
     }
 
@@ -166,7 +167,7 @@ export default function AccountScreen() {
     } catch (error) {
       console.error('Error updating profile:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
+      showToast('Error', { variant: 'error', message: 'Failed to update profile. Please try again.' });
     } finally {
       setIsSaving(false);
     }
@@ -175,7 +176,7 @@ export default function AccountScreen() {
   const handleSignOut = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    Alert.alert(
+    showAlert(
       'Sign Out',
       'Are you sure you want to sign out of your account?',
       [
@@ -225,7 +226,7 @@ export default function AccountScreen() {
 
   const handleSubmitPassword = async () => {
     if (!newPassword || newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters.');
+      showAlert('Error', 'Password must be at least 6 characters.');
       return;
     }
     try {
@@ -233,10 +234,10 @@ export default function AccountScreen() {
       if (error) throw error;
       setShowPasswordModal(false);
       setNewPassword('');
-      Alert.alert('Success', 'Your password has been updated.');
+      showToast('Success', { variant: 'success', message: 'Your password has been updated.' });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update password.';
-      Alert.alert('Error', message);
+      showToast('Error', { variant: 'error', message });
     }
   };
 
@@ -273,7 +274,7 @@ export default function AccountScreen() {
       console.error('Failed to open subscription management:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-      Alert.alert(
+      showAlert(
         'Unable to Open',
         'Could not open subscription management. Please manage your subscription through your device settings.',
         [
@@ -309,7 +310,7 @@ export default function AccountScreen() {
       } else {
         console.warn('Failed to update model preference:', error);
       }
-      Alert.alert('Model Update Failed', 'Could not save your model preference. Please try again.');
+      showToast('Model Update Failed', { variant: 'error', message: 'Could not save your model preference. Please try again.' });
     } finally {
       setIsUpdatingModel(false);
     }

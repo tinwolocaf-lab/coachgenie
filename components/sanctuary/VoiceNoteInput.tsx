@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -36,6 +35,7 @@ import {
   isInsufficientCreditsError,
   transcribeVoiceNote,
 } from '@/lib/apiClient';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface VoiceNoteInputProps {
   onTranscription: (text: string) => void;
@@ -51,6 +51,7 @@ export function VoiceNoteInput({
   disabled = false,
 }: VoiceNoteInputProps) {
   const { palette } = useThemeSafe();
+  const { showToast, showAlert } = useAlert();
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [transcriptionPreview, setTranscriptionPreview] = useState('');
@@ -163,11 +164,7 @@ export function VoiceNoteInput({
     try {
       const hasPermission = await ensurePermissions();
       if (!hasPermission) {
-        Alert.alert(
-          'Permission Required',
-          'Please allow microphone access to use voice notes.',
-          [{ text: 'OK' }]
-        );
+        showAlert('Permission Required', 'Please allow microphone access to use voice notes.');
         closeVoiceInput();
         return;
       }
@@ -197,7 +194,7 @@ export function VoiceNoteInput({
     } catch (error) {
       isRecordingRef.current = false;
       console.warn('Failed to start recording:', error);
-      Alert.alert('Error', 'Could not start recording. Please try again.');
+      showToast('Error', { variant: 'error', message: 'Could not start recording. Please try again.' });
       closeVoiceInput();
     }
   }, [clearRecordingTimer, closeVoiceInput, ensurePermissions, micScale, recorder]);
@@ -226,7 +223,7 @@ export function VoiceNoteInput({
 
       const info = await FileSystem.getInfoAsync(uri);
       if (info.exists && info.size && info.size > 24 * 1024 * 1024) {
-        Alert.alert('Recording too large', 'Please record a shorter note (max ~24MB).');
+        showToast('Recording too large', { variant: 'warning', message: 'Please record a shorter note (max ~24MB).' });
         setRecordingState('idle');
         closeVoiceInput();
         return;
@@ -260,11 +257,7 @@ export function VoiceNoteInput({
       if (transcription && transcription.trim()) {
         onTranscription(transcription);
       } else {
-        Alert.alert(
-          'No Speech Detected',
-          'We couldn\'t detect any speech. Please try again.',
-          [{ text: 'OK' }]
-        );
+        showToast('No Speech Detected', { variant: 'warning', message: "We couldn't detect any speech. Please try again." });
         closeVoiceInput();
         return;
       }
@@ -275,19 +268,13 @@ export function VoiceNoteInput({
       isRecordingRef.current = false;
       if (isFunctionUnavailableError(error)) {
         console.warn('Voice transcription unavailable:', error.message);
-        Alert.alert(
-          'Voice Unavailable',
-          'Voice transcription service is unavailable right now. Please type your message instead.'
-        );
+        showAlert('Voice Unavailable', 'Voice transcription service is unavailable right now. Please type your message instead.');
       } else if (isInsufficientCreditsError(error)) {
         console.warn('Voice transcription blocked by credits:', error.message);
-        Alert.alert(
-          'Out of Credits',
-          'You do not have enough credits for voice transcription. Please upgrade to continue.'
-        );
+        showAlert('Out of Credits', 'You do not have enough credits for voice transcription. Please upgrade to continue.');
       } else {
         console.warn('Failed to transcribe:', error);
-        Alert.alert('Transcription Error', 'Could not process your voice note. Please try again.');
+        showToast('Transcription Error', { variant: 'error', message: 'Could not process your voice note. Please try again.' });
       }
       setRecordingState('idle');
       setTranscriptionPreview('');

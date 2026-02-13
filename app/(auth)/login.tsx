@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useAlert } from '@/contexts/AlertContext';
 import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
@@ -32,6 +32,7 @@ function AuthenticatedLogin() {
   const router = useRouter();
   const params = useLocalSearchParams<{ error?: string }>();
   const auth = useAuth();
+  const { showAlert } = useAlert();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -79,7 +80,7 @@ function AuthenticatedLogin() {
     clearErrors();
     if (!email.trim() || !password.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert('Required Fields', 'Please enter your email and password to continue.');
+      showAlert('Required Fields', 'Please enter your email and password to continue.');
       return;
     }
     try {
@@ -148,6 +149,7 @@ function AuthenticatedLogin() {
 // Unauthenticated/guest mode login
 function GuestLogin() {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -156,7 +158,7 @@ function GuestLogin() {
   const handleEmailLogin = async () => {
     if (!email.trim() || !password.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert('Required Fields', 'Please enter your email and password to continue.');
+      showAlert('Required Fields', 'Please enter your email and password to continue.');
       return;
     }
     setIsLoading(true);

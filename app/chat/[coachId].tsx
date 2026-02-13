@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
 } from 'react-native';
@@ -58,6 +57,7 @@ import {
   FREE_COACH_ID,
 } from '@/lib/feature-gates';
 import { VoiceLiveSession } from '@/components/chat/VoiceLiveSession';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface ChatMessageRowProps {
   item: Message;
@@ -127,6 +127,7 @@ export default function ChatScreen() {
   const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
+  const { showToast, showAlert } = useAlert();
 
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useSharedValue(1);
@@ -154,7 +155,7 @@ export default function ChatScreen() {
     // Check feature gates
     const tier = await getUserTier();
     if (!canAccessCoach(tier, coachId)) {
-      Alert.alert(
+      showAlert(
         'Upgrade Required',
         'This coach requires a Sovereign or Oracle subscription.',
         [
@@ -179,7 +180,7 @@ export default function ChatScreen() {
     const isGuestAccessingFreeCoach = !authUser && coachId === FREE_COACH_ID;
 
     if (!authUser && !isGuestAccessingFreeCoach) {
-      Alert.alert('Sign in required', 'Please sign in to start a coaching session.');
+      showAlert('Sign in required', 'Please sign in to start a coaching session.');
       router.replace('/(auth)/login');
       return;
     }
@@ -217,7 +218,7 @@ export default function ChatScreen() {
       // Authenticated user: create database session
       const dbSession = await createSession(authUser!.id, coachId, 'New Session');
       if (!dbSession) {
-        Alert.alert('Error', 'Could not start a session. Please try again.');
+        showToast('Error', { variant: 'error', message: 'Could not start a session. Please try again.' });
         return;
       }
       currentSessionId = dbSession.id;
@@ -353,7 +354,7 @@ export default function ChatScreen() {
       }
 
       if (insufficientCredits) {
-        Alert.alert(
+        showAlert(
           'Out of Credits',
           'You do not have enough credits to continue. Upgrade your plan to keep chatting.',
           [
@@ -432,7 +433,7 @@ export default function ChatScreen() {
   };
 
   const handleEndSession = async () => {
-    Alert.alert(
+    showAlert(
       'End Session',
       'Would you like to generate insights from this session?',
       [
@@ -545,7 +546,7 @@ export default function ChatScreen() {
           <TouchableOpacity
             onPress={() => {
               if (!voiceEnabled) {
-                Alert.alert('Voice Coaching', 'Voice coaching is available on Sovereign and Oracle plans.', [
+                showAlert('Voice Coaching', 'Voice coaching is available on Sovereign and Oracle plans.', [
                   { text: 'Cancel', style: 'cancel' },
                   { text: 'Upgrade', onPress: () => { router.back(); router.push('/paywall'); } },
                 ]);

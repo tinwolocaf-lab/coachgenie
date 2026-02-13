@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +25,7 @@ import {
   getActiveCoachId,
 } from '@/store/app';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
+import { useAlert } from '@/contexts/AlertContext';
 
 export default function CoachDetailScreen() {
   const router = useRouter();
@@ -35,6 +35,7 @@ export default function CoachDetailScreen() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { showToast, showAlert } = useAlert();
 
   const loadCoach = useCallback(async () => {
     if (!id) return;
@@ -66,10 +67,10 @@ export default function CoachDetailScreen() {
         installed_at: new Date().toISOString(),
       });
       setIsInstalled(true);
-      Alert.alert('Installed', `${coach.name} has been added to your coaches.`);
+      showToast('Installed', { variant: 'success', message: `${coach.name} has been added to your coaches.` });
     } catch (error) {
       console.error('Error installing coach:', error);
-      Alert.alert('Error', 'Failed to install coach.');
+      showToast('Error', { variant: 'error', message: 'Failed to install coach.' });
     } finally {
       setLoading(false);
     }
@@ -79,14 +80,11 @@ export default function CoachDetailScreen() {
     if (!coach) return;
 
     if (isActive) {
-      Alert.alert(
-        'Cannot Uninstall',
-        'This is your active coach. Please set another coach as active first.'
-      );
+      showAlert('Cannot Uninstall', 'This is your active coach. Please set another coach as active first.');
       return;
     }
 
-    Alert.alert(
+    showAlert(
       'Uninstall Coach',
       `Are you sure you want to remove ${coach.name}?`,
       [
@@ -99,7 +97,7 @@ export default function CoachDetailScreen() {
             try {
               await uninstallCoach(coach.id);
               setIsInstalled(false);
-              Alert.alert('Uninstalled', `${coach.name} has been removed.`);
+              showToast('Uninstalled', { variant: 'success', message: `${coach.name} has been removed.` });
             } catch (error) {
               console.error('Error uninstalling coach:', error);
             } finally {
@@ -117,7 +115,7 @@ export default function CoachDetailScreen() {
     try {
       await setActiveCoachId(coach.id);
       setIsActive(true);
-      Alert.alert('Active Coach', `${coach.name} is now your active coach.`);
+      showToast('Active Coach', { variant: 'success', message: `${coach.name} is now your active coach.` });
     } catch (error) {
       console.error('Error setting active coach:', error);
     } finally {

@@ -9,7 +9,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Clipboard,
   Keyboard,
 } from 'react-native';
@@ -55,6 +54,7 @@ import { GoldPulseIndicator } from '@/components/ui/GoldPulseIndicator';
 import { ContextualMenu, ReflectFurtherModal } from '@/components/sanctuary/ContextualMenu';
 import { BreakthroughView } from '@/components/sanctuary/BreakthroughView';
 import { VoiceNoteInput, VoiceNoteTrigger } from '@/components/sanctuary/VoiceNoteInput';
+import { useAlert } from '@/contexts/AlertContext';
 
 export default function SanctuaryScreen() {
   const router = useRouter();
@@ -105,6 +105,8 @@ export default function SanctuaryScreen() {
   } | null>(null);
   const [isGeneratingBreakthrough, setIsGeneratingBreakthrough] = useState(false);
 
+  const { showToast, showAlert } = useAlert();
+
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -117,7 +119,7 @@ export default function SanctuaryScreen() {
 
     const coachData = getCoachById(coachId);
     if (!coachData) {
-      Alert.alert('Error', 'Coach not found');
+      showToast('Error', { variant: 'error', message: 'Coach not found' });
       router.back();
       return;
     }
@@ -131,7 +133,7 @@ export default function SanctuaryScreen() {
     const { data: authData } = await supabase.auth.getSession();
     const authUser = authData.session?.user;
     if (!authUser) {
-      Alert.alert('Sign in required', 'Please sign in to start a coaching session.');
+      showAlert('Sign in required', 'Please sign in to start a coaching session.');
       router.replace('/(auth)/login');
       return;
     }
@@ -150,7 +152,7 @@ export default function SanctuaryScreen() {
 
     const dbSession = await createSession(authUser.id, coachId, 'New Session');
     if (!dbSession) {
-      Alert.alert('Error', 'Could not start a session. Please try again.');
+      showToast('Error', { variant: 'error', message: 'Could not start a session. Please try again.' });
       return;
     }
 
@@ -294,7 +296,7 @@ export default function SanctuaryScreen() {
       const insufficientCredits = isInsufficientCreditsError(error);
 
       if (insufficientCredits) {
-        Alert.alert(
+        showAlert(
           'Out of Credits',
           'You do not have enough credits to continue. Upgrade your plan to keep coaching.',
           [
@@ -341,7 +343,7 @@ export default function SanctuaryScreen() {
     if (isEnding && messages.length >= 6) {
       // Offer to generate breakthrough after a delay
       setTimeout(() => {
-        Alert.alert(
+        showAlert(
           'Session Wrap-up',
           'Would you like me to capture today\'s breakthrough?',
           [
@@ -390,11 +392,14 @@ export default function SanctuaryScreen() {
       } else {
         console.error('Error generating breakthrough:', error);
       }
-      Alert.alert(
+      showToast(
         isFunctionUnavailableError(error) ? 'Service Unavailable' : 'Error',
-        isFunctionUnavailableError(error)
-          ? 'Breakthrough service is unavailable right now. Please try again later.'
-          : 'Could not generate breakthrough. Please try again.',
+        {
+          variant: 'error',
+          message: isFunctionUnavailableError(error)
+            ? 'Breakthrough service is unavailable right now. Please try again later.'
+            : 'Could not generate breakthrough. Please try again.',
+        }
       );
     } finally {
       setIsGeneratingBreakthrough(false);
@@ -489,18 +494,21 @@ export default function SanctuaryScreen() {
       );
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Saved', 'Insight saved to your journal.');
+      showToast('Saved', { variant: 'success', message: 'Insight saved to your journal.' });
     } catch (error) {
       if (error instanceof ApiFunctionError) {
         console.warn('Error saving insight:', error.message);
       } else {
         console.error('Error saving insight:', error);
       }
-      Alert.alert(
+      showToast(
         isFunctionUnavailableError(error) ? 'Service Unavailable' : 'Error',
-        isFunctionUnavailableError(error)
-          ? 'Insight service is unavailable right now. Please try again later.'
-          : 'Could not save insight. Please try again.',
+        {
+          variant: 'error',
+          message: isFunctionUnavailableError(error)
+            ? 'Insight service is unavailable right now. Please try again later.'
+            : 'Could not save insight. Please try again.',
+        }
       );
     }
   };
@@ -561,7 +569,7 @@ export default function SanctuaryScreen() {
   // Handle back/close
   const handleClose = () => {
     if (messages.length >= 4 && !breakthroughData) {
-      Alert.alert(
+      showAlert(
         'End Session',
         'Would you like to capture today\'s breakthrough before leaving?',
         [

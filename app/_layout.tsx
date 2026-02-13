@@ -11,6 +11,7 @@ import {
 } from '@/lib/onboarding';
 import { isGuestModeEnabled, isSupabaseConfigured } from '@/lib/supabase';
 import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
+import { AlertProvider } from '@/contexts/AlertContext';
 import { FocusModeProvider } from '@/contexts/FocusModeContext';
 import { usePremiumFonts } from '@/hooks/usePremiumFonts';
 import { initRevenueCat, identifyUser, logOutUser } from '@/lib/revenuecat';
@@ -357,9 +358,11 @@ function ThemedAppContent() {
 function AppContent() {
   return (
     <ThemeProvider>
-      <FocusModeProvider>
-        <ThemedAppContentWithStatusBar />
-      </FocusModeProvider>
+      <AlertProvider>
+        <FocusModeProvider>
+          <ThemedAppContentWithStatusBar />
+        </FocusModeProvider>
+      </AlertProvider>
     </ThemeProvider>
   );
 }

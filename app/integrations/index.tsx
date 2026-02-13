@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
@@ -11,6 +11,7 @@ import { IntegrationCard } from '@/components/settings/IntegrationCard';
 import { listIntegrations, syncIntegration, disconnectIntegration } from '@/lib/integrations/api';
 import { startOAuthFlow } from '@/lib/integrations/oauth-service';
 import type { IntegrationProvider, UserIntegration, IntegrationProviderConfig } from '@/types';
+import { useAlert } from '@/contexts/AlertContext';
 
 const INTEGRATION_CONFIGS: IntegrationProviderConfig[] = [
   {
@@ -56,6 +57,7 @@ export default function IntegrationsScreen() {
   const [integrations, setIntegrations] = useState<UserIntegration[]>([]);
   const [loadingProviders, setLoadingProviders] = useState<Set<IntegrationProvider>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const { showToast, showAlert } = useAlert();
 
   const fetchIntegrations = useCallback(async () => {
     try {
@@ -107,7 +109,7 @@ export default function IntegrationsScreen() {
     } catch (error) {
       console.error(`[Integrations] Connect error for ${provider}:`, error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Connection Failed', `Could not connect to ${provider}. Please try again.`);
+      showToast('Connection Failed', { variant: 'error', message: `Could not connect to ${provider}. Please try again.` });
     } finally {
       setLoadingProviders((prev) => {
         const next = new Set(prev);
@@ -119,7 +121,7 @@ export default function IntegrationsScreen() {
 
   const handleDisconnect = (provider: IntegrationProvider, name: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
+    showAlert(
       `Disconnect ${name}?`,
       'Your synced data will be removed. You can reconnect at any time.',
       [
@@ -135,7 +137,7 @@ export default function IntegrationsScreen() {
               await fetchIntegrations();
             } catch (error) {
               console.error(`[Integrations] Disconnect error:`, error);
-              Alert.alert('Error', 'Failed to disconnect. Please try again.');
+              showToast('Error', { variant: 'error', message: 'Failed to disconnect. Please try again.' });
             } finally {
               setLoadingProviders((prev) => {
                 const next = new Set(prev);
@@ -159,7 +161,7 @@ export default function IntegrationsScreen() {
     } catch (error) {
       console.error(`[Integrations] Sync error:`, error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Sync Failed', 'Could not sync data. Please try again.');
+      showToast('Sync Failed', { variant: 'error', message: 'Could not sync data. Please try again.' });
     } finally {
       setLoadingProviders((prev) => {
         const next = new Set(prev);

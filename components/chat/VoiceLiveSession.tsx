@@ -2,7 +2,7 @@
 // Replaces record-then-transcribe with real-time streaming voice coaching
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat,
   withSequence, withTiming, Easing,
@@ -20,6 +20,7 @@ import {
   GeminiLiveSession, getGeminiLiveSession, ConnectionState,
   GEMINI_VOICES, GeminiVoiceId, GeminiLiveError,
 } from '@/lib/geminiLive';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface VoiceLiveSessionProps {
   coachId: string;
@@ -74,6 +75,7 @@ export function VoiceLiveSession({
   onInsightSaved,
 }: VoiceLiveSessionProps) {
   const { palette } = useThemeSafe();
+  const { showToast, showAlert } = useAlert();
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [isListening, setIsListening] = useState(false);
   const [aiTranscript, setAiTranscript] = useState('');
@@ -201,7 +203,7 @@ export function VoiceLiveSession({
       console.warn('[VoiceLive] Failed to start audio capture:', err);
       setIsListening(false);
       setConnectionState('error');
-      Alert.alert('Microphone Error', 'Could not start microphone capture. Please try again.');
+      showToast('Microphone Error', { variant: 'error', message: 'Could not start microphone capture. Please try again.' });
     }
   }, []);
 
@@ -215,7 +217,7 @@ export function VoiceLiveSession({
   const startVoiceSession = useCallback(async () => {
     const hasPermission = await ensurePermissions();
     if (!hasPermission) {
-      Alert.alert('Permission Required', 'Microphone access is needed for voice coaching.');
+      showAlert('Permission Required', 'Microphone access is needed for voice coaching.');
       return;
     }
 
@@ -277,14 +279,14 @@ export function VoiceLiveSession({
               console.warn('[VoiceLive] Voice service unavailable:', error);
               setConnectionState('disconnected');
               setIsListening(false);
-              Alert.alert('Voice Unavailable', VOICE_UNAVAILABLE_MESSAGE);
+              showAlert('Voice Unavailable', VOICE_UNAVAILABLE_MESSAGE);
               onClose();
               return;
             }
 
             console.warn('[VoiceLive] Error:', error);
             setConnectionState('error');
-            Alert.alert('Voice Error', error);
+            showToast('Voice Error', { variant: 'error', message: error });
           },
           onDisconnected: () => {
             setConnectionState('disconnected');
@@ -304,7 +306,7 @@ export function VoiceLiveSession({
       }
 
       setConnectionState(isUnavailable ? 'disconnected' : 'error');
-      Alert.alert(
+      showAlert(
         isUnavailable ? 'Voice Unavailable' : 'Connection Failed',
         isUnavailable ? VOICE_UNAVAILABLE_MESSAGE : FALLBACK_TEXT_MODE_MESSAGE,
       );

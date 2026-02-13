@@ -1,6 +1,6 @@
 // Voice Mode - Microphone toggle + waveform for chat (Oracle tier)
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat,
   withSequence, withTiming, withSpring, Easing,
@@ -19,6 +19,7 @@ import {
   isInsufficientCreditsError,
   transcribeVoiceNote,
 } from '@/lib/apiClient';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface VoiceModeProps {
   onTranscription: (text: string) => void;
@@ -27,6 +28,7 @@ interface VoiceModeProps {
 
 export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
   const { palette } = useThemeSafe();
+  const { showToast, showAlert } = useAlert();
   const [isActive, setIsActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const recordingUrlRef = React.useRef<string | null>(null);
@@ -102,7 +104,7 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
     try {
       const hasPermission = await ensurePermissions();
       if (!hasPermission) {
-        Alert.alert('Permission Required', 'Microphone access is needed for voice mode.');
+        showAlert('Permission Required', 'Microphone access is needed for voice mode.');
         return;
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
@@ -115,7 +117,7 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
     } catch (err) {
       isRecordingRef.current = false;
       console.warn('VoiceMode: failed to start recording', err);
-      Alert.alert('Error', 'Could not start recording.');
+      showToast('Error', { variant: 'error', message: 'Could not start recording.' });
     }
   }, [ensurePermissions, recorder]);
 
@@ -142,18 +144,18 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
       if (text.trim()) {
         onTranscription(text.trim());
       } else {
-        Alert.alert('No Speech Detected', 'Could not detect speech. Please try again.');
+        showToast('No Speech Detected', { variant: 'warning', message: 'Could not detect speech. Please try again.' });
       }
     } catch (err) {
       if (isFunctionUnavailableError(err)) {
         console.warn('VoiceMode: transcription unavailable:', err.message);
-        Alert.alert('Voice Unavailable', 'Voice transcription service is unavailable right now. Please type instead.');
+        showAlert('Voice Unavailable', 'Voice transcription service is unavailable right now. Please type instead.');
       } else if (isInsufficientCreditsError(err)) {
         console.warn('VoiceMode: insufficient credits:', err.message);
-        Alert.alert('Out of Credits', 'You do not have enough credits for voice transcription. Please upgrade to continue.');
+        showAlert('Out of Credits', 'You do not have enough credits for voice transcription. Please upgrade to continue.');
       } else {
         console.warn('VoiceMode: transcription failed', err);
-        Alert.alert('Error', 'Transcription failed. Please try again.');
+        showToast('Error', { variant: 'error', message: 'Transcription failed. Please try again.' });
       }
     } finally {
       await resetAudioModeSafely();

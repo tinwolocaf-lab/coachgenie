@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   useColorScheme,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useAlert } from '@/contexts/AlertContext';
 import Animated, {
   FadeIn,
   SlideInUp,
@@ -36,6 +36,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { showToast, showAlert } = useAlert();
 
   const [importing, setImporting] = useState(false);
   const [previewActive, setPreviewActive] = useState(false);
@@ -58,7 +59,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      Alert.alert(
+      showAlert(
         'Coach Added!',
         `${result.name} has been added to your coaches.`,
         [
@@ -72,10 +73,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
       );
     } catch (error) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        'Import Failed',
-        error instanceof Error ? error.message : 'Failed to import coach'
-      );
+      showToast('Import Failed', { variant: 'error', message: error instanceof Error ? error.message : 'Failed to import coach' });
     } finally {
       setImporting(false);
     }

@@ -8,13 +8,13 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useAlert } from '@/contexts/AlertContext';
 import { Typography, Spacing, Radius, EditorialSpacing, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -41,6 +41,7 @@ export default function CreateCoachScreen() {
   const router = useRouter();
   const { palette, subscriptionTier } = useThemeSafe();
   const auth = useAuthSafe();
+  const { showToast, showAlert } = useAlert();
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
@@ -83,11 +84,11 @@ export default function CreateCoachScreen() {
 
   const handleCreate = async () => {
     if (!auth.user?.id) {
-      Alert.alert('Sign in required', 'Please sign in to create a custom coach.');
+      showAlert('Sign in required', 'Please sign in to create a custom coach.');
       return;
     }
     if (!isOracle) {
-      Alert.alert('Oracle tier required', 'Custom coach creation is available for Oracle members.');
+      showAlert('Oracle tier required', 'Custom coach creation is available for Oracle members.');
       return;
     }
 
@@ -116,7 +117,7 @@ export default function CreateCoachScreen() {
     } catch (err) {
       console.error('Error creating coach:', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'Failed to create coach. Please try again.');
+      showToast('Error', { variant: 'error', message: 'Failed to create coach. Please try again.' });
     } finally {
       setIsCreating(false);
     }

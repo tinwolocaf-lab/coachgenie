@@ -7,10 +7,10 @@ import {
   Share,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   useColorScheme,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useAlert } from '@/contexts/AlertContext';
 import * as Clipboard from 'expo-clipboard';
 import Animated, {
   FadeIn,
@@ -38,6 +38,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
+  const { showToast } = useAlert();
   const isDark = colorScheme === 'dark';
 
   const [loading, setLoading] = useState(false);
@@ -112,7 +113,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
       // Reset copied state after 2 seconds
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      Alert.alert('Error', 'Failed to copy link to clipboard');
+      showToast('Copy Failed', { variant: 'error', message: 'Failed to copy link to clipboard' });
     }
   };
 

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +29,7 @@ import { supabase } from '@/lib/supabase';
 import { createSession } from '@/lib/supabase-sanctuary';
 import { generatePlan } from '@/lib/apiClient';
 import { getCoachById } from '@/data/coaches';
+import { useAlert } from '@/contexts/AlertContext';
 
 function normalizeErrorMessage(error: unknown): string {
   if (typeof error === 'string') {
@@ -76,6 +76,7 @@ export default function PlanScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeCoachId, setActiveCoachId] = useState<string | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const { showToast, showAlert } = useAlert();
 
   const loadData = useCallback(async () => {
     try {
@@ -129,19 +130,19 @@ export default function PlanScreen() {
       const { data: authData } = await supabase.auth.getSession();
       const authUser = authData.session?.user;
       if (!authUser) {
-        Alert.alert('Sign in required', 'Please sign in to generate a plan.');
+        showAlert('Sign in required', 'Please sign in to generate a plan.');
         return;
       }
 
       const coach = getCoachById(activeCoachId);
       if (!coach) {
-        Alert.alert('Coach not found', 'Please select a coach and try again.');
+        showAlert('Coach not found', 'Please select a coach and try again.');
         return;
       }
 
       const session = await createSession(authUser.id, activeCoachId, 'Plan Session');
       if (!session) {
-        Alert.alert('Error', 'Could not start a planning session. Please try again.');
+        showToast('Error', { variant: 'error', message: 'Could not start a planning session. Please try again.' });
         return;
       }
       createdSessionId = session.id;
@@ -193,7 +194,7 @@ export default function PlanScreen() {
       console.warn('Plan generation failed:', message);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-      Alert.alert(
+      showAlert(
         unavailable ? 'Planning Unavailable' : 'Plan Generation Failed',
         unavailable
           ? 'The planning service is not available in this environment yet. Please use chat for planning or try again later.'
