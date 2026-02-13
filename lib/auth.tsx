@@ -7,10 +7,9 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { AppState, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import * as AuthSession from 'expo-auth-session';
 import { useRouter, useSegments } from 'expo-router';
 import type { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { completeAuthSessionFromUrl, extractAuthErrorFromUrl } from '@/lib/auth-callback';
 
 // Complete the auth session when the browser redirects back (required for web, no-op on native)
@@ -82,20 +81,37 @@ const AuthContext = createContext<UseAuthReturn | null>(null);
 
 // ─── Helper: build redirect URL ─────────────────────────────────────────────
 
+const NATIVE_AUTH_REDIRECT_URI = 'coachgenie://auth/callback';
+
+function isLoopbackHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const isHttp = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    const host = parsed.hostname.toLowerCase();
+    return isHttp && (host === 'localhost' || host === '127.0.0.1' || host === '::1');
+  } catch {
+    return false;
+  }
+}
+
 function getRedirectUrl(): string {
   const explicitRedirect = process.env.EXPO_PUBLIC_AUTH_REDIRECT_URI?.trim();
+
+  if (Platform.OS === 'web') {
+    return explicitRedirect || Linking.createURL('auth/callback');
+  }
+
   if (explicitRedirect) {
+    if (isLoopbackHttpUrl(explicitRedirect)) {
+      console.warn(
+        '[Auth] EXPO_PUBLIC_AUTH_REDIRECT_URI points to localhost on native. Falling back to coachgenie://auth/callback.'
+      );
+      return NATIVE_AUTH_REDIRECT_URI;
+    }
     return explicitRedirect;
   }
 
-  if (Platform.OS === 'web') {
-    return Linking.createURL('auth/callback');
-  }
-
-  return AuthSession.makeRedirectUri({
-    scheme: 'coachgenie',
-    path: 'auth/callback',
-  });
+  return NATIVE_AUTH_REDIRECT_URI;
 }
 
 // ─── Helper: create AuthError ───────────────────────────────────────────────
