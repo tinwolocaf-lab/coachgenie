@@ -1,19 +1,124 @@
 import React, { useCallback } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
   ZoomIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { Typography, Radius, Spacing, Shadows, Timing, PremiumButton } from '@/constants/theme';
+import { Typography, Radius, Spacing, Shadows, Timing } from '@/constants/theme';
 import type { AlertItem, AlertButton } from '@/contexts/AlertContext';
 
 interface AlertDialogProps {
   item: AlertItem;
   onDismiss: () => void;
+}
+
+function AnimatedButton({
+  button,
+  palette,
+  useHorizontal,
+  isFirst,
+  onPress,
+}: {
+  button: AlertButton;
+  palette: any;
+  useHorizontal: boolean;
+  isFirst: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 200 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+  };
+
+  const isCancel = button.style === 'cancel';
+  const isDestructive = button.style === 'destructive';
+
+  const textColor = isCancel
+    ? palette.textSecondary
+    : '#FFFFFF';
+
+  return (
+    <Animated.View
+      style={[
+        animatedStyle,
+        useHorizontal && styles.buttonFlex,
+        useHorizontal && !isFirst && { marginLeft: Spacing.sm },
+        !useHorizontal && !isFirst && { marginTop: Spacing.sm },
+      ]}
+    >
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        {isCancel ? (
+          <View
+            style={[
+              styles.button,
+              {
+                backgroundColor: palette.accent + '10',
+                borderColor: palette.accent + '30',
+                borderWidth: 1.5,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.buttonText,
+                {
+                  color: textColor,
+                  fontFamily: Typography.fonts.sansSemibold,
+                },
+              ]}
+            >
+              {button.text}
+            </Text>
+          </View>
+        ) : (
+          <LinearGradient
+            colors={
+              isDestructive
+                ? [palette.error, palette.error + 'CC']
+                : [palette.accent, palette.accent + 'DD']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.button}
+          >
+            <Text
+              style={[
+                styles.buttonText,
+                {
+                  color: textColor,
+                  fontFamily: Typography.fonts.sansSemibold,
+                },
+              ]}
+            >
+              {button.text}
+            </Text>
+          </LinearGradient>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
 }
 
 export function AlertDialog({ item, onDismiss }: AlertDialogProps) {
@@ -39,8 +144,8 @@ export function AlertDialog({ item, onDismiss }: AlertDialogProps) {
     >
       <Animated.View
         entering={ZoomIn.springify()
-          .damping(Timing.springElegant.damping)
-          .stiffness(Timing.springElegant.stiffness)
+          .damping(25)
+          .stiffness(80)
           .mass(Timing.springElegant.mass)}
       >
         <BlurView
@@ -54,6 +159,14 @@ export function AlertDialog({ item, onDismiss }: AlertDialogProps) {
             },
           ]}
         >
+          {/* Header icon */}
+          <Animated.View
+            entering={ZoomIn.springify().damping(12).stiffness(150).delay(100)}
+            style={[styles.headerIcon, { backgroundColor: palette.accent + '15' }]}
+          >
+            <Ionicons name="information-circle" size={28} color={palette.accent} />
+          </Animated.View>
+
           <Text
             style={[
               styles.title,
@@ -79,61 +192,30 @@ export function AlertDialog({ item, onDismiss }: AlertDialogProps) {
             </Text>
           ) : null}
 
+          {/* Gold divider */}
+          <LinearGradient
+            colors={['transparent', palette.accent + '50', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.divider}
+          />
+
           <View
             style={[
               styles.buttonContainer,
               useHorizontal ? styles.buttonRow : styles.buttonColumn,
             ]}
           >
-            {item.buttons.map((button, i) => {
-              const isCancel = button.style === 'cancel';
-              const isDestructive = button.style === 'destructive';
-
-              const bgColor = isCancel
-                ? 'transparent'
-                : isDestructive
-                  ? palette.error
-                  : palette.accent;
-
-              const textColor = isCancel
-                ? palette.textSecondary
-                : isDestructive
-                  ? '#FFFFFF'
-                  : palette.textInverse;
-
-              const borderColor = isCancel ? palette.border : 'transparent';
-
-              return (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => handleButton(button)}
-                  activeOpacity={0.7}
-                  style={[
-                    styles.button,
-                    {
-                      backgroundColor: bgColor,
-                      borderColor,
-                      borderWidth: isCancel ? 1.5 : 0,
-                    },
-                    useHorizontal && styles.buttonFlex,
-                    useHorizontal && i > 0 && { marginLeft: Spacing.sm },
-                    !useHorizontal && i > 0 && { marginTop: Spacing.sm },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.buttonText,
-                      {
-                        color: textColor,
-                        fontFamily: Typography.fonts.sansSemibold,
-                      },
-                    ]}
-                  >
-                    {button.text}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+            {item.buttons.map((button, i) => (
+              <AnimatedButton
+                key={i}
+                button={button}
+                palette={palette}
+                useHorizontal={useHorizontal}
+                isFirst={i === 0}
+                onPress={() => handleButton(button)}
+              />
+            ))}
           </View>
         </BlurView>
       </Animated.View>
@@ -154,9 +236,18 @@ const styles = StyleSheet.create({
     maxWidth: 340,
     borderRadius: Radius.squircle,
     borderWidth: 1,
-    padding: Spacing.xxl,
+    padding: Spacing.xxxl,
     overflow: 'hidden',
     ...Shadows.floating,
+  },
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: Spacing.lg,
   },
   title: {
     fontSize: Typography.sizes.title,
@@ -168,10 +259,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.body,
     lineHeight: Typography.sizes.body * Typography.lineHeights.normal,
     textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  divider: {
+    height: 1,
     marginBottom: Spacing.xl,
   },
   buttonContainer: {
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   buttonRow: {
     flexDirection: 'row',

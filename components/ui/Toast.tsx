@@ -5,8 +5,10 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  withDelay,
   runOnJS,
   SlideInUp,
+  Easing,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
@@ -18,10 +20,10 @@ import { Typography, Radius, Spacing, Shadows, Timing } from '@/constants/theme'
 import type { ToastItem, ToastVariant } from '@/contexts/AlertContext';
 
 const VARIANT_ICONS: Record<ToastVariant, keyof typeof Ionicons.glyphMap> = {
-  success: 'checkmark-circle',
-  error: 'close-circle',
+  success: 'checkmark',
+  error: 'close',
   warning: 'warning',
-  info: 'information-circle',
+  info: 'information',
 };
 
 interface ToastProps {
@@ -35,6 +37,11 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
+
+  // Staggered animation values
+  const accentBarScale = useSharedValue(0);
+  const iconScale = useSharedValue(0);
+  const progressScale = useSharedValue(1);
 
   const variantColor = (() => {
     switch (item.variant) {
@@ -53,6 +60,14 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
           ? Haptics.NotificationFeedbackType.Warning
           : Haptics.NotificationFeedbackType.Success
     );
+
+    // Staggered entrance: accent bar → icon → progress
+    accentBarScale.value = withDelay(100, withSpring(1, { damping: 20, stiffness: 150 }));
+    iconScale.value = withDelay(150, withSpring(1, { damping: 14, stiffness: 160 }));
+    progressScale.value = withTiming(0, {
+      duration: item.duration,
+      easing: Easing.linear,
+    });
   }, []);
 
   // Auto-dismiss timer
@@ -92,7 +107,19 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
     opacity: opacity.value,
   }));
 
-  const topOffset = insets.top + 8 + index * 72;
+  const accentBarStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleY: accentBarScale.value }],
+  }));
+
+  const iconAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  const progressBarStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: progressScale.value }],
+  }));
+
+  const topOffset = insets.top + 8 + index * 78;
 
   return (
     <GestureDetector gesture={gesture}>
@@ -119,13 +146,26 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
             },
           ]}
         >
-          <View style={[styles.iconWrap, { backgroundColor: variantColor + '20' }]}>
-            <Ionicons
-              name={VARIANT_ICONS[item.variant]}
-              size={20}
-              color={variantColor}
-            />
-          </View>
+          {/* Accent bar on left edge */}
+          <Animated.View
+            style={[
+              styles.accentBar,
+              { backgroundColor: variantColor },
+              accentBarStyle,
+            ]}
+          />
+
+          {/* Double-ring icon */}
+          <Animated.View style={[styles.iconOuter, { borderColor: variantColor + '40' }, iconAnimStyle]}>
+            <View style={[styles.iconInner, { backgroundColor: variantColor + '20' }]}>
+              <Ionicons
+                name={VARIANT_ICONS[item.variant]}
+                size={16}
+                color={variantColor}
+              />
+            </View>
+          </Animated.View>
+
           <View style={styles.textWrap}>
             <Text
               style={[
@@ -133,6 +173,7 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
                 {
                   color: palette.textPrimary,
                   fontFamily: Typography.fonts.serif,
+                  letterSpacing: Typography.letterSpacing.wide,
                 },
               ]}
               numberOfLines={1}
@@ -154,13 +195,24 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
               </Text>
             ) : null}
           </View>
+
+          {/* Circular close button */}
           <TouchableOpacity
             onPress={dismiss}
             hitSlop={12}
-            style={styles.closeBtn}
+            style={[styles.closeBtn, { backgroundColor: palette.textTertiary + '15' }]}
           >
-            <Ionicons name="close" size={18} color={palette.textTertiary} />
+            <Ionicons name="close" size={14} color={palette.textTertiary} />
           </TouchableOpacity>
+
+          {/* Progress bar at bottom */}
+          <Animated.View
+            style={[
+              styles.progressBar,
+              { backgroundColor: variantColor + '50' },
+              progressBarStyle,
+            ]}
+          />
         </BlurView>
       </Animated.View>
     </GestureDetector>
@@ -179,18 +231,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
+    paddingLeft: Spacing.lg + 6, // extra space for accent bar
     borderRadius: Radius.xl,
     borderWidth: 1,
     overflow: 'hidden',
-    ...Shadows.lg,
+    ...Shadows.floating,
   },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.full,
+  accentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 6,
+    bottom: 6,
+    width: 3,
+    borderRadius: 2,
+  },
+  iconOuter: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
+  },
+  iconInner: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textWrap: {
     flex: 1,
@@ -206,6 +275,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    padding: Spacing.xs,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    transformOrigin: 'left',
   },
 });
