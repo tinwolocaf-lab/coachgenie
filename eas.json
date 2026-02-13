@@ -6,17 +6,35 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "REDACTED_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "REDACTED_SUPABASE_ANON_KEY",
+        "EXPO_PUBLIC_AUTH_REDIRECT_URI": "coachgenie://auth/callback",
+        "EXPO_PUBLIC_ALLOW_GUEST_MODE": "false"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "preview-ios-sim": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "REDACTED_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "REDACTED_SUPABASE_ANON_KEY",
+        "EXPO_PUBLIC_AUTH_REDIRECT_URI": "coachgenie://auth/callback",
+        "EXPO_PUBLIC_ALLOW_GUEST_MODE": "false"
+      },
       "ios": {
         "simulator": true
       }
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "REDACTED_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "REDACTED_SUPABASE_ANON_KEY",
+        "EXPO_PUBLIC_AUTH_REDIRECT_URI": "coachgenie://auth/callback",
+        "EXPO_PUBLIC_ALLOW_GUEST_MODE": "false"
+      },
       "android": {
         "buildType": "app-bundle"
       }

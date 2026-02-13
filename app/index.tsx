@@ -7,7 +7,7 @@ import {
   isNewOnboardingComplete,
   migrateLegacyOnboardingCompletionIfNeeded,
 } from '@/lib/onboarding';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { isGuestModeEnabled, isSupabaseConfigured } from '@/lib/supabase';
 
 function useOnboardingStatus() {
   const [isLoading, setIsLoading] = useState(true);
@@ -89,7 +89,12 @@ export default function Index() {
   if (isSupabaseConfigured) {
     return <AuthenticatedIndex />;
   }
-  return <GuestIndex />;
+
+  if (isGuestModeEnabled) {
+    return <GuestIndex />;
+  }
+
+  return <Redirect href="/(auth)/login?error=Authentication%20is%20not%20configured.%20Please%20contact%20support." />;
 }
 
 const styles = StyleSheet.create({

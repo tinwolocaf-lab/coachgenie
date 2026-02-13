@@ -1,5 +1,5 @@
-// Web OAuth callback page - handles OAuth redirects and token exchange
-import React, { useEffect, useState } from 'react';
+// OAuth callback screen - handles native and web redirects plus token exchange
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,12 +7,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
 import { Typography, Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { Button } from '@/components/ui/Button';
 import * as WebBrowser from 'expo-web-browser';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { completeAuthSessionFromUrl, extractAuthErrorFromUrl } from '@/lib/auth-callback';
 
 // Complete the auth session when the browser redirects back (required for web)
 WebBrowser.maybeCompleteAuthSession();
@@ -159,27 +161,107 @@ function PremiumErrorState({
 
 export default function Callback() {
   const router = useRouter();
+  const currentUrl = Linking.useURL();
   const [error, setError] = useState<{ message: string; type?: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState('Completing sign in');
   const [isRetrying, setIsRetrying] = useState(false);
+  const handledUrlRef = useRef<string | null>(null);
 
-  const handleRetry = () => {
+  const handleBackToLogin = useCallback(() => {
+    router.replace('/(auth)/login');
+  }, [router]);
+
+  const handleRetry = useCallback(() => {
     setIsRetrying(true);
     setError(null);
+    handledUrlRef.current = null;
     // Navigate back to login to retry
     setTimeout(() => {
+      setIsRetrying(false);
       router.replace('/(auth)/login');
     }, 300);
-  };
+  }, [router]);
 
-  const handleBackToLogin = () => {
-    router.replace('/(auth)/login');
-  };
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      router.replace('/(auth)/login?error=Authentication%20is%20not%20configured.%20Please%20contact%20support.');
+    }
+  }, [router]);
 
-  // If Supabase is not configured, just redirect
-  if (!isSupabaseConfigured) {
-    router.replace('/(tabs)');
-    return <PremiumLoadingState message="Redirecting" />;
-  }
+  useEffect(() => {
+    if (!isSupabaseConfigured || isRetrying) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const completeAuthCallback = async () => {
+      const fallbackInitialUrl = await Linking.getInitialURL();
+      const callbackUrl = currentUrl ?? fallbackInitialUrl;
+
+      if (!callbackUrl) {
+        if (!isCancelled) {
+          setError({
+            message: 'No authentication callback payload was received. Please try signing in again.',
+            type: 'OAUTH_FAILED',
+          });
+        }
+        return;
+      }
+
+      if (handledUrlRef.current === callbackUrl) {
+        return;
+      }
+      handledUrlRef.current = callbackUrl;
+
+      const providerError = extractAuthErrorFromUrl(callbackUrl);
+      if (providerError) {
+        if (!isCancelled) {
+          setError({ message: providerError, type: 'OAUTH_FAILED' });
+        }
+        return;
+      }
+
+      setStatusMessage('Completing sign in');
+      const result = await completeAuthSessionFromUrl(callbackUrl);
+
+      if (!result.handled) {
+        if (!isCancelled) {
+          setError({
+            message: 'Invalid callback payload. Please try signing in again.',
+            type: 'OAUTH_FAILED',
+          });
+        }
+        return;
+      }
+
+      if (result.errorMessage || !result.session) {
+        if (!isCancelled) {
+          setError({
+            message: result.errorMessage ?? 'Authentication failed while creating your session.',
+            type: 'OAUTH_FAILED',
+          });
+        }
+        return;
+      }
+
+      if (isCancelled) {
+        return;
+      }
+
+      setStatusMessage('Redirecting');
+      if (result.type === 'signup' || result.type === 'email_change') {
+        router.replace('/auth/verified');
+        return;
+      }
+      router.replace('/(tabs)');
+    };
+
+    void completeAuthCallback();
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentUrl, isRetrying, router]);
 
   // Show error state if there's an error
   if (error) {
@@ -198,9 +280,7 @@ export default function Callback() {
     return <PremiumLoadingState message="Preparing sign-in" />;
   }
 
-  // The deep link handler in _layout.tsx already handles token parsing from URL
-  // This page just shows a loading state while that process completes
-  return <PremiumLoadingState message="Completing sign in" />;
+  return <PremiumLoadingState message={statusMessage} />;
 }
 
 const styles = StyleSheet.create({

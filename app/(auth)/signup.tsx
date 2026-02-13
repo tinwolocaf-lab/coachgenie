@@ -23,7 +23,7 @@ import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { isGuestModeEnabled, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 
 // Wrapper component when auth is available
@@ -195,12 +195,33 @@ function GuestSignUp() {
   );
 }
 
+function AuthConfigurationError() {
+  const { palette } = useThemeSafe();
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top', 'bottom']}>
+      <View style={styles.authConfigErrorContainer}>
+        <Text style={[styles.authConfigErrorTitle, { color: palette.textPrimary }]}>
+          Sign-up Unavailable
+        </Text>
+        <Text style={[styles.authConfigErrorBody, { color: palette.textTertiary }]}>
+          This build is missing required Supabase authentication configuration.
+          Contact support or rebuild with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY set.
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+}
+
 // Main export
 export default function SignUpScreen() {
   if (isSupabaseConfigured) {
     return <AuthenticatedSignUp />;
   }
-  return <GuestSignUp />;
+  if (isGuestModeEnabled) {
+    return <GuestSignUp />;
+  }
+  return <AuthConfigurationError />;
 }
 
 // Shared UI component
@@ -509,6 +530,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  authConfigErrorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xxl,
+    gap: Spacing.md,
+  },
+  authConfigErrorTitle: {
+    fontSize: Typography.sizes.headline,
+    fontFamily: Typography.fonts.serif,
+    fontWeight: Typography.weights.semibold,
+    textAlign: 'center',
+  },
+  authConfigErrorBody: {
+    fontSize: Typography.sizes.body,
+    textAlign: 'center',
+    lineHeight: Typography.sizes.body * Typography.lineHeights.relaxed,
   },
 
   // Header

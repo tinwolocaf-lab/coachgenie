@@ -9,7 +9,7 @@ import {
   isNewOnboardingComplete,
   migrateLegacyOnboardingCompletionIfNeeded,
 } from '@/lib/onboarding';
-import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { isGuestModeEnabled, isSupabaseConfigured } from '@/lib/supabase';
 import { ThemeProvider, useThemeSafe } from '@/contexts/ThemeContext';
 import { FocusModeProvider } from '@/contexts/FocusModeContext';
 import { usePremiumFonts } from '@/hooks/usePremiumFonts';
@@ -20,46 +20,6 @@ import { GlobalErrorBoundary } from '@/components/system/GlobalErrorBoundary';
 function debugLog(...args: unknown[]): void {
   if (__DEV__) {
     console.log(...args);
-  }
-}
-
-/**
- * Parse authentication tokens from URL hash fragment
- * Handles URLs like: http://localhost:3000/#access_token=...&refresh_token=...&type=signup
- */
-function parseAuthTokensFromUrl(url: string): {
-  accessToken?: string;
-  refreshToken?: string;
-  type?: string;
-  expiresIn?: number;
-  tokenType?: string;
-} | null {
-  try {
-    // Check if URL has hash fragment
-    const hashIndex = url.indexOf('#');
-    if (hashIndex === -1) return null;
-
-    const hashFragment = url.substring(hashIndex + 1);
-    const params = new URLSearchParams(hashFragment);
-
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    const type = params.get('type');
-    const expiresIn = params.get('expires_in');
-    const tokenType = params.get('token_type');
-
-    if (!accessToken || !refreshToken) return null;
-
-    return {
-      accessToken,
-      refreshToken,
-      type: type || undefined,
-      expiresIn: expiresIn ? parseInt(expiresIn, 10) : undefined,
-      tokenType: tokenType || undefined,
-    };
-  } catch (error) {
-    console.error('Error parsing auth tokens from URL:', error);
-    return null;
   }
 }
 
@@ -83,7 +43,7 @@ const DEEP_LINK_ROUTES = {
  */
 function useDeepLinkHandler() {
   const router = useRouter();
-  const [isProcessingDeepLink, setIsProcessingDeepLink] = useState(false);
+  const isProcessingDeepLink = false;
 
   /**
    * Reset the navigation stack by dismissing all modals and returning to tabs.
@@ -123,58 +83,6 @@ function useDeepLinkHandler() {
       return;
     }
 
-    // Check if this is an auth callback with tokens in hash
-    const tokens = parseAuthTokensFromUrl(url);
-
-    if (tokens) {
-      // Hash-fragment tokens (access_token in #fragment) are returned by
-      // WebBrowser.openAuthSessionAsync and handled by signInWithGoogle/Apple
-      // in auth.tsx. Don't double-process them here.
-      if (url.includes('#access_token=')) {
-        debugLog('[DeepLink] Skipping hash-fragment tokens (handled by WebBrowser)');
-        return;
-      }
-
-      if (!isSupabaseConfigured) return;
-      debugLog('[DeepLink] Found auth tokens, type:', tokens.type);
-      setIsProcessingDeepLink(true);
-
-      try {
-        // Set the session using the tokens from the URL
-        const { data, error } = await supabase.auth.setSession({
-          access_token: tokens.accessToken!,
-          refresh_token: tokens.refreshToken!,
-        });
-
-        resetNavigationStack();
-
-        if (error) {
-          console.error('[DeepLink] Error setting session:', error.message);
-          router.replace(`/(auth)/login?error=${encodeURIComponent(error.message)}`);
-        } else if (data.session) {
-          debugLog('[DeepLink] Session established for:', data.session.user?.email);
-
-          // Determine navigation based on auth type
-          if (tokens.type === 'signup' || tokens.type === 'email_change') {
-            // Email verified - show success screen
-            router.replace('/auth/verified');
-          } else if (tokens.type === 'recovery') {
-            // Password reset - could add a password update screen
-            router.replace('/(tabs)');
-          } else {
-            // Regular sign-in
-            router.replace('/(tabs)');
-          }
-        }
-      } catch (error) {
-        console.error('[DeepLink] Error processing auth callback:', error);
-        router.replace('/(auth)/login?error=Authentication%20failed');
-      } finally {
-        setIsProcessingDeepLink(false);
-      }
-      return;
-    }
-
     // Handle general navigation deep links (e.g., coachgenie://oracle, coachgenie://chat/coach-id)
     try {
       const parsed = Linking.parse(url);
@@ -182,6 +90,18 @@ function useDeepLinkHandler() {
       if (!path) return;
 
       debugLog('[DeepLink] Navigation deep link, path:', path);
+
+      if (!isSupabaseConfigured && !isGuestModeEnabled) {
+        debugLog('[DeepLink] Auth misconfigured, routing to login');
+        router.replace('/(auth)/login?error=Authentication%20is%20not%20configured.%20Please%20contact%20support.');
+        return;
+      }
+
+      // OAuth callback routes are handled in lib/auth.tsx and app/auth/callback.tsx.
+      if (path === 'auth/callback' || path === 'auth/verified') {
+        debugLog('[DeepLink] Auth route detected, deferring to auth callback handling');
+        return;
+      }
 
       // Reset the modal/screen stack before navigating
       resetNavigationStack();

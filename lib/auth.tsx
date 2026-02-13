@@ -7,9 +7,11 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { AppState, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import * as AuthSession from 'expo-auth-session';
 import { useRouter, useSegments } from 'expo-router';
 import type { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { completeAuthSessionFromUrl, extractAuthErrorFromUrl } from '@/lib/auth-callback';
 
 // Complete the auth session when the browser redirects back (required for web, no-op on native)
 WebBrowser.maybeCompleteAuthSession();
@@ -81,7 +83,19 @@ const AuthContext = createContext<UseAuthReturn | null>(null);
 // ─── Helper: build redirect URL ─────────────────────────────────────────────
 
 function getRedirectUrl(): string {
-  return Linking.createURL('auth/callback');
+  const explicitRedirect = process.env.EXPO_PUBLIC_AUTH_REDIRECT_URI?.trim();
+  if (explicitRedirect) {
+    return explicitRedirect;
+  }
+
+  if (Platform.OS === 'web') {
+    return Linking.createURL('auth/callback');
+  }
+
+  return AuthSession.makeRedirectUri({
+    scheme: 'coachgenie',
+    path: 'auth/callback',
+  });
 }
 
 // ─── Helper: create AuthError ───────────────────────────────────────────────
@@ -223,17 +237,20 @@ export function AuthProvider({
 
     const isAuthenticated = !!session;
     const inAuthGroup = segments[0] === '(auth)';
+    const inAuthUtilityScreen =
+      segments[0] === 'auth' && (segments[1] === 'callback' || segments[1] === 'verified');
+    const inAuthRoute = inAuthGroup || inAuthUtilityScreen;
     const inOnboarding = segments[0] === 'onboarding';
 
-    // Don't redirect during onboarding
-    if (inOnboarding) return;
+    // Don't redirect during onboarding or auth callback/verified completion screens.
+    if (inOnboarding || inAuthUtilityScreen) return;
 
     // Prevent redirect flicker — only redirect when auth state actually changes
     // Use undefined check so the first render always fires
     if (prevAuthState.current !== undefined && prevAuthState.current === isAuthenticated) return;
     prevAuthState.current = isAuthenticated;
 
-    if (!isAuthenticated && !inAuthGroup) {
+    if (!isAuthenticated && !inAuthRoute) {
       // Not logged in and not on auth page → send to login
       replaceRoute(routes.login);
     } else if (isAuthenticated && inAuthGroup) {
@@ -309,27 +326,33 @@ export function AuthProvider({
 
   const handleOAuthCallback = useCallback(async (url: string) => {
     try {
-      // Extract tokens from URL hash fragment
-      const hashIndex = url.indexOf('#');
-      if (hashIndex === -1) return;
+      const callbackError = extractAuthErrorFromUrl(url);
+      if (callbackError) {
+        const authErr = createAuthError('OAUTH_FAILED', callbackError);
+        setError(authErr);
+        onError?.(authErr);
+        return;
+      }
 
-      const hashFragment = url.substring(hashIndex + 1);
-      const params = new URLSearchParams(hashFragment);
+      const completion = await completeAuthSessionFromUrl(url);
 
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
+      if (!completion.handled) {
+        const authErr = createAuthError(
+          'OAUTH_FAILED',
+          'Could not complete sign-in because callback parameters were missing.'
+        );
+        setError(authErr);
+        onError?.(authErr);
+        return;
+      }
 
-      if (accessToken && refreshToken) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-
-        if (sessionError) {
-          const authErr = createAuthError('OAUTH_FAILED', sessionError.message);
-          setError(authErr);
-          onError?.(authErr);
-        }
+      if (completion.errorMessage || !completion.session) {
+        const authErr = createAuthError(
+          'OAUTH_FAILED',
+          completion.errorMessage ?? 'Unable to establish an authenticated session.'
+        );
+        setError(authErr);
+        onError?.(authErr);
       }
     } catch (err: unknown) {
       console.error('[Auth] OAuth callback error:', err);
