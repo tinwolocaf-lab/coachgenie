@@ -14,8 +14,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/icon-removebg.png",
+        "backgroundColor": "#F5EDE0"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.coachgenie.app",
