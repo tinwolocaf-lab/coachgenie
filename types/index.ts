@@ -1,4 +1,4 @@
-// Coachgenie Types
+// CoachZeno Types
 import type { ImageSourcePropType } from 'react-native';
 
 // User Profile & Context Vault

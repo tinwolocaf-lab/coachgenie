@@ -1,4 +1,4 @@
-// Coachgenie Design System - Premium Rebirth Editorial Aesthetic
+// CoachZeno Design System - Premium Rebirth Editorial Aesthetic
 // High-end editorial magazine aesthetic with Digital Sanctuary layout
 
 export const Colors = {

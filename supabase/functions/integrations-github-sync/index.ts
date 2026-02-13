@@ -34,7 +34,7 @@ serve(async (request) => {
   const headers = {
     Authorization: `Bearer ${integration.access_token}`,
     Accept: 'application/vnd.github.v3+json',
-    'User-Agent': 'Coachgenie-App',
+    'User-Agent': 'CoachZeno-App',
   };
 
   try {

@@ -8,10 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   FadeInUp,
   FadeIn,
@@ -306,12 +306,11 @@ function LoginUI({
           {/* Editorial Header */}
           <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.header}>
             <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={[palette.accent, palette.accentLight]}
-                style={styles.logoGradient}
-              >
-                <Ionicons name="sparkles" size={32} color={palette.textInverse} />
-              </LinearGradient>
+              <Image
+                source={require('../../assets/images/icon.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={[styles.brandName, { color: palette.textPrimary }]}>CoachZeno</Text>
             <Text style={[styles.tagline, { color: palette.textTertiary }]}>Personal growth, elevated.</Text>
@@ -516,12 +515,10 @@ const styles = StyleSheet.create({
   logoContainer: {
     marginBottom: Spacing.lg,
   },
-  logoGradient: {
+  logoImage: {
     width: 72,
     height: 72,
     borderRadius: Radius.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
     ...Shadows.gold,
   },
   brandName: {

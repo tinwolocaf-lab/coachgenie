@@ -346,7 +346,7 @@ export default function FirstSessionScreen() {
     }
   }, [inputValue, isStreaming, messages, router, sessionId, showAlert, showToast]);
 
-  const handleEnterCoachGenie = useCallback(async () => {
+  const handleEnterCoachZeno = useCallback(async () => {
     if (isCompleting) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -568,7 +568,7 @@ export default function FirstSessionScreen() {
               </View>
               <Button
                 title="Enter CoachZeno"
-                onPress={handleEnterCoachGenie}
+                onPress={handleEnterCoachZeno}
                 disabled={isCompleting}
                 loading={isCompleting}
                 variant="gold"

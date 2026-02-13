@@ -1,4 +1,4 @@
-// Supabase Database Types for Coachgenie
+// Supabase Database Types for CoachZeno
 // Generated types for database tables
 
 interface RawDatabase {

@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -250,7 +251,11 @@ export default function VerifiedScreen() {
             <Animated.View entering={FadeIn.duration(500).delay(300)} style={styles.messageSection}>
               <View style={[styles.messageCard, { backgroundColor: palette.cardBg, borderColor: palette.borderAccent }]}>
                 <View style={[styles.messageIconContainer, { backgroundColor: palette.accentMuted }]}>
-                  <Ionicons name="sparkles" size={20} color={palette.accent} />
+                  <Image
+                    source={require('../../assets/images/icon.png')}
+                    style={styles.messageIconImage}
+                    resizeMode="contain"
+                  />
                 </View>
                 <View style={styles.messageTextContainer}>
                   <Text style={[styles.messageTitle, { color: palette.textPrimary }]}>Your journey begins now</Text>
@@ -367,6 +372,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.lg,
+  },
+  messageIconImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
   },
   messageTextContainer: {
     flex: 1,
