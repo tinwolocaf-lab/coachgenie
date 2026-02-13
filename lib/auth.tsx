@@ -11,6 +11,9 @@ import { useRouter, useSegments } from 'expo-router';
 import type { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
+// Complete the auth session when the browser redirects back (required for web, no-op on native)
+WebBrowser.maybeCompleteAuthSession();
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AuthState {
@@ -133,7 +136,7 @@ export function AuthProvider({
   const [pendingPasswordReset, setPendingPasswordReset] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const prevAuthState = useRef<boolean>(false);
+  const prevAuthState = useRef<boolean | undefined>(undefined);
   const replaceRoute = useCallback((path: string) => {
     router.replace(path as never);
   }, [router]);
@@ -226,7 +229,8 @@ export function AuthProvider({
     if (inOnboarding) return;
 
     // Prevent redirect flicker — only redirect when auth state actually changes
-    if (prevAuthState.current === isAuthenticated) return;
+    // Use undefined check so the first render always fires
+    if (prevAuthState.current !== undefined && prevAuthState.current === isAuthenticated) return;
     prevAuthState.current = isAuthenticated;
 
     if (!isAuthenticated && !inAuthGroup) {
@@ -303,6 +307,38 @@ export function AuthProvider({
     }
   }, [onError]);
 
+  const handleOAuthCallback = useCallback(async (url: string) => {
+    try {
+      // Extract tokens from URL hash fragment
+      const hashIndex = url.indexOf('#');
+      if (hashIndex === -1) return;
+
+      const hashFragment = url.substring(hashIndex + 1);
+      const params = new URLSearchParams(hashFragment);
+
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (sessionError) {
+          const authErr = createAuthError('OAUTH_FAILED', sessionError.message);
+          setError(authErr);
+          onError?.(authErr);
+        }
+      }
+    } catch (err: unknown) {
+      console.error('[Auth] OAuth callback error:', err);
+      const authErr = createAuthError('OAUTH_FAILED', getErrorMessage(err, 'Failed to complete sign-in'));
+      setError(authErr);
+      onError?.(authErr);
+    }
+  }, [onError]);
+
   const signInWithGoogle = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -351,7 +387,7 @@ export function AuthProvider({
     } finally {
       setIsLoading(false);
     }
-  }, [onError]);
+  }, [onError, handleOAuthCallback]);
 
   const signInWithApple = useCallback(async () => {
     setIsLoading(true);
@@ -398,39 +434,7 @@ export function AuthProvider({
     } finally {
       setIsLoading(false);
     }
-  }, [onError]);
-
-  const handleOAuthCallback = useCallback(async (url: string) => {
-    try {
-      // Extract tokens from URL hash fragment
-      const hashIndex = url.indexOf('#');
-      if (hashIndex === -1) return;
-
-      const hashFragment = url.substring(hashIndex + 1);
-      const params = new URLSearchParams(hashFragment);
-
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-
-      if (accessToken && refreshToken) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-
-        if (sessionError) {
-          const authErr = createAuthError('OAUTH_FAILED', sessionError.message);
-          setError(authErr);
-          onError?.(authErr);
-        }
-      }
-    } catch (err: unknown) {
-      console.error('[Auth] OAuth callback error:', err);
-      const authErr = createAuthError('OAUTH_FAILED', getErrorMessage(err, 'Failed to complete sign-in'));
-      setError(authErr);
-      onError?.(authErr);
-    }
-  }, [onError]);
+  }, [onError, handleOAuthCallback]);
 
   const resetPassword = useCallback(async (email: string) => {
     setIsLoading(true);

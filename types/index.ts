@@ -138,6 +138,56 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+// Billing and model selection
+export type BillingTier = 'free' | 'sovereign' | 'oracle';
+
+export interface CreditAccount {
+  user_id: string;
+  tier: BillingTier;
+  balance_mcredits: number;
+  period_start: string | null;
+  period_end: string | null;
+  updated_at: string;
+}
+
+export interface CreditLedgerEvent {
+  id: string;
+  user_id: string;
+  event_type: 'grant' | 'debit' | 'refund' | 'hold' | 'release';
+  endpoint?: string | null;
+  model_id?: string | null;
+  usage_units: Record<string, number | string | boolean | null>;
+  usd_cost: number;
+  delta_mcredits: number;
+  balance_after_mcredits: number;
+  request_id?: string | null;
+  created_at: string;
+}
+
+export interface ModelCatalogItem {
+  id: string;
+  provider: string;
+  default: boolean;
+}
+
+export interface CreditStatus {
+  tier: BillingTier;
+  balance_mcredits: number;
+  balance_credits: number;
+  period_start: string;
+  period_end: string;
+  pack_credits: number;
+  usd_per_credit: number;
+  preferred_chat_model: string | null;
+  tier_source?: 'cache' | 'revenuecat' | 'fallback';
+}
+
+export interface BillingModelCatalog {
+  tier: BillingTier;
+  preferred_model_id: string | null;
+  models: ModelCatalogItem[];
+}
+
 export interface StreamMessage {
   type: 'content' | 'done' | 'error' | 'session_result';
   content?: string;

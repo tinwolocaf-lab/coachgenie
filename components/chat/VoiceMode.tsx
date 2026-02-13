@@ -14,7 +14,11 @@ import {
 import * as FileSystem from 'expo-file-system/legacy';
 import { Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { isFunctionUnavailableError, transcribeVoiceNote } from '@/lib/apiClient';
+import {
+  isFunctionUnavailableError,
+  isInsufficientCreditsError,
+  transcribeVoiceNote,
+} from '@/lib/apiClient';
 
 interface VoiceModeProps {
   onTranscription: (text: string) => void;
@@ -144,6 +148,9 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
       if (isFunctionUnavailableError(err)) {
         console.warn('VoiceMode: transcription unavailable:', err.message);
         Alert.alert('Voice Unavailable', 'Voice transcription service is unavailable right now. Please type instead.');
+      } else if (isInsufficientCreditsError(err)) {
+        console.warn('VoiceMode: insufficient credits:', err.message);
+        Alert.alert('Out of Credits', 'You do not have enough credits for voice transcription. Please upgrade to continue.');
       } else {
         console.warn('VoiceMode: transcription failed', err);
         Alert.alert('Error', 'Transcription failed. Please try again.');

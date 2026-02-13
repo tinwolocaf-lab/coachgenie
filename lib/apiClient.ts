@@ -2,16 +2,22 @@ import { supabase } from '@/lib/supabase';
 
 export interface StreamCallbacks {
   onToken?: (chunk: string) => void;
-  onDone?: (payload: { messageId?: string | null; artifacts?: unknown[] }) => void;
+  onDone?: (payload: {
+    messageId?: string | null;
+    artifacts?: unknown[];
+    creditsDebited?: number;
+    creditsRemaining?: number | null;
+  }) => void;
   onError?: (message: string) => void;
 }
 
 export interface StreamChatOptions {
-  subscriptionTier?: 'free' | 'sovereign' | 'oracle';
+  modelId?: string;
 }
 
-type ApiFunctionErrorKind =
+export type ApiFunctionErrorKind =
   | 'function_unavailable'
+  | 'insufficient_credits'
   | 'unauthorized'
   | 'forbidden'
   | 'bad_request'
@@ -89,6 +95,9 @@ function resolveFunctionErrorKind(
   const normalizedCode = payloadCode?.toUpperCase();
   const normalizedMessage = payloadMessage.toLowerCase();
 
+  if (status === 402 || normalizedCode === 'INSUFFICIENT_CREDITS') {
+    return 'insufficient_credits';
+  }
   if (
     status === 404 ||
     normalizedCode === 'NOT_FOUND' ||
@@ -124,6 +133,34 @@ async function throwFunctionError(
 
 export function isFunctionUnavailableError(error: unknown): error is ApiFunctionError {
   return error instanceof ApiFunctionError && error.kind === 'function_unavailable';
+}
+
+export function isInsufficientCreditsError(error: unknown): error is ApiFunctionError {
+  return error instanceof ApiFunctionError && error.kind === 'insufficient_credits';
+}
+
+export interface CreditStatusResponse {
+  tier: 'free' | 'sovereign' | 'oracle';
+  balance_mcredits: number;
+  balance_credits: number;
+  period_start: string;
+  period_end: string;
+  pack_credits: number;
+  usd_per_credit: number;
+  preferred_chat_model: string | null;
+  tier_source?: 'cache' | 'revenuecat' | 'fallback';
+}
+
+export interface AvailableModel {
+  id: string;
+  provider: string;
+  default: boolean;
+}
+
+export interface ModelCatalogResponse {
+  tier: 'free' | 'sovereign' | 'oracle';
+  preferred_model_id: string | null;
+  models: AvailableModel[];
 }
 
 function getFunctionsBaseUrl(): string {
@@ -187,7 +224,14 @@ function handleSsePayload(payload: string, callbacks: StreamCallbacks) {
     } else if (parsed.event === 'done') {
       try {
         const json = JSON.parse(parsed.data);
-        callbacks.onDone?.({ messageId: json.message_id, artifacts: json.artifacts });
+        callbacks.onDone?.({
+          messageId: json.message_id,
+          artifacts: json.artifacts,
+          creditsDebited:
+            typeof json.credits_debited === 'number' ? json.credits_debited : undefined,
+          creditsRemaining:
+            typeof json.credits_remaining === 'number' ? json.credits_remaining : null,
+        });
       } catch {
         callbacks.onDone?.({});
       }
@@ -221,7 +265,7 @@ export async function streamChat(
       session_id: sessionId,
       user_message: userMessage,
       client_context: { screen: 'chat' },
-      subscription_tier: options.subscriptionTier,
+      model_id: options.modelId,
     }),
   });
 
@@ -638,4 +682,66 @@ export async function transcribeVoiceNote(params: {
   }
 
   return fullText;
+}
+
+export async function getCreditStatus(): Promise<CreditStatusResponse> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/billing-credit-status`, {
+    method: 'GET',
+    headers: {
+      Authorization: authHeader,
+    },
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(response, 'Failed to load credit status', 'billing-credit-status');
+  }
+
+  return (await response.json()) as CreditStatusResponse;
+}
+
+export async function getAvailableModels(): Promise<ModelCatalogResponse> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/billing-model-catalog`, {
+    method: 'GET',
+    headers: {
+      Authorization: authHeader,
+    },
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(response, 'Failed to load model catalog', 'billing-model-catalog');
+  }
+
+  return (await response.json()) as ModelCatalogResponse;
+}
+
+export async function setPreferredModel(modelId: string): Promise<{ preferred_model_id: string }> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/billing-set-model-preference`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify({
+      model_id: modelId,
+    }),
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(
+      response,
+      'Failed to save preferred model',
+      'billing-set-model-preference'
+    );
+  }
+
+  return (await response.json()) as { preferred_model_id: string };
 }

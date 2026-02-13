@@ -41,8 +41,7 @@ const TIERS: TierInfo[] = [
     tagline: "Start your coaching practice",
     features: [
       { label: "1 coach (Daily Clarity)", included: true },
-      { label: "2 sessions per day", included: true },
-      { label: "12 messages per session", included: true },
+      { label: "50 monthly credits", included: true },
       { label: "Basic archive", included: true },
       { label: "Text coaching only", included: true },
       { label: "All coaches", included: false },
@@ -60,15 +59,15 @@ const TIERS: TierInfo[] = [
     tagline: "High-agency coaching, daily",
     highlight: true,
     features: [
+      { label: "300 monthly credits", included: true },
       { label: "All coaches", included: true },
-      { label: "8 sessions per day", included: true },
-      { label: "40 messages per session", included: true },
       { label: "Full archive access", included: true },
       { label: "Voice notes + transcription", included: true },
       { label: "Live voice coaching", included: true },
       { label: "Integrations", included: true },
       { label: "All atmospheres", included: true },
-      { label: "Premium AI models", included: false },
+      { label: "Curated chat model selection", included: true },
+      { label: "Premium AI reasoning models", included: false },
     ],
   },
   {
@@ -79,13 +78,12 @@ const TIERS: TierInfo[] = [
     tagline: "Deep coaching with premium intelligence",
     features: [
       { label: "Everything in Sovereign", included: true },
+      { label: "1000 monthly credits", included: true },
       {
         label:
           "Premium AI reasoning (Claude Sonnet 4.5 routing)",
         included: true,
       },
-      { label: "12 sessions per day", included: true },
-      { label: "60 messages per session", included: true },
       { label: "Extended live voice sessions", included: true },
       { label: "Custom coach creation", included: true },
       { label: "Proactive nudges", included: true },

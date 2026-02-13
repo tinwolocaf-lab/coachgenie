@@ -1,7 +1,7 @@
 // Conditional Auth Hook wrapper
 // Provides auth functionality only when Supabase is configured
 // Now uses native Supabase auth from @/lib/auth instead of @fastshot/auth
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
 // Re-export types from our native auth module
@@ -45,21 +45,31 @@ const defaultAuthState: FallbackAuthState = {
  * Primary conditional auth hook.
  * Returns real auth state when Supabase is configured,
  * or fallback no-op state for guest mode.
+ *
+ * Note: isSupabaseConfigured and realUseAuth are module-level constants,
+ * so the branch taken never changes between renders. This keeps
+ * hook call order stable across renders.
  */
 export function useConditionalAuth() {
-  const [localState, setLocalState] = useState(defaultAuthState);
-
-  // If real auth is available and Supabase is configured, use it
   if (realUseAuth && isSupabaseConfigured) {
-    try {
-       
-      return realUseAuth();
-    } catch {
-      // Fall through to fallback
-    }
+    // When Supabase is configured, AuthProvider wraps the entire app tree
+    // (see _layout.tsx), so useAuth() will always find its context.
+    // Do NOT wrap in try/catch — if this throws, it is a real error
+    // that should surface, not be silently swallowed.
+    return realUseAuth();
   }
 
-  // Fallback actions for guest mode
+  return useFallbackAuth();
+}
+
+/**
+ * Fallback auth hook for guest mode (when Supabase is not configured).
+ * Extracted into its own hook to keep useState calls unconditional
+ * within this code path.
+ */
+function useFallbackAuth() {
+  const [localState, setLocalState] = useState(defaultAuthState);
+
   return {
     ...localState,
     signInWithGoogle: async () => {},
@@ -90,6 +100,5 @@ export function useConditionalAuth() {
  * This is the preferred hook for most screens.
  */
 export function useAuthSafe() {
-   
   return useConditionalAuth();
 }

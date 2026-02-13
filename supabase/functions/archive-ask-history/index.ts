@@ -1,7 +1,20 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
-import { openRouterChat } from '../_shared/openrouter.ts';
+import { extractOpenRouterUsage, openRouterChat } from '../_shared/openrouter.ts';
+import { createServiceClient } from '../_shared/supabase.ts';
+import { resolveBillingTier } from '../_shared/revenuecat.ts';
+import { resolveChatModelForTier } from '../_shared/modelCatalog.ts';
+import {
+  assertSufficientBalance,
+  BillingError,
+  buildInsufficientCreditsBody,
+  calculateUsdCost,
+  debitForUsage,
+  ensureActiveCreditAccount,
+  mcreditsFromUsd,
+  type UsageUnits,
+} from '../_shared/billing.ts';
 
 interface AskHistoryBody {
   query: string;
@@ -34,13 +47,36 @@ serve(async (request) => {
   }
 
   const { userClient, userId } = auth;
-  const model = Deno.env.get('OPENROUTER_CHAT_MODEL') ?? 'openai/gpt-4o-mini';
+  const serviceClient = createServiceClient();
+  const tierResult = await resolveBillingTier(serviceClient, userId);
+  const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
+  const model = await resolveChatModelForTier(serviceClient, tierResult.tier);
 
   const prompt = `Answer this question based on the user's coaching history. If there is not enough information, say so and suggest what to ask next.
 
 Question: ${payload.query}`;
 
+  const preflightUsage: UsageUnits = {
+    inputTokens: Math.max(350, Math.ceil(prompt.length / 4)),
+    outputTokens: 500,
+  };
+  const preflightUsd = await calculateUsdCost(serviceClient, model, preflightUsage);
+  const preflightMcredits = Math.max(45, mcreditsFromUsd(preflightUsd));
+
+  try {
+    assertSufficientBalance(creditStatus, preflightMcredits);
+  } catch (error) {
+    if (error instanceof BillingError && error.kind === 'insufficient_credits') {
+      return new Response(buildInsufficientCreditsBody(), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    throw error;
+  }
+
   let answer = 'I searched your history and found themes around clarity and consistency. Try asking about a specific coach or time period for more detail.';
+  let usageForDebit: UsageUnits | null = null;
 
   try {
     const openRouterResponse = await openRouterChat({
@@ -56,8 +92,39 @@ Question: ${payload.query}`;
     if (content.trim()) {
       answer = content.trim();
     }
+    usageForDebit = extractOpenRouterUsage(data);
   } catch {
-    // keep fallback
+    // Keep fallback answer.
+  }
+
+  try {
+    await debitForUsage(serviceClient, {
+      userId,
+      endpoint: 'archive-ask-history',
+      modelId: model,
+      usage: usageForDebit ?? preflightUsage,
+      requestId: `history-ask:${Date.now()}`,
+      metadata: {
+        tier: tierResult.tier,
+        tier_source: tierResult.source,
+        provider_usage: usageForDebit !== null,
+      },
+    });
+  } catch (error) {
+    if (error instanceof BillingError && error.kind === 'insufficient_credits') {
+      return new Response(buildInsufficientCreditsBody(), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    console.error('[Billing] Archive ask history debit failure:', error);
+    return new Response(
+      JSON.stringify({
+        code: 'ARCHIVE_ASK_BILLING_FAILED',
+        message: 'Failed to finalize billing for archive ask.',
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   const { data, error } = await userClient

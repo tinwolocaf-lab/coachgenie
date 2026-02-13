@@ -1,10 +1,23 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
-import { openRouterChat } from '../_shared/openrouter.ts';
+import { extractOpenRouterUsage, openRouterChat } from '../_shared/openrouter.ts';
+import { createServiceClient } from '../_shared/supabase.ts';
+import { resolveBillingTier } from '../_shared/revenuecat.ts';
+import { resolveChatModelForTier } from '../_shared/modelCatalog.ts';
+import {
+  assertSufficientBalance,
+  BillingError,
+  buildInsufficientCreditsBody,
+  calculateUsdCost,
+  debitForUsage,
+  ensureActiveCreditAccount,
+  mcreditsFromUsd,
+  type UsageUnits,
+} from '../_shared/billing.ts';
 
 interface SynthesisBody {
-  month_year: string; // YYYY-MM
+  month_year: string;
 }
 
 serve(async (request) => {
@@ -34,9 +47,10 @@ serve(async (request) => {
   }
 
   const { userClient, userId } = auth;
-  const model = Deno.env.get('OPENROUTER_JSON_MODEL')
-    ?? Deno.env.get('OPENROUTER_CHAT_MODEL')
-    ?? 'openai/gpt-4o-mini';
+  const serviceClient = createServiceClient();
+  const tierResult = await resolveBillingTier(serviceClient, userId);
+  const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
+  const model = await resolveChatModelForTier(serviceClient, tierResult.tier);
 
   const prompt = `Create a monthly synthesis for ${payload.month_year}.
 Return JSON:
@@ -52,6 +66,25 @@ Return JSON:
   "session_count": 0
 }`;
 
+  const preflightUsage: UsageUnits = {
+    inputTokens: Math.max(500, Math.ceil(prompt.length / 4)),
+    outputTokens: 1400,
+  };
+  const preflightUsd = await calculateUsdCost(serviceClient, model, preflightUsage);
+  const preflightMcredits = Math.max(120, mcreditsFromUsd(preflightUsd));
+
+  try {
+    assertSufficientBalance(creditStatus, preflightMcredits);
+  } catch (error) {
+    if (error instanceof BillingError && error.kind === 'insufficient_credits') {
+      return new Response(buildInsufficientCreditsBody(), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    throw error;
+  }
+
   let synthesis = {
     user_id: userId,
     month_year: payload.month_year,
@@ -65,6 +98,8 @@ Return JSON:
     insight_count: 0,
     session_count: 0,
   };
+
+  let usageForDebit: UsageUnits | null = null;
 
   try {
     const openRouterResponse = await openRouterChat({
@@ -93,8 +128,39 @@ Return JSON:
       insight_count: parsed.insight_count || 0,
       session_count: parsed.session_count || 0,
     };
+    usageForDebit = extractOpenRouterUsage(data);
   } catch {
-    // keep fallback
+    // Keep fallback synthesis payload.
+  }
+
+  try {
+    await debitForUsage(serviceClient, {
+      userId,
+      endpoint: 'archive-monthly-synthesis',
+      modelId: model,
+      usage: usageForDebit ?? preflightUsage,
+      requestId: `monthly-synthesis:${payload.month_year}:${Date.now()}`,
+      metadata: {
+        tier: tierResult.tier,
+        tier_source: tierResult.source,
+        provider_usage: usageForDebit !== null,
+      },
+    });
+  } catch (error) {
+    if (error instanceof BillingError && error.kind === 'insufficient_credits') {
+      return new Response(buildInsufficientCreditsBody(), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    console.error('[Billing] Monthly synthesis debit failure:', error);
+    return new Response(
+      JSON.stringify({
+        code: 'MONTHLY_SYNTHESIS_BILLING_FAILED',
+        message: 'Failed to finalize billing for monthly synthesis.',
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   const { data, error } = await userClient

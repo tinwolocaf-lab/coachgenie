@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +34,14 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { getUserSubscriptionTier } from '@/lib/revenuecat';
+import {
+  ApiFunctionError,
+  getAvailableModels,
+  getCreditStatus,
+  setPreferredModel,
+  type AvailableModel,
+  type CreditStatusResponse,
+} from '@/lib/apiClient';
 
 interface UserProfile {
   email: string;
@@ -56,6 +65,11 @@ export default function AccountScreen() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [creditStatus, setCreditStatus] = useState<CreditStatusResponse | null>(null);
+  const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
+  const [preferredModelId, setPreferredModelId] = useState<string | null>(null);
+  const [isBillingLoading, setIsBillingLoading] = useState(false);
+  const [isUpdatingModel, setIsUpdatingModel] = useState(false);
 
   // Animation values
   const headerScale = useSharedValue(1);
@@ -76,6 +90,38 @@ export default function AccountScreen() {
       // Sovereign membership is now checked via RevenueCat in ThemeContext
     }
   }, [auth.user]);
+
+  const loadBillingData = useCallback(async () => {
+    if (!auth?.isAuthenticated) {
+      setCreditStatus(null);
+      setAvailableModels([]);
+      setPreferredModelId(null);
+      return;
+    }
+
+    setIsBillingLoading(true);
+    try {
+      const [status, catalog] = await Promise.all([
+        getCreditStatus(),
+        getAvailableModels(),
+      ]);
+      setCreditStatus(status);
+      setAvailableModels(catalog.models);
+      setPreferredModelId(catalog.preferred_model_id ?? status.preferred_chat_model);
+    } catch (error) {
+      if (error instanceof ApiFunctionError) {
+        console.warn('Failed to load billing details:', error.message);
+      } else {
+        console.warn('Failed to load billing details:', error);
+      }
+    } finally {
+      setIsBillingLoading(false);
+    }
+  }, [auth?.isAuthenticated]);
+
+  useEffect(() => {
+    void loadBillingData();
+  }, [loadBillingData, subscriptionTier]);
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -247,6 +293,28 @@ export default function AccountScreen() {
     }
   };
 
+  const handleSelectModel = useCallback(async (modelId: string) => {
+    if (isUpdatingModel || preferredModelId === modelId) {
+      return;
+    }
+
+    setIsUpdatingModel(true);
+    try {
+      await setPreferredModel(modelId);
+      setPreferredModelId(modelId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      if (error instanceof ApiFunctionError) {
+        console.warn('Failed to update model preference:', error.message);
+      } else {
+        console.warn('Failed to update model preference:', error);
+      }
+      Alert.alert('Model Update Failed', 'Could not save your model preference. Please try again.');
+    } finally {
+      setIsUpdatingModel(false);
+    }
+  }, [isUpdatingModel, preferredModelId]);
+
   const headerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: headerScale.value }],
   }));
@@ -346,8 +414,8 @@ export default function AccountScreen() {
                     <Ionicons name="checkmark-circle" size={20} color={palette.success} />
                   </View>
                   <View style={styles.settingContent}>
-                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>2 Sessions Per Day</Text>
-                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Start your coaching journey today</Text>
+                    <Text style={[styles.settingValue, { color: palette.textSecondary }]}>50 monthly credits</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>Credit-based AI usage across chat and voice</Text>
                   </View>
                 </View>
 
@@ -381,7 +449,7 @@ export default function AccountScreen() {
                   <View style={styles.settingContent}>
                     <Text style={[styles.settingValue, { color: palette.textSecondary }]}>Unlock All Features</Text>
                     <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>
-                      Get all coaches, higher daily limits, voice tools, and premium models
+                      Get larger credit packs, voice tools, and advanced model access
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={palette.accent} />
@@ -602,27 +670,26 @@ export default function AccountScreen() {
                     <View style={styles.featureItem}>
                       <Ionicons name="checkmark" size={16} color={palette.success} />
                       <Text style={[styles.featureText, { color: palette.textSecondary }]}>
-                        {subscriptionTier === 'oracle'
-                          ? '12 sessions per day'
-                          : subscriptionTier === 'sovereign'
-                            ? '8 sessions per day'
-                            : '2 sessions per day'}
+                        {(creditStatus?.pack_credits ??
+                          (subscriptionTier === 'oracle' ? 1000 : subscriptionTier === 'sovereign' ? 300 : 50))} monthly credits included
                       </Text>
                     </View>
                     <View style={styles.featureItem}>
                       <Ionicons name="checkmark" size={16} color={palette.success} />
                       <Text style={[styles.featureText, { color: palette.textSecondary }]}>
-                        {subscriptionTier === 'free' ? 'Daily Clarity coach access' : 'All premium coaches'}
+                        {creditStatus
+                          ? `${creditStatus.balance_credits.toFixed(1)} credits remaining this period`
+                          : 'Credits refresh every 30-day billing period'}
                       </Text>
                     </View>
                     <View style={styles.featureItem}>
                       <Ionicons name="checkmark" size={16} color={palette.success} />
                       <Text style={[styles.featureText, { color: palette.textSecondary }]}>
                         {subscriptionTier === 'oracle'
-                          ? 'Premium reasoning + priority support'
+                          ? 'All coaches + premium reasoning model access'
                           : subscriptionTier === 'sovereign'
-                            ? 'Voice coaching + integrations'
-                            : 'Text coaching with daily limits'}
+                            ? 'All coaches + voice coaching + integrations'
+                            : 'Daily Clarity coach + essential AI access'}
                       </Text>
                     </View>
                   </View>
@@ -637,6 +704,59 @@ export default function AccountScreen() {
                 </LinearGradient>
               </View>
             </Animated.View>
+
+            {/* Chat Model Section */}
+            {subscriptionTier !== 'free' && (
+              <Animated.View entering={FadeInUp.duration(500).delay(330)}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Chat Model</Text>
+                </View>
+
+                <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+                  <Text style={[styles.settingDescription, { color: palette.textTertiary, marginBottom: Spacing.md }]}>
+                    Choose your default chat model for new conversations. Voice remains Gemini-managed.
+                  </Text>
+
+                  {isBillingLoading ? (
+                    <View style={styles.modelLoadingState}>
+                      <ActivityIndicator size="small" color={palette.accent} />
+                    </View>
+                  ) : (
+                    <View style={styles.modelList}>
+                      {availableModels.map((model) => {
+                        const isSelected = preferredModelId === model.id;
+                        return (
+                          <TouchableOpacity
+                            key={model.id}
+                            style={[
+                              styles.modelOption,
+                              {
+                                borderColor: isSelected ? palette.accent : palette.border,
+                                backgroundColor: isSelected ? palette.accentMuted : palette.background,
+                              },
+                            ]}
+                            disabled={isUpdatingModel}
+                            onPress={() => {
+                              void handleSelectModel(model.id);
+                            }}
+                          >
+                            <View style={styles.modelTextBlock}>
+                              <Text style={[styles.modelName, { color: palette.textPrimary }]}>{model.id}</Text>
+                              <Text style={[styles.modelProvider, { color: palette.textTertiary }]}>
+                                {model.provider}
+                              </Text>
+                            </View>
+                            {isSelected ? (
+                              <Ionicons name="checkmark-circle" size={18} color={palette.accent} />
+                            ) : null}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              </Animated.View>
+            )}
 
             {/* Connections Section */}
             <Animated.View entering={FadeInUp.duration(500).delay(350)}>
@@ -918,6 +1038,37 @@ const styles = StyleSheet.create({
   },
   settingDescription: {
     fontSize: Typography.sizes.body,
+  },
+  modelLoadingState: {
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modelList: {
+    gap: Spacing.sm,
+  },
+  modelOption: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modelTextBlock: {
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  modelName: {
+    fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sansSemibold,
+  },
+  modelProvider: {
+    fontSize: Typography.sizes.caption,
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: Typography.letterSpacing.wider,
   },
   editButton: {
     width: 36,

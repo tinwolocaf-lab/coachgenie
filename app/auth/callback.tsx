@@ -11,7 +11,11 @@ import { Typography, Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { Button } from '@/components/ui/Button';
+import * as WebBrowser from 'expo-web-browser';
 import { isSupabaseConfigured } from '@/lib/supabase';
+
+// Complete the auth session when the browser redirects back (required for web)
+WebBrowser.maybeCompleteAuthSession();
 
 // Custom loading component with premium styling
 function PremiumLoadingState({ message }: { message: string }) {

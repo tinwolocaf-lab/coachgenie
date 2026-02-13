@@ -89,6 +89,7 @@ export function VoiceLiveSession({
   const transcriptScrollRef = useRef<ScrollView>(null);
   const aiTranscriptRef = useRef('');
   const userTranscriptRef = useRef('');
+  const sessionDurationRef = useRef(0);
 
   // Animations
   const pulseScale = useSharedValue(1);
@@ -159,16 +160,6 @@ export function VoiceLiveSession({
     }
   }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    const liveSession = geminiSession.current;
-    return () => {
-      liveSession.disconnect();
-      void stopAudioCaptureSafely();
-      setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
-    };
-  }, [stopAudioCaptureSafely]);
-
   useEffect(() => {
     aiTranscriptRef.current = aiTranscript;
   }, [aiTranscript]);
@@ -176,6 +167,28 @@ export function VoiceLiveSession({
   useEffect(() => {
     userTranscriptRef.current = userTranscript;
   }, [userTranscript]);
+
+  useEffect(() => {
+    sessionDurationRef.current = sessionDuration;
+  }, [sessionDuration]);
+
+  const finalizeVoiceSession = useCallback(async () => {
+    await geminiSession.current.finalizeSession(sessionDurationRef.current);
+  }, []);
+
+  const finalizeAndDisconnect = useCallback(async () => {
+    await finalizeVoiceSession();
+    geminiSession.current.disconnect();
+  }, [finalizeVoiceSession]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      void finalizeAndDisconnect();
+      void stopAudioCaptureSafely();
+      setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+    };
+  }, [finalizeAndDisconnect, stopAudioCaptureSafely]);
 
   const startAudioCapture = useCallback(async () => {
     try {
@@ -310,9 +323,9 @@ export function VoiceLiveSession({
       // ignore
     }
 
-    geminiSession.current.disconnect();
+    await finalizeAndDisconnect();
     setConnectionState('disconnected');
-  }, [stopAudioCaptureSafely]);
+  }, [finalizeAndDisconnect, stopAudioCaptureSafely]);
 
   const handleClose = useCallback(async () => {
     await stopVoiceSession();

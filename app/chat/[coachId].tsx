@@ -43,15 +43,19 @@ import {
   getDayPlans,
 } from '@/store/app';
 import { createSession, updateSessionById } from '@/lib/supabase-sanctuary';
-import { streamChat, generateArtifacts } from '@/lib/apiClient';
+import {
+  ApiFunctionError,
+  generateArtifacts,
+  getCreditStatus,
+  isFunctionUnavailableError,
+  isInsufficientCreditsError,
+  streamChat,
+} from '@/lib/apiClient';
 import {
   getUserTier,
-  getRemainingSessionsToday,
-  incrementSessionCount,
   canAccessCoach,
   canAccessFeature,
   FREE_COACH_ID,
-  type SubscriptionTier,
 } from '@/lib/feature-gates';
 import { VoiceLiveSession } from '@/components/chat/VoiceLiveSession';
 
@@ -122,7 +126,7 @@ export default function ChatScreen() {
   const [isGeneratingArtifacts, setIsGeneratingArtifacts] = useState(false);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
 
   const flatListRef = useRef<FlatList>(null);
   const pulseAnim = useSharedValue(1);
@@ -149,7 +153,6 @@ export default function ChatScreen() {
 
     // Check feature gates
     const tier = await getUserTier();
-    setSubscriptionTier(tier);
     if (!canAccessCoach(tier, coachId)) {
       Alert.alert(
         'Upgrade Required',
@@ -157,19 +160,6 @@ export default function ChatScreen() {
         [
           { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
           { text: 'View Plans', onPress: () => { router.back(); router.push('/paywall'); } },
-        ]
-      );
-      return;
-    }
-
-    const remaining = await getRemainingSessionsToday(tier);
-    if (remaining <= 0) {
-      Alert.alert(
-        'Session Limit Reached',
-        'You\'ve used all free sessions for today. Upgrade for higher daily limits.',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
-          { text: 'Upgrade', onPress: () => { router.back(); router.push('/paywall'); } },
         ]
       );
       return;
@@ -194,7 +184,20 @@ export default function ChatScreen() {
       return;
     }
 
-    await incrementSessionCount();
+    if (authUser) {
+      try {
+        const creditStatus = await getCreditStatus();
+        setSelectedModelId(creditStatus.preferred_chat_model ?? undefined);
+      } catch (error) {
+        if (error instanceof ApiFunctionError) {
+          console.warn('Failed to load billing status:', error.message);
+        } else {
+          console.warn('Failed to load billing status:', error);
+        }
+      }
+    } else {
+      setSelectedModelId(undefined);
+    }
 
     let currentSessionId: string;
 
@@ -298,7 +301,7 @@ export default function ChatScreen() {
           throw new Error(message);
         },
       }, {
-        subscriptionTier,
+        modelId: selectedModelId,
       });
 
       const assistantMessage: Message = {
@@ -338,14 +341,37 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      console.error('Error sending message:', error);
       setIsStreaming(false);
+
+      const unavailable = isFunctionUnavailableError(error);
+      const insufficientCredits = isInsufficientCreditsError(error);
+
+      if (error instanceof ApiFunctionError) {
+        console.warn('Error sending message:', error.message);
+      } else {
+        console.error('Error sending message:', error);
+      }
+
+      if (insufficientCredits) {
+        Alert.alert(
+          'Out of Credits',
+          'You do not have enough credits to continue. Upgrade your plan to keep chatting.',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            { text: 'View Plans', onPress: () => router.push('/paywall') },
+          ]
+        );
+      }
 
       const errorMessage: Message = {
         id: Date.now().toString(),
         session_id: sessionId || '',
         role: 'assistant',
-        content: 'I apologize, but I encountered an error. Please try again in a moment.',
+        content: unavailable
+          ? 'The coaching service is temporarily unavailable. Please try again in a moment.'
+          : insufficientCredits
+            ? 'You are out of credits for now. Upgrade your plan to continue this conversation.'
+            : 'I apologize, but I encountered an error. Please try again in a moment.',
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);

@@ -3,8 +3,10 @@
 
 import { supabase } from '@/lib/supabase';
 
-const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+const GEMINI_WS_URL =
+  'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained';
 const VOICE_SESSION_CONFIG_FUNCTION = 'voice-session-config';
+const VOICE_SESSION_FINALIZE_FUNCTION = 'voice-session-finalize';
 
 export interface GeminiLiveConfig {
   model: string;
@@ -19,8 +21,17 @@ export interface GeminiLiveConfig {
       };
     };
   };
-  apiKey: string;
+  accessToken: string;
+  voiceSessionId: string;
+  tokenExpiresAt?: string;
+  holdMcredits?: number;
+  balanceMcreditsAfterHold?: number;
   voiceName?: string;
+}
+
+interface VoiceSessionFinalizeResponse {
+  voice_session_id?: string;
+  status?: string;
 }
 
 export interface VoiceSessionCallbacks {
@@ -190,6 +201,7 @@ export class GeminiLiveSession {
   private audioBuffer: Int16Array[] = [];
   private sendInterval: ReturnType<typeof setInterval> | null = null;
   private transcript: string = '';
+  private hasFinalizedSession = false;
 
   get state(): ConnectionState {
     return this._state;
@@ -197,6 +209,10 @@ export class GeminiLiveSession {
 
   get currentTranscript(): string {
     return this.transcript;
+  }
+
+  get voiceSessionId(): string | null {
+    return this.config?.voiceSessionId ?? null;
   }
 
   /**
@@ -214,9 +230,10 @@ export class GeminiLiveSession {
     try {
       // 1. Get session config from our edge function
       this.config = await this.fetchSessionConfig(coachId, sessionId, voiceName);
+      this.hasFinalizedSession = false;
 
       // 2. Connect to Gemini Live API via WebSocket
-      const wsUrl = `${GEMINI_WS_URL}?key=${this.config.apiKey}`;
+      const wsUrl = `${GEMINI_WS_URL}?access_token=${encodeURIComponent(this.config.accessToken)}`;
       this.ws = new WebSocket(wsUrl);
 
       this.ws.binaryType = 'arraybuffer';
@@ -497,6 +514,50 @@ export class GeminiLiveSession {
   }
 
   /**
+   * Finalize backend voice session billing and release unused hold.
+   */
+  async finalizeSession(durationSeconds: number): Promise<VoiceSessionFinalizeResponse | null> {
+    const voiceSessionId = this.config?.voiceSessionId;
+    if (!voiceSessionId || this.hasFinalizedSession) {
+      return null;
+    }
+
+    this.hasFinalizedSession = true;
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        return null;
+      }
+
+      const baseUrl = getFunctionsBaseUrl();
+      const response = await fetch(`${baseUrl}/${VOICE_SESSION_FINALIZE_FUNCTION}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          voice_session_id: voiceSessionId,
+          duration_seconds: Math.max(1, Math.round(durationSeconds)),
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.warn('[GeminiLive] Failed to finalize voice session:', text);
+        return null;
+      }
+
+      return (await response.json()) as VoiceSessionFinalizeResponse;
+    } catch (error) {
+      console.warn('[GeminiLive] Voice session finalize error:', error);
+      return null;
+    }
+  }
+
+  /**
    * Disconnect from Gemini Live API
    */
   disconnect(): void {
@@ -508,6 +569,7 @@ export class GeminiLiveSession {
     this._state = 'disconnected';
     this.transcript = '';
     this.config = null;
+    this.hasFinalizedSession = false;
   }
 
   /**
@@ -546,7 +608,37 @@ export class GeminiLiveSession {
       throw buildSessionConfigError(response.status, text);
     }
 
-    return response.json();
+    const payload = (await response.json()) as Record<string, unknown>;
+    const accessToken = typeof payload.access_token === 'string' ? payload.access_token : '';
+    const voiceSessionId = typeof payload.voice_session_id === 'string' ? payload.voice_session_id : '';
+
+    if (!accessToken || !voiceSessionId) {
+      throw new GeminiLiveError({
+        kind: 'voice_service_request_failed',
+        message: 'Voice service returned an incomplete session config.',
+      });
+    }
+
+    const generationConfig =
+      payload.generationConfig && typeof payload.generationConfig === 'object'
+        ? (payload.generationConfig as GeminiLiveConfig['generationConfig'])
+        : {
+            responseModalities: ['AUDIO', 'TEXT'],
+          };
+
+    return {
+      model: typeof payload.model === 'string' ? payload.model : 'gemini-2.5-flash-native-audio-preview',
+      systemInstruction:
+        typeof payload.systemInstruction === 'string' ? payload.systemInstruction : 'You are a helpful coaching assistant.',
+      generationConfig,
+      accessToken,
+      voiceSessionId,
+      tokenExpiresAt: typeof payload.token_expires_at === 'string' ? payload.token_expires_at : undefined,
+      holdMcredits: typeof payload.hold_mcredits === 'number' ? payload.hold_mcredits : undefined,
+      balanceMcreditsAfterHold:
+        typeof payload.balance_mcredits_after_hold === 'number' ? payload.balance_mcredits_after_hold : undefined,
+      voiceName: typeof payload.voiceName === 'string' ? payload.voiceName : voiceName,
+    };
   }
 }
 

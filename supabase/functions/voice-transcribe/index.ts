@@ -1,31 +1,76 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
-import { openRouterChat, parseOpenRouterSseChunk } from '../_shared/openrouter.ts';
 import { encodeSseEvent } from '../_shared/sse.ts';
+import { createServiceClient } from '../_shared/supabase.ts';
+import { resolveBillingTier } from '../_shared/revenuecat.ts';
+import {
+  assertSufficientBalance,
+  BillingError,
+  buildInsufficientCreditsBody,
+  calculateUsdCost,
+  debitForUsage,
+  ensureActiveCreditAccount,
+  estimateChatUsageFromText,
+  mcreditsFromUsd,
+  type UsageUnits,
+} from '../_shared/billing.ts';
 
 interface TranscribeBody {
   audio_base64: string;
   mime_type?: string;
   file_name?: string;
-  stream?: boolean;
 }
 
-function getAudioFormat(mimeType?: string, fileName?: string): string {
-  const fallback = 'm4a';
-  if (mimeType) {
-    if (mimeType.includes('wav')) return 'wav';
-    if (mimeType.includes('mpeg') || mimeType.includes('mp3')) return 'mp3';
-    if (mimeType.includes('webm')) return 'webm';
-    if (mimeType.includes('mp4') || mimeType.includes('m4a')) return 'm4a';
+interface GeminiTranscribeResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    promptTokensDetails?: Array<{
+      modality?: string;
+      tokenCount?: number;
+    }>;
+  };
+}
+
+function inferMimeType(mimeType?: string, fileName?: string): string {
+  if (mimeType && mimeType.trim().length > 0) {
+    return mimeType;
   }
 
-  if (fileName) {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    if (ext) return ext;
-  }
+  const ext = fileName?.split('.').pop()?.toLowerCase();
+  if (ext === 'wav') return 'audio/wav';
+  if (ext === 'mp3') return 'audio/mpeg';
+  if (ext === 'webm') return 'audio/webm';
+  if (ext === 'ogg') return 'audio/ogg';
+  return 'audio/m4a';
+}
 
-  return fallback;
+function getAudioTokensFromDetails(
+  details: Array<{
+    modality?: string;
+    tokenCount?: number;
+  }> | undefined
+): number {
+  if (!details) return 0;
+  for (const item of details) {
+    if (item?.modality?.toLowerCase() === 'audio') {
+      return Math.max(0, Number(item.tokenCount ?? 0));
+    }
+  }
+  return 0;
+}
+
+function estimateAudioTokensFromBase64(base64Audio: string): number {
+  const byteLength = Math.max(1, Math.floor(base64Audio.length * 0.75));
+  return Math.max(800, Math.ceil(byteLength / 120));
 }
 
 serve(async (request) => {
@@ -47,88 +92,161 @@ serve(async (request) => {
     return new Response('Missing audio_base64', { status: 400, headers: corsHeaders });
   }
 
+  let auth;
   try {
-    await requireAuth(request);
+    auth = await requireAuth(request);
   } catch (error) {
     return new Response((error as Error).message, { status: 401, headers: corsHeaders });
   }
 
-  const model = Deno.env.get('OPENROUTER_AUDIO_MODEL')
-    ?? Deno.env.get('OPENROUTER_CHAT_MODEL')
-    ?? 'openai/gpt-4o-mini';
+  const { userId } = auth;
+  const serviceClient = createServiceClient();
+  const tierResult = await resolveBillingTier(serviceClient, userId);
+  const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
 
-  const format = getAudioFormat(payload.mime_type, payload.file_name);
-  const audioData = payload.audio_base64.includes(',')
-    ? payload.audio_base64.split(',')[1]
-    : payload.audio_base64;
+  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!geminiApiKey) {
+    return new Response(
+      JSON.stringify({
+        code: 'VOICE_TRANSCRIBE_NOT_CONFIGURED',
+        message: 'Gemini API key is not configured for transcription.',
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
 
-  const messages = [
+  const model = Deno.env.get('GEMINI_STT_MODEL') ?? 'gemini-2.5-flash';
+  const mimeType = inferMimeType(payload.mime_type, payload.file_name);
+  const audioData = payload.audio_base64.includes(',') ? payload.audio_base64.split(',')[1] : payload.audio_base64;
+
+  const preflightUsage: UsageUnits = {
+    audioInputTokens: estimateAudioTokensFromBase64(audioData),
+    outputTokens: 240,
+  };
+  const preflightUsd = await calculateUsdCost(serviceClient, model, preflightUsage);
+  const preflightMcredits = Math.max(120, mcreditsFromUsd(preflightUsd));
+
+  try {
+    assertSufficientBalance(creditStatus, preflightMcredits);
+  } catch (error) {
+    if (error instanceof BillingError && error.kind === 'insufficient_credits') {
+      return new Response(buildInsufficientCreditsBody('Not enough credits for voice transcription.'), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    throw error;
+  }
+
+  const geminiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
     {
-      role: 'user',
-      content: [
-        { type: 'text', text: 'Transcribe this audio verbatim. Return only the transcription.' },
-        {
-          type: 'input_audio',
-          input_audio: {
-            data: audioData,
-            format,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: 'Transcribe this audio verbatim. Return only the transcription text.' },
+              {
+                inlineData: {
+                  mimeType,
+                  data: audioData,
+                },
+              },
+            ],
           },
-          inputAudio: {
-            data: audioData,
-            format,
-          },
+        ],
+        generationConfig: {
+          temperature: 0,
         },
-      ],
-    },
-  ];
+      }),
+    }
+  );
 
-  const openRouterResponse = await openRouterChat({
-    model,
-    stream: true,
-    messages,
-  });
+  if (!geminiResponse.ok) {
+    const body = await geminiResponse.text();
+    console.error('[VoiceTranscribe] Gemini transcription failed:', geminiResponse.status, body);
+    return new Response(
+      JSON.stringify({
+        code: 'VOICE_TRANSCRIBE_FAILED',
+        message: 'Gemini transcription request failed.',
+      }),
+      {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const geminiPayload = (await geminiResponse.json()) as GeminiTranscribeResponse;
+  const transcript =
+    geminiPayload.candidates?.[0]?.content?.parts
+      ?.map((part) => (typeof part.text === 'string' ? part.text : ''))
+      .join('')
+      .trim() ?? '';
+
+  const providerUsage: UsageUnits = {
+    inputTokens: Math.max(0, Number(geminiPayload.usageMetadata?.promptTokenCount ?? 0)),
+    outputTokens: Math.max(0, Number(geminiPayload.usageMetadata?.candidatesTokenCount ?? 0)),
+    audioInputTokens: getAudioTokensFromDetails(geminiPayload.usageMetadata?.promptTokensDetails),
+  };
+
+  const fallbackUsage = estimateChatUsageFromText(
+    'Transcribe this audio verbatim. Return only the transcription text.',
+    transcript
+  );
+  const usageForDebit: UsageUnits = {
+    inputTokens: providerUsage.inputTokens || fallbackUsage.inputTokens,
+    outputTokens: providerUsage.outputTokens || fallbackUsage.outputTokens,
+    audioInputTokens: providerUsage.audioInputTokens || preflightUsage.audioInputTokens,
+  };
+
+  try {
+    await debitForUsage(serviceClient, {
+      userId,
+      endpoint: 'voice-transcribe',
+      modelId: model,
+      usage: usageForDebit,
+      requestId: `voice-transcribe:${Date.now()}`,
+      metadata: {
+        tier: tierResult.tier,
+        tier_source: tierResult.source,
+      },
+    });
+  } catch (error) {
+    if (error instanceof BillingError && error.kind === 'insufficient_credits') {
+      return new Response(buildInsufficientCreditsBody('Not enough credits for voice transcription.'), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    console.error('[Billing] Voice transcription debit failure:', error);
+    return new Response(
+      JSON.stringify({
+        code: 'VOICE_TRANSCRIBE_BILLING_FAILED',
+        message: 'Failed to finalize billing for transcription.',
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
 
   const encoder = new TextEncoder();
-  let fullText = '';
-
   const stream = new ReadableStream({
-    async start(controller) {
-      const reader = openRouterResponse.body?.getReader();
-      if (!reader) {
-        controller.enqueue(encoder.encode(encodeSseEvent('error', { message: 'No stream body' })));
-        controller.close();
-        return;
+    start(controller) {
+      if (transcript) {
+        controller.enqueue(encoder.encode(encodeSseEvent('token', { t: transcript })));
       }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() || '';
-
-        for (const part of parts) {
-          const tokens = parseOpenRouterSseChunk(part + '\n\n');
-          for (const token of tokens) {
-            fullText += token;
-            controller.enqueue(encoder.encode(encodeSseEvent('token', { t: token })));
-          }
-        }
-      }
-
-      if (buffer) {
-        const tokens = parseOpenRouterSseChunk(buffer);
-        for (const token of tokens) {
-          fullText += token;
-          controller.enqueue(encoder.encode(encodeSseEvent('token', { t: token })));
-        }
-      }
-
-      controller.enqueue(encoder.encode(encodeSseEvent('done', { text: fullText })));
+      controller.enqueue(encoder.encode(encodeSseEvent('done', { text: transcript })));
       controller.close();
     },
   });

@@ -34,19 +34,19 @@ import {
 } from '@/lib/ai-sanctuary';
 import {
   ApiFunctionError,
+  getCreditStatus,
   streamChat,
   generateBreakthrough as fetchBreakthrough,
   expandOnPoint,
   generateInsightTitle,
   isFunctionUnavailableError,
+  isInsufficientCreditsError,
 } from '@/lib/apiClient';
 import {
   createSession,
   saveInsight,
   saveBreakthrough,
 } from '@/lib/supabase-sanctuary';
-import { getUserTier, type SubscriptionTier } from '@/lib/feature-gates';
-
 // Components
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { SessionEntry } from '@/components/sanctuary/SessionEntry';
@@ -71,7 +71,7 @@ export default function SanctuaryScreen() {
   const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
-  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
 
   // UI state
   const [showEntryAnimation, setShowEntryAnimation] = useState(true);
@@ -137,7 +137,16 @@ export default function SanctuaryScreen() {
     }
 
     setAuthUserId(authUser.id);
-    setSubscriptionTier(await getUserTier());
+    try {
+      const creditStatus = await getCreditStatus();
+      setSelectedModelId(creditStatus.preferred_chat_model ?? undefined);
+    } catch (error) {
+      if (error instanceof ApiFunctionError) {
+        console.warn('Failed to load billing status:', error.message);
+      } else {
+        console.warn('Failed to load billing status:', error);
+      }
+    }
 
     const dbSession = await createSession(authUser.id, coachId, 'New Session');
     if (!dbSession) {
@@ -232,7 +241,7 @@ export default function SanctuaryScreen() {
           throw new Error(message);
         },
       }, {
-        subscriptionTier,
+        modelId: selectedModelId,
       });
 
       // Check for insights
@@ -282,13 +291,28 @@ export default function SanctuaryScreen() {
       }
       setIsGenerating(false);
 
+      const insufficientCredits = isInsufficientCreditsError(error);
+
+      if (insufficientCredits) {
+        Alert.alert(
+          'Out of Credits',
+          'You do not have enough credits to continue. Upgrade your plan to keep coaching.',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            { text: 'View Plans', onPress: () => router.push('/paywall') },
+          ]
+        );
+      }
+
       const errorMessage: EnhancedMessage = {
         id: `msg-${Date.now()}`,
         session_id: sessionId || '',
         role: 'assistant',
         content: isFunctionUnavailableError(error)
           ? 'The coaching service is temporarily unavailable. Please try again in a moment.'
-          : 'I apologize, but I encountered a moment of reflection. Could you share that thought again?',
+          : insufficientCredits
+            ? 'You are out of credits for now. Upgrade your plan to continue this sanctuary session.'
+            : 'I apologize, but I encountered a moment of reflection. Could you share that thought again?',
         created_at: new Date().toISOString(),
       };
 

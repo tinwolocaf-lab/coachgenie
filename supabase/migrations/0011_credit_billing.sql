@@ -312,6 +312,7 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.credit_apply_delta(UUID, BIGINT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.credit_apply_delta(UUID, BIGINT) TO service_role;
 
 -- ============================================
 -- MODEL RATE CARD SEED (2026-02-12 SNAPSHOT)

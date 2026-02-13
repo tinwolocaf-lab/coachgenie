@@ -31,7 +31,11 @@ import {
 import * as FileSystem from 'expo-file-system/legacy';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
-import { isFunctionUnavailableError, transcribeVoiceNote } from '@/lib/apiClient';
+import {
+  isFunctionUnavailableError,
+  isInsufficientCreditsError,
+  transcribeVoiceNote,
+} from '@/lib/apiClient';
 
 interface VoiceNoteInputProps {
   onTranscription: (text: string) => void;
@@ -274,6 +278,12 @@ export function VoiceNoteInput({
         Alert.alert(
           'Voice Unavailable',
           'Voice transcription service is unavailable right now. Please type your message instead.'
+        );
+      } else if (isInsufficientCreditsError(error)) {
+        console.warn('Voice transcription blocked by credits:', error.message);
+        Alert.alert(
+          'Out of Credits',
+          'You do not have enough credits for voice transcription. Please upgrade to continue.'
         );
       } else {
         console.warn('Failed to transcribe:', error);

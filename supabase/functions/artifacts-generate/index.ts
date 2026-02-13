@@ -1,7 +1,20 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
-import { openRouterChat } from '../_shared/openrouter.ts';
+import { extractOpenRouterUsage, openRouterChat } from '../_shared/openrouter.ts';
+import { createServiceClient } from '../_shared/supabase.ts';
+import { resolveBillingTier } from '../_shared/revenuecat.ts';
+import { resolveChatModelForTier } from '../_shared/modelCatalog.ts';
+import {
+  assertSufficientBalance,
+  BillingError,
+  buildInsufficientCreditsBody,
+  calculateUsdCost,
+  debitForUsage,
+  ensureActiveCreditAccount,
+  mcreditsFromUsd,
+  type UsageUnits,
+} from '../_shared/billing.ts';
 
 interface ArtifactsBody {
   session_id: string;
@@ -34,9 +47,10 @@ serve(async (request) => {
   }
 
   const { userClient, userId } = auth;
-  const model = Deno.env.get('OPENROUTER_JSON_MODEL')
-    ?? Deno.env.get('OPENROUTER_CHAT_MODEL')
-    ?? 'openai/gpt-4o-mini';
+  const serviceClient = createServiceClient();
+  const tierResult = await resolveBillingTier(serviceClient, userId);
+  const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
+  const model = await resolveChatModelForTier(serviceClient, tierResult.tier);
 
   const { data: messages } = await userClient
     .from('session_messages')
@@ -46,7 +60,7 @@ serve(async (request) => {
     .limit(20);
 
   const transcript = (messages || [])
-    .map((m) => `${m.role === 'user' ? 'User' : 'Coach'}: ${m.content}`)
+    .map((item) => `${item.role === 'user' ? 'User' : 'Coach'}: ${item.content}`)
     .join('\n');
 
   const prompt = `You are a coaching assistant. Summarize the session and extract next actions and a 7-day plan.
@@ -67,9 +81,29 @@ Return JSON with this shape:
 Session transcript:
 ${transcript}`;
 
+  const preflightUsage: UsageUnits = {
+    inputTokens: Math.max(900, Math.ceil(prompt.length / 4)),
+    outputTokens: 1800,
+  };
+  const preflightUsd = await calculateUsdCost(serviceClient, model, preflightUsage);
+  const preflightMcredits = Math.max(150, mcreditsFromUsd(preflightUsd));
+
+  try {
+    assertSufficientBalance(creditStatus, preflightMcredits);
+  } catch (error) {
+    if (error instanceof BillingError && error.kind === 'insufficient_credits') {
+      return new Response(buildInsufficientCreditsBody(), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    throw error;
+  }
+
   let summaryText = 'Session recap: Coaching session completed.';
   let nextActions: { id: string; title: string; completed: boolean }[] = [];
   let planDays: { day: string; top_3: string[]; time_blocks: unknown[]; notes: string }[] = [];
+  let meteredUsage: UsageUnits | null = null;
 
   try {
     const openRouterResponse = await openRouterChat({
@@ -88,8 +122,9 @@ ${transcript}`;
     summaryText = parsed.summary || summaryText;
     nextActions = parsed.next_actions || [];
     planDays = parsed.seven_day_plan?.days || [];
+    meteredUsage = extractOpenRouterUsage(data);
   } catch {
-    const lastUserMessage = (messages || []).filter((m) => m.role === 'user').pop();
+    const lastUserMessage = (messages || []).filter((item) => item.role === 'user').pop();
     summaryText = lastUserMessage
       ? `Session recap: ${lastUserMessage.content.slice(0, 160)}`
       : summaryText;
@@ -117,6 +152,42 @@ ${transcript}`;
         notes: '',
       };
     });
+  }
+
+  const debitUsage: UsageUnits =
+    meteredUsage ?? {
+      inputTokens: Math.max(900, Math.ceil(prompt.length / 4)),
+      outputTokens: Math.max(1000, Math.ceil((summaryText.length + JSON.stringify(nextActions).length + JSON.stringify(planDays).length) / 4)),
+    };
+
+  try {
+    await debitForUsage(serviceClient, {
+      userId,
+      endpoint: 'artifacts-generate',
+      modelId: model,
+      usage: debitUsage,
+      requestId: `artifacts:${payload.session_id}:${Date.now()}`,
+      metadata: {
+        tier: tierResult.tier,
+        tier_source: tierResult.source,
+        provider_usage: meteredUsage !== null,
+      },
+    });
+  } catch (error) {
+    if (error instanceof BillingError && error.kind === 'insufficient_credits') {
+      return new Response(buildInsufficientCreditsBody(), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    console.error('[Billing] Artifacts generation debit failure:', error);
+    return new Response(
+      JSON.stringify({
+        code: 'ARTIFACTS_BILLING_FAILED',
+        message: 'Failed to finalize billing for artifact generation.',
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   const { data: summaryRow, error: summaryError } = await userClient

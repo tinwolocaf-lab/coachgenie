@@ -836,6 +836,219 @@ interface RawDatabase {
           updated_at?: string;
         };
       };
+      credit_accounts: {
+        Row: {
+          user_id: string;
+          tier: 'free' | 'sovereign' | 'oracle';
+          balance_mcredits: number;
+          period_start: string | null;
+          period_end: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          tier?: 'free' | 'sovereign' | 'oracle';
+          balance_mcredits?: number;
+          period_start?: string | null;
+          period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          tier?: 'free' | 'sovereign' | 'oracle';
+          balance_mcredits?: number;
+          period_start?: string | null;
+          period_end?: string | null;
+          updated_at?: string;
+        };
+      };
+      credit_ledger: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_type: 'grant' | 'debit' | 'refund' | 'hold' | 'release';
+          endpoint: string | null;
+          model_id: string | null;
+          usage_units: Json;
+          usd_cost: number;
+          delta_mcredits: number;
+          balance_after_mcredits: number;
+          request_id: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          event_type: 'grant' | 'debit' | 'refund' | 'hold' | 'release';
+          endpoint?: string | null;
+          model_id?: string | null;
+          usage_units?: Json;
+          usd_cost?: number;
+          delta_mcredits: number;
+          balance_after_mcredits: number;
+          request_id?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          endpoint?: string | null;
+          model_id?: string | null;
+          usage_units?: Json;
+          usd_cost?: number;
+          delta_mcredits?: number;
+          balance_after_mcredits?: number;
+          request_id?: string | null;
+          metadata?: Json;
+        };
+      };
+      model_rate_cards: {
+        Row: {
+          id: string;
+          provider: string;
+          model_id: string;
+          modality: 'text_input' | 'text_output' | 'audio_input' | 'audio_output' | 'character_input' | 'reasoning';
+          unit_price_usd_per_million: number;
+          effective_date: string;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          provider: string;
+          model_id: string;
+          modality: 'text_input' | 'text_output' | 'audio_input' | 'audio_output' | 'character_input' | 'reasoning';
+          unit_price_usd_per_million: number;
+          effective_date?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          provider?: string;
+          model_id?: string;
+          modality?: 'text_input' | 'text_output' | 'audio_input' | 'audio_output' | 'character_input' | 'reasoning';
+          unit_price_usd_per_million?: number;
+          effective_date?: string;
+          is_active?: boolean;
+        };
+      };
+      tier_model_allowlist: {
+        Row: {
+          id: string;
+          tier: 'free' | 'sovereign' | 'oracle';
+          model_id: string;
+          enabled: boolean;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tier: 'free' | 'sovereign' | 'oracle';
+          model_id: string;
+          enabled?: boolean;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          tier?: 'free' | 'sovereign' | 'oracle';
+          model_id?: string;
+          enabled?: boolean;
+          is_default?: boolean;
+          updated_at?: string;
+        };
+      };
+      billing_tier_cache: {
+        Row: {
+          user_id: string;
+          tier: 'free' | 'sovereign' | 'oracle';
+          source: string;
+          verified_at: string;
+          expires_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          tier: 'free' | 'sovereign' | 'oracle';
+          source?: string;
+          verified_at: string;
+          expires_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          tier?: 'free' | 'sovereign' | 'oracle';
+          source?: string;
+          verified_at?: string;
+          expires_at?: string;
+          updated_at?: string;
+        };
+      };
+      voice_live_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          session_id: string | null;
+          coach_id: string | null;
+          model_id: string;
+          hold_mcredits: number;
+          debited_mcredits: number;
+          status: 'active' | 'finalized' | 'cancelled';
+          usage_units: Json;
+          started_at: string;
+          finalized_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          session_id?: string | null;
+          coach_id?: string | null;
+          model_id: string;
+          hold_mcredits: number;
+          debited_mcredits?: number;
+          status?: 'active' | 'finalized' | 'cancelled';
+          usage_units?: Json;
+          started_at?: string;
+          finalized_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          session_id?: string | null;
+          coach_id?: string | null;
+          model_id?: string;
+          hold_mcredits?: number;
+          debited_mcredits?: number;
+          status?: 'active' | 'finalized' | 'cancelled';
+          usage_units?: Json;
+          started_at?: string;
+          finalized_at?: string | null;
+          updated_at?: string;
+        };
+      };
+      user_model_preferences: {
+        Row: {
+          user_id: string;
+          preferred_chat_model: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          preferred_chat_model?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          preferred_chat_model?: string | null;
+          updated_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: {

@@ -127,6 +127,14 @@ function useDeepLinkHandler() {
     const tokens = parseAuthTokensFromUrl(url);
 
     if (tokens) {
+      // Hash-fragment tokens (access_token in #fragment) are returned by
+      // WebBrowser.openAuthSessionAsync and handled by signInWithGoogle/Apple
+      // in auth.tsx. Don't double-process them here.
+      if (url.includes('#access_token=')) {
+        debugLog('[DeepLink] Skipping hash-fragment tokens (handled by WebBrowser)');
+        return;
+      }
+
       if (!isSupabaseConfigured) return;
       debugLog('[DeepLink] Found auth tokens, type:', tokens.type);
       setIsProcessingDeepLink(true);
