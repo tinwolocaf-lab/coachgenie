@@ -50,6 +50,63 @@ export async function openRouterChat(payload: Record<string, unknown>) {
   return response;
 }
 
+function collectTextFromContent(content: unknown): string[] {
+  if (typeof content === 'string') {
+    return content.length > 0 ? [content] : [];
+  }
+
+  if (Array.isArray(content)) {
+    return content.flatMap((item) => collectTextFromContent(item));
+  }
+
+  if (!content || typeof content !== 'object') {
+    return [];
+  }
+
+  const record = content as Record<string, unknown>;
+  const segments: string[] = [];
+
+  if (typeof record.text === 'string' && record.text.length > 0) {
+    segments.push(record.text);
+  }
+
+  if (typeof record.output_text === 'string' && record.output_text.length > 0) {
+    segments.push(record.output_text);
+  }
+
+  if ('content' in record) {
+    segments.push(...collectTextFromContent(record.content));
+  }
+
+  if (Array.isArray(record.parts)) {
+    segments.push(...record.parts.flatMap((part) => collectTextFromContent(part)));
+  }
+
+  return segments;
+}
+
+export function extractOpenRouterMessageContent(payload: unknown): string {
+  if (!payload || typeof payload !== 'object') {
+    return '';
+  }
+
+  const top = payload as Record<string, unknown>;
+  const choices = Array.isArray(top.choices) ? top.choices : [];
+  const firstChoice = choices[0];
+  if (!firstChoice || typeof firstChoice !== 'object') {
+    return '';
+  }
+
+  const choiceRecord = firstChoice as Record<string, unknown>;
+  const message = choiceRecord.message;
+  if (!message || typeof message !== 'object') {
+    return '';
+  }
+
+  const messageRecord = message as Record<string, unknown>;
+  return collectTextFromContent(messageRecord.content).join('');
+}
+
 function toNumber(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -124,9 +181,9 @@ export function parseOpenRouterSseChunkWithUsage(chunk: string): {
       try {
         const json = JSON.parse(data);
         const delta = json.choices?.[0]?.delta;
-        const content = delta?.content || delta?.text;
-        if (content) {
-          tokens.push(content);
+        const contents = collectTextFromContent(delta?.content ?? delta?.text);
+        if (contents.length > 0) {
+          tokens.push(...contents);
         }
 
         const parsedUsage = extractOpenRouterUsage(json);

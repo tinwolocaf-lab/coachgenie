@@ -17,6 +17,7 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import {
   isFunctionUnavailableError,
   isInsufficientCreditsError,
+  isVoiceTierRequiredError,
   transcribeVoiceNote,
 } from '@/lib/apiClient';
 import { useAlert } from '@/contexts/AlertContext';
@@ -24,9 +25,10 @@ import { useAlert } from '@/contexts/AlertContext';
 interface VoiceModeProps {
   onTranscription: (text: string) => void;
   isEnabled: boolean;
+  onDisabledPress?: () => void;
 }
 
-export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
+export function VoiceMode({ onTranscription, isEnabled, onDisabledPress }: VoiceModeProps) {
   const { palette } = useThemeSafe();
   const { showToast, showAlert } = useAlert();
   const [isActive, setIsActive] = useState(false);
@@ -119,7 +121,7 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
       console.warn('VoiceMode: failed to start recording', err);
       showToast('Error', { variant: 'error', message: 'Could not start recording.' });
     }
-  }, [ensurePermissions, recorder]);
+  }, [ensurePermissions, recorder, showAlert, showToast]);
 
   const stopRecording = useCallback(async () => {
     if (!isRecordingRef.current) return;
@@ -150,6 +152,9 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
       if (isFunctionUnavailableError(err)) {
         console.warn('VoiceMode: transcription unavailable:', err.message);
         showAlert('Voice Unavailable', 'Voice transcription service is unavailable right now. Please type instead.');
+      } else if (isVoiceTierRequiredError(err)) {
+        console.warn('VoiceMode: voice tier required:', err.message);
+        showAlert('Voice Messages', 'Voice messages are available on Sovereign and Oracle plans. Upgrade to continue.');
       } else if (isInsufficientCreditsError(err)) {
         console.warn('VoiceMode: insufficient credits:', err.message);
         showAlert('Out of Credits', 'You do not have enough credits for voice transcription. Please upgrade to continue.');
@@ -161,7 +166,7 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
       await resetAudioModeSafely();
       setIsProcessing(false);
     }
-  }, [onTranscription, readRecorderUriSafely, resetAudioModeSafely, stopRecorderSafely]);
+  }, [onTranscription, readRecorderUriSafely, resetAudioModeSafely, showAlert, showToast, stopRecorderSafely]);
 
   useEffect(() => {
     return () => {
@@ -171,7 +176,15 @@ export function VoiceMode({ onTranscription, isEnabled }: VoiceModeProps) {
   }, [resetAudioModeSafely, stopRecorderSafely]);
 
   const handlePress = () => {
-    if (!isEnabled || isProcessing) return;
+    if (!isEnabled) {
+      if (onDisabledPress) {
+        onDisabledPress();
+      } else {
+        showAlert('Voice Messages', 'Voice messages are available on Sovereign and Oracle plans. Upgrade to continue.');
+      }
+      return;
+    }
+    if (isProcessing) return;
     if (isActive) void stopRecording();
     else void startRecording();
   };

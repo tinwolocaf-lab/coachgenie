@@ -25,8 +25,10 @@ import Purchases from "react-native-purchases";
 interface TierInfo {
   id: SubscriptionTier;
   name: string;
-  price: string;
-  yearlyPrice: string;
+  monthlyPriceLabel: string;
+  yearlyPriceLabel: string;
+  monthlyPriceCents?: number;
+  yearlyPriceCents?: number;
   tagline: string;
   features: { label: string; included: boolean }[];
   highlight?: boolean;
@@ -36,8 +38,8 @@ const TIERS: TierInfo[] = [
   {
     id: "free",
     name: "Free",
-    price: "Free",
-    yearlyPrice: "Free",
+    monthlyPriceLabel: "Free",
+    yearlyPriceLabel: "Free",
     tagline: "Start your coaching practice",
     features: [
       { label: "1 coach (Daily Clarity)", included: true },
@@ -54,8 +56,10 @@ const TIERS: TierInfo[] = [
   {
     id: "sovereign",
     name: "Sovereign",
-    price: "$19.99/mo",
-    yearlyPrice: "$179.99/yr",
+    monthlyPriceLabel: "$19.99/mo",
+    yearlyPriceLabel: "$179.99/yr",
+    monthlyPriceCents: 1999,
+    yearlyPriceCents: 17999,
     tagline: "High-agency coaching, daily",
     highlight: true,
     features: [
@@ -73,15 +77,16 @@ const TIERS: TierInfo[] = [
   {
     id: "oracle",
     name: "Oracle",
-    price: "$49.99/mo",
-    yearlyPrice: "$449.99/yr",
+    monthlyPriceLabel: "$49.99/mo",
+    yearlyPriceLabel: "$449.99/yr",
+    monthlyPriceCents: 4999,
+    yearlyPriceCents: 44999,
     tagline: "Deep coaching with premium intelligence",
     features: [
       { label: "Everything in Sovereign", included: true },
       { label: "1000 monthly credits", included: true },
       {
-        label:
-          "Premium AI reasoning (Claude Sonnet 4.5 routing)",
+        label: "Premium AI lineup: Opus 4.6, GPT-5.2 Extra High, Gemini 3 Pro",
         included: true,
       },
       { label: "Extended live voice sessions", included: true },
@@ -93,6 +98,10 @@ const TIERS: TierInfo[] = [
     ],
   },
 ];
+
+function formatUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
 export default function PaywallScreen() {
   const router = useRouter();
@@ -251,19 +260,23 @@ export default function PaywallScreen() {
                 </Text>
                 <View style={styles.priceRow}>
                   <Text style={[styles.tierPrice, { color: palette.accent }]}>
-                    {tier.yearlyPrice}
+                    {tier.yearlyPriceLabel}
                   </Text>
-                  {tier.id !== "free" && (
-                    <Text
-                      style={[
-                        styles.monthlyPrice,
-                        { color: palette.textTertiary },
-                      ]}
-                    >
-                      or {tier.price}
-                    </Text>
-                  )}
                 </View>
+                {tier.id !== "free" && tier.monthlyPriceCents && tier.yearlyPriceCents && (
+                  <>
+                    <Text style={[styles.monthlyPrice, { color: palette.textTertiary }]}>
+                      ≈ {formatUsd(tier.yearlyPriceCents / 12)}/mo billed yearly
+                    </Text>
+                    <Text style={[styles.savingsText, { color: palette.success }]}>
+                      Save {formatUsd(tier.monthlyPriceCents - tier.yearlyPriceCents / 12)}/mo
+                      {' '}(
+                      {Math.round(((tier.monthlyPriceCents - tier.yearlyPriceCents / 12) / tier.monthlyPriceCents) * 100)}
+                      %)
+                      {' '}vs monthly {tier.monthlyPriceLabel}
+                    </Text>
+                  </>
+                )}
               </View>
 
               <View
@@ -403,7 +416,8 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.bold,
     fontFamily: Typography.fonts.serif,
   },
-  monthlyPrice: { fontSize: Typography.sizes.caption },
+  monthlyPrice: { fontSize: Typography.sizes.caption, marginTop: Spacing.xs },
+  savingsText: { fontSize: Typography.sizes.caption, marginTop: 2 },
   tierDivider: { height: 1, marginHorizontal: Spacing.xl },
   featuresList: { padding: Spacing.xl, gap: Spacing.sm },
   featureItem: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },

@@ -28,6 +28,7 @@ import { Coach, EnhancedMessage, ContextVault } from '@/types';
 import { getCoachById } from '@/data/coaches';
 import { getContextVault } from '@/store/app';
 import { supabase } from '@/lib/supabase';
+import { canAccessFeature, getUserTier } from '@/lib/feature-gates';
 import {
   detectInsightInMessage,
 } from '@/lib/ai-sanctuary';
@@ -78,6 +79,7 @@ export default function SanctuaryScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [showVoiceInput, setShowVoiceInput] = useState(false);
+  const [voiceNotesEnabled, setVoiceNotesEnabled] = useState(false);
 
   // Insight state
   const [pendingInsight, setPendingInsight] = useState<{
@@ -162,6 +164,20 @@ export default function SanctuaryScreen() {
   useEffect(() => {
     initializeSession();
   }, [initializeSession]);
+
+  useEffect(() => {
+    const loadVoiceAccess = async () => {
+      try {
+        const tier = await getUserTier();
+        setVoiceNotesEnabled(canAccessFeature(tier, 'voiceNotes'));
+      } catch (error) {
+        console.warn('Could not resolve tier for sanctuary voice notes:', error);
+        setVoiceNotesEnabled(false);
+      }
+    };
+
+    void loadVoiceAccess();
+  }, []);
 
   // Start session after entry animation
   const handleEntryComplete = () => {
@@ -424,8 +440,15 @@ export default function SanctuaryScreen() {
 
   const handleVoiceInputOpen = useCallback(() => {
     if (isGenerating || showVoiceInput) return;
+    if (!voiceNotesEnabled) {
+      showAlert('Voice Messages', 'Voice messages are available on Sovereign and Oracle plans.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'View Plans', onPress: () => router.push('/paywall') },
+      ]);
+      return;
+    }
     setShowVoiceInput(true);
-  }, [isGenerating, showVoiceInput]);
+  }, [isGenerating, showVoiceInput, voiceNotesEnabled, showAlert, router]);
 
   // Context menu handlers
   const handleLongPress = useCallback((message: EnhancedMessage, position: { x: number; y: number }) => {

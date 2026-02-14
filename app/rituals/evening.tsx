@@ -31,6 +31,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing, Radius } from '@/constants/theme';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
+import { useAlert } from '@/contexts/AlertContext';
 import {
   getDailyReflection,
   saveDailyReflection,
@@ -38,6 +39,7 @@ import {
   getRitualsWithStatus,
 } from '@/lib/supabase-rituals';
 import { generateClosingThought } from '@/lib/apiClient';
+import { canAccessFeature, getUserTier } from '@/lib/feature-gates';
 import { getContextVault } from '@/store/app';
 import { DailyReflection, RitualWithStatus, ContextVault } from '@/types';
 import { AIResonanceNote, CandlelightPalette } from '@/components/oracle/AIResonanceNote';
@@ -50,6 +52,7 @@ export default function EveningAuditScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const auth = useAuthSafe();
+  const { showAlert } = useAlert();
 
   const [existingReflection, setExistingReflection] = useState<DailyReflection | null>(null);
   const [morningIntention, setMorningIntention] = useState<string | null>(null);
@@ -65,6 +68,7 @@ export default function EveningAuditScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [showResonance, setShowResonance] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
+  const [voiceNotesEnabled, setVoiceNotesEnabled] = useState(false);
 
   // Candlelight ambient animation
   const glowPulse = useSharedValue(0);
@@ -131,6 +135,27 @@ export default function EveningAuditScreen() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const loadVoiceAccess = async () => {
+      try {
+        const tier = await getUserTier();
+        setVoiceNotesEnabled(canAccessFeature(tier, 'voiceNotes'));
+      } catch (error) {
+        console.warn('Could not resolve tier for voice notes:', error);
+        setVoiceNotesEnabled(false);
+      }
+    };
+
+    void loadVoiceAccess();
+  }, []);
+
+  const handleVoiceDisabledPress = useCallback(() => {
+    showAlert('Voice Messages', 'Voice messages are available on Sovereign and Oracle plans.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'View Plans', onPress: () => router.push('/paywall') },
+    ]);
+  }, [router, showAlert]);
 
   const handleAddWin = () => {
     if (wins.length < 5) {
@@ -435,7 +460,8 @@ export default function EveningAuditScreen() {
                           }
                           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         }}
-                        isEnabled={true}
+                        isEnabled={voiceNotesEnabled}
+                        onDisabledPress={handleVoiceDisabledPress}
                       />
                     )}
                   </View>
@@ -488,7 +514,8 @@ export default function EveningAuditScreen() {
                           }
                           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         }}
-                        isEnabled={true}
+                        isEnabled={voiceNotesEnabled}
+                        onDisabledPress={handleVoiceDisabledPress}
                       />
                     )}
                   </View>

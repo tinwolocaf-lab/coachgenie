@@ -176,6 +176,18 @@ function buildSessionConfigError(status: number, rawText: string): GeminiLiveErr
     });
   }
 
+  if (payloadCode === 'VOICE_TIER_REQUIRED') {
+    return new GeminiLiveError({
+      kind: 'voice_service_request_failed',
+      message: extractErrorMessage(
+        payload,
+        'Voice messages are available on Sovereign and Oracle plans.'
+      ),
+      status,
+      code: payload?.code,
+    });
+  }
+
   if (status === 401 || status === 403) {
     return new GeminiLiveError({
       kind: 'auth',

@@ -188,7 +188,9 @@ function ThemedAppContent() {
   const { fontsLoaded } = usePremiumFonts();
 
   useEffect(() => {
-    initRevenueCat();
+    initRevenueCat().catch((error) => {
+      console.warn('[App] RevenueCat init failed (non-fatal):', error);
+    });
     checkOnboarding();
   }, []);
 

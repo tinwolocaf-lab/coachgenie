@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
-import { extractOpenRouterUsage, openRouterChat } from '../_shared/openrouter.ts';
+import { extractOpenRouterMessageContent, extractOpenRouterUsage, openRouterChat } from '../_shared/openrouter.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
 import { resolveBillingTier } from '../_shared/revenuecat.ts';
 import { resolveChatModelForTier } from '../_shared/modelCatalog.ts';
@@ -96,7 +96,7 @@ Insight: ${payload.content}`;
     });
 
     const data = await openRouterResponse.json();
-    const content = data?.choices?.[0]?.message?.content ?? '';
+    const content = extractOpenRouterMessageContent(data);
     const title = content.trim().replace(/^"|"$/g, '').slice(0, 80);
     const usage = extractOpenRouterUsage(data);
 

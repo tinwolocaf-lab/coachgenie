@@ -25,19 +25,31 @@ function getErrorCode(error: unknown): string | undefined {
 export async function initRevenueCat(): Promise<void> {
   if (isConfigured || !REVENUECAT_API_KEY) return;
 
-  Purchases.setLogLevel(LOG_LEVEL.DEBUG);
-  Purchases.configure({ apiKey: REVENUECAT_API_KEY });
-  isConfigured = true;
+  try {
+    Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+    Purchases.configure({ apiKey: REVENUECAT_API_KEY });
+    isConfigured = true;
+  } catch (error) {
+    console.warn('[RevenueCat] Failed to configure (expected in Expo Go or dev builds):', error);
+  }
 }
 
 export async function identifyUser(userId: string): Promise<void> {
   if (!isConfigured) return;
-  await Purchases.logIn(userId);
+  try {
+    await Purchases.logIn(userId);
+  } catch (error) {
+    console.warn('[RevenueCat] Failed to identify user:', getErrorCode(error) ?? error);
+  }
 }
 
 export async function logOutUser(): Promise<void> {
   if (!isConfigured) return;
-  await Purchases.logOut();
+  try {
+    await Purchases.logOut();
+  } catch (error) {
+    console.warn('[RevenueCat] Failed to log out user:', getErrorCode(error) ?? error);
+  }
 }
 
 export async function checkSovereignEntitlement(): Promise<boolean> {
@@ -77,7 +89,11 @@ export function addCustomerInfoUpdateListener(
   listener: (info: CustomerInfo) => void
 ): () => void {
   if (!isConfigured) return () => {};
-  Purchases.addCustomerInfoUpdateListener(listener);
+  try {
+    Purchases.addCustomerInfoUpdateListener(listener);
+  } catch (error) {
+    console.warn('[RevenueCat] Failed to add customer info listener:', error);
+  }
   return () => {
     // RevenueCat SDK manages listener lifecycle internally
   };

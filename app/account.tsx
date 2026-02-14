@@ -49,6 +49,17 @@ interface UserProfile {
   avatarInitial: string;
 }
 
+const MODEL_DISPLAY_NAMES: Record<string, string> = {
+  'anthropic/claude-opus-4.6': 'Opus 4.6',
+  'openai/gpt-5.2': 'GPT-5.2',
+  'openai/gpt-5.2-pro': 'GPT-5.2 Extra High',
+  'google/gemini-3-pro-preview': 'Gemini 3 Pro',
+};
+
+function getModelDisplayName(modelId: string): string {
+  return MODEL_DISPLAY_NAMES[modelId] ?? modelId;
+}
+
 export default function AccountScreen() {
   const router = useRouter();
   const { palette, isSovereignMember, setSovereignMember, subscriptionTier, setSubscriptionTier } = useThemeSafe();
@@ -689,7 +700,7 @@ export default function AccountScreen() {
                         {subscriptionTier === 'oracle'
                           ? 'All coaches + premium reasoning model access'
                           : subscriptionTier === 'sovereign'
-                            ? 'All coaches + voice coaching + integrations'
+                            ? 'All coaches + voice messages + integrations'
                             : 'Daily Clarity coach + essential AI access'}
                       </Text>
                     </View>
@@ -742,9 +753,11 @@ export default function AccountScreen() {
                             }}
                           >
                             <View style={styles.modelTextBlock}>
-                              <Text style={[styles.modelName, { color: palette.textPrimary }]}>{model.id}</Text>
+                              <Text style={[styles.modelName, { color: palette.textPrimary }]}>
+                                {getModelDisplayName(model.id)}
+                              </Text>
                               <Text style={[styles.modelProvider, { color: palette.textTertiary }]}>
-                                {model.provider}
+                                {model.id}
                               </Text>
                             </View>
                             {isSelected ? (
@@ -1068,8 +1081,7 @@ const styles = StyleSheet.create({
   modelProvider: {
     fontSize: Typography.sizes.caption,
     marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: Typography.letterSpacing.wider,
+    letterSpacing: Typography.letterSpacing.wide,
   },
   editButton: {
     width: 36,

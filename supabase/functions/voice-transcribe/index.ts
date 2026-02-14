@@ -102,6 +102,20 @@ serve(async (request) => {
   const { userId } = auth;
   const serviceClient = createServiceClient();
   const tierResult = await resolveBillingTier(serviceClient, userId);
+
+  if (tierResult.tier === 'free') {
+    return new Response(
+      JSON.stringify({
+        code: 'VOICE_TIER_REQUIRED',
+        message: 'Voice messages are available on Sovereign and Oracle plans.',
+      }),
+      {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
   const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
 
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');

@@ -33,6 +33,7 @@ import { useThemeSafe } from '@/contexts/ThemeContext';
 import {
   isFunctionUnavailableError,
   isInsufficientCreditsError,
+  isVoiceTierRequiredError,
   transcribeVoiceNote,
 } from '@/lib/apiClient';
 import { useAlert } from '@/contexts/AlertContext';
@@ -197,7 +198,7 @@ export function VoiceNoteInput({
       showToast('Error', { variant: 'error', message: 'Could not start recording. Please try again.' });
       closeVoiceInput();
     }
-  }, [clearRecordingTimer, closeVoiceInput, ensurePermissions, micScale, recorder]);
+  }, [clearRecordingTimer, closeVoiceInput, ensurePermissions, micScale, recorder, showAlert, showToast]);
 
   // Stop recording and transcribe
   const stopRecording = useCallback(async () => {
@@ -269,6 +270,9 @@ export function VoiceNoteInput({
       if (isFunctionUnavailableError(error)) {
         console.warn('Voice transcription unavailable:', error.message);
         showAlert('Voice Unavailable', 'Voice transcription service is unavailable right now. Please type your message instead.');
+      } else if (isVoiceTierRequiredError(error)) {
+        console.warn('Voice transcription blocked by tier:', error.message);
+        showAlert('Voice Messages', 'Voice messages are available on Sovereign and Oracle plans. Upgrade to continue.');
       } else if (isInsufficientCreditsError(error)) {
         console.warn('Voice transcription blocked by credits:', error.message);
         showAlert('Out of Credits', 'You do not have enough credits for voice transcription. Please upgrade to continue.');
@@ -289,6 +293,8 @@ export function VoiceNoteInput({
     onTranscription,
     readRecorderUriSafely,
     resetAudioModeSafely,
+    showAlert,
+    showToast,
     stopRecorderSafely,
   ]);
 

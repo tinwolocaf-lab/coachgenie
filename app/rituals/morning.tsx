@@ -26,8 +26,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Typography, Spacing, Radius, Timing, EditorialSpacing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { InkText } from '@/components/ui/InkText';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
+import { canAccessFeature, getUserTier } from '@/lib/feature-gates';
 import {
   getDailyReflection,
   saveDailyReflection,
@@ -61,6 +63,7 @@ export default function MorningIntentionScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
   const auth = useAuthSafe();
+  const { showAlert } = useAlert();
 
   const [phase, setPhase] = useState<RitualPhase>('opening');
   const [intention, setIntention] = useState('');
@@ -71,6 +74,7 @@ export default function MorningIntentionScreen() {
   const [userContext, setUserContext] = useState<ContextVault | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingMuse, setIsGeneratingMuse] = useState(false);
+  const [voiceNotesEnabled, setVoiceNotesEnabled] = useState(false);
 
   const inputRef = useRef<TextInput>(null);
 
@@ -116,6 +120,27 @@ export default function MorningIntentionScreen() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const loadVoiceAccess = async () => {
+      try {
+        const tier = await getUserTier();
+        setVoiceNotesEnabled(canAccessFeature(tier, 'voiceNotes'));
+      } catch (error) {
+        console.warn('Could not resolve tier for voice notes:', error);
+        setVoiceNotesEnabled(false);
+      }
+    };
+
+    void loadVoiceAccess();
+  }, []);
+
+  const handleVoiceDisabledPress = useCallback(() => {
+    showAlert('Voice Messages', 'Voice messages are available on Sovereign and Oracle plans.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'View Plans', onPress: () => router.push('/paywall') },
+    ]);
+  }, [router, showAlert]);
 
   const transitionToIntention = useCallback(() => {
     // Fade out opening
@@ -439,7 +464,8 @@ export default function MorningIntentionScreen() {
                         setIntention(prev => prev ? `${prev} ${text}` : text);
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       }}
-                      isEnabled={true}
+                      isEnabled={voiceNotesEnabled}
+                      onDisabledPress={handleVoiceDisabledPress}
                     />
                     <TouchableOpacity
                       style={[

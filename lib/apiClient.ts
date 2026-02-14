@@ -139,6 +139,14 @@ export function isInsufficientCreditsError(error: unknown): error is ApiFunction
   return error instanceof ApiFunctionError && error.kind === 'insufficient_credits';
 }
 
+export function isVoiceTierRequiredError(error: unknown): error is ApiFunctionError {
+  return (
+    error instanceof ApiFunctionError &&
+    typeof error.code === 'string' &&
+    error.code.toUpperCase() === 'VOICE_TIER_REQUIRED'
+  );
+}
+
 export interface CreditStatusResponse {
   tier: 'free' | 'sovereign' | 'oracle';
   balance_mcredits: number;

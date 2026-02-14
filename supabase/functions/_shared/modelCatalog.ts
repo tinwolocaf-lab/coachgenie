@@ -47,6 +47,7 @@ const FALLBACK_MODELS: Record<BillingTier, TierModelOption[]> = {
     { modelId: 'openai/gpt-5-mini', isDefault: false },
     { modelId: 'openai/gpt-5', isDefault: false },
     { modelId: 'openai/gpt-5.2', isDefault: false },
+    { modelId: 'openai/gpt-5.2-pro', isDefault: false },
     { modelId: 'anthropic/claude-3.5-haiku', isDefault: false },
     { modelId: 'anthropic/claude-sonnet-4.5', isDefault: false },
     { modelId: 'anthropic/claude-opus-4.6', isDefault: false },
