@@ -49,6 +49,7 @@ import {
   isFunctionUnavailableError,
   isInsufficientCreditsError,
   streamChat,
+  type StreamMeta,
 } from '@/lib/apiClient';
 import {
   getUserTier,
@@ -67,6 +68,51 @@ interface ChatMessageRowProps {
   palette: ReturnType<typeof useThemeSafe>['palette'];
 }
 
+const MemoryChip = React.memo(function MemoryChip({ palette }: { palette: ChatMessageRowProps['palette'] }) {
+  return (
+    <View style={[styles.memoryChip, { backgroundColor: palette.accentMuted }]}>
+      <Ionicons name="bulb-outline" size={10} color={palette.accent} />
+      <Text style={[styles.memoryChipText, { color: palette.accent }]}>Memory-informed</Text>
+    </View>
+  );
+});
+
+const SafetyBanner = React.memo(function SafetyBanner({
+  palette,
+  isBlocked,
+}: {
+  palette: ChatMessageRowProps['palette'];
+  isBlocked?: boolean;
+}) {
+  return (
+    <View style={[styles.safetyBanner, { backgroundColor: isBlocked ? '#FEE2E2' : '#FEF3C7' }]}>
+      <Ionicons
+        name={isBlocked ? 'shield' : 'heart'}
+        size={12}
+        color={isBlocked ? '#DC2626' : '#D97706'}
+      />
+      <Text style={[styles.safetyBannerText, { color: isBlocked ? '#DC2626' : '#92400E' }]}>
+        {isBlocked ? 'Safety resources provided' : 'Responding with extra care'}
+      </Text>
+    </View>
+  );
+});
+
+const SessionCapBanner = React.memo(function SessionCapBanner({
+  palette,
+}: {
+  palette: ChatMessageRowProps['palette'];
+}) {
+  return (
+    <View style={[styles.safetyBanner, { backgroundColor: '#DBEAFE', marginHorizontal: Spacing.lg, marginBottom: Spacing.sm }]}>
+      <Ionicons name="time-outline" size={14} color="#1D4ED8" />
+      <Text style={[styles.safetyBannerText, { color: '#1E40AF', flex: 1 }]}>
+        {"You've reached your daily session limit. Take a break and come back tomorrow!"}
+      </Text>
+    </View>
+  );
+});
+
 const ChatMessageRow = React.memo(function ChatMessageRow({
   item,
   index,
@@ -79,16 +125,24 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
     [item.created_at],
   );
 
+  const showMemoryChip = !isUser && item.meta?.memories_used;
+  const showSafetyBanner = !isUser && (item.meta?.safety_note || item.meta?.risk_blocked);
+
   return (
     <Animated.View
       entering={FadeInUp.duration(400).delay(Math.min(index * 50, 200))}
       style={styles.transcriptEntry}
     >
+      {showSafetyBanner && (
+        <SafetyBanner palette={palette} isBlocked={item.meta?.risk_blocked} />
+      )}
+
       <View style={styles.speakerRow}>
         <View style={[styles.speakerDot, { backgroundColor: palette.accent }, isUser && { backgroundColor: palette.textPrimary }]} />
         <Text style={[styles.speakerLabel, { color: palette.accent }, isUser && { color: palette.textPrimary }]}>
           {isUser ? 'You' : coachName}
         </Text>
+        {showMemoryChip && <MemoryChip palette={palette} />}
         <Text style={[styles.timestamp, { color: palette.textTertiary }]}>
           {formattedTime}
         </Text>
@@ -128,6 +182,7 @@ export default function ChatScreen() {
   const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
+  const [sessionCapReached, setSessionCapReached] = useState(false);
   const { showToast, showAlert } = useAlert();
 
   const flatListRef = useRef<FlatList>(null);
@@ -309,7 +364,14 @@ export default function ChatScreen() {
       }
 
       let streamedText = '';
+      let responseMeta: StreamMeta = {};
       await streamChat(sessionId, currentInput, {
+        onMeta: (meta) => {
+          responseMeta = meta;
+          if (meta.session_cap_reached) {
+            setSessionCapReached(true);
+          }
+        },
         onToken: (chunk) => {
           streamedText += chunk;
           setStreamingText(streamedText);
@@ -327,6 +389,13 @@ export default function ChatScreen() {
         role: 'assistant',
         content: streamedText || 'I am here to help. What would you like to focus on next?',
         created_at: new Date().toISOString(),
+        meta: {
+          memories_used: responseMeta.memories_used,
+          safety_note: responseMeta.safety_note,
+          risk_blocked: responseMeta.risk_blocked,
+          is_minor: responseMeta.is_minor,
+          session_cap_reached: responseMeta.session_cap_reached,
+        },
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -612,28 +681,31 @@ export default function ChatScreen() {
             keyboardShouldPersistTaps="handled"
           />
 
+          {/* Session Cap Banner for Minors */}
+          {sessionCapReached && <SessionCapBanner palette={palette} />}
+
           {/* Premium Input */}
           <View style={[styles.inputContainer, { paddingBottom: insets.bottom || Spacing.md, backgroundColor: palette.background, borderTopColor: palette.borderLight }]}>
             <View style={[styles.inputWrapper, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
               <TextInput
                 style={[styles.input, { color: palette.textSecondary }]}
-                placeholder="Share your thoughts..."
+                placeholder={sessionCapReached ? 'Daily session limit reached' : 'Share your thoughts...'}
                 placeholderTextColor={palette.textTertiary}
                 value={inputText}
                 onChangeText={setInputText}
                 multiline
                 maxLength={1000}
-                editable={!isStreaming}
+                editable={!isStreaming && !sessionCapReached}
               />
               <TouchableOpacity
-                style={[styles.sendButton, { backgroundColor: palette.accent }, (!inputText.trim() || isStreaming) && { backgroundColor: palette.backgroundSecondary }]}
+                style={[styles.sendButton, { backgroundColor: palette.accent }, (!inputText.trim() || isStreaming || sessionCapReached) && { backgroundColor: palette.backgroundSecondary }]}
                 onPress={handleSend}
-                disabled={!inputText.trim() || isStreaming}
+                disabled={!inputText.trim() || isStreaming || sessionCapReached}
               >
                 <Ionicons
                   name="arrow-up"
                   size={20}
-                  color={(!inputText.trim() || isStreaming) ? palette.textTertiary : palette.textInverse}
+                  color={(!inputText.trim() || isStreaming || sessionCapReached) ? palette.textTertiary : palette.textInverse}
                 />
               </TouchableOpacity>
             </View>
@@ -903,6 +975,34 @@ const styles = StyleSheet.create({
   typingText: {
     fontSize: Typography.sizes.micro,
     fontStyle: 'italic',
+  },
+
+  // Memory & Safety
+  memoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    gap: 4,
+    marginRight: 'auto',
+  },
+  memoryChipText: {
+    fontSize: Typography.sizes.micro,
+    fontWeight: Typography.weights.medium,
+  },
+  safetyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.lg,
+    gap: 6,
+    marginBottom: Spacing.sm,
+  },
+  safetyBannerText: {
+    fontSize: Typography.sizes.micro,
+    fontWeight: Typography.weights.medium,
   },
 
   // Thinking

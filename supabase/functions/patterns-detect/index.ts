@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
+import { createServiceClient } from '../_shared/supabase.ts';
 
 serve(async (request) => {
   const optionsResponse = handleOptions(request);
@@ -18,6 +19,7 @@ serve(async (request) => {
   }
 
   const { userClient, userId } = auth;
+  const serviceClient = createServiceClient();
 
   try {
     // Fetch recent session data (last 30 days)
@@ -44,7 +46,16 @@ serve(async (request) => {
       .select('ritual_id, current_streak, consistency_score')
       .eq('user_id', userId);
 
-    // Analyze patterns
+    // Fetch recent session messages for LLM labeling
+    const { data: recentMessages } = await userClient
+      .from('session_messages')
+      .select('content, role')
+      .eq('user_id', userId)
+      .eq('role', 'user')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    // ── SQL Feature Extraction ──────────────────────────────────────────
     const patterns: Record<string, unknown> = {};
 
     // Session frequency pattern
@@ -113,7 +124,28 @@ serve(async (request) => {
       patterns.max_streak = Math.max(...streaks.map((s) => s.current_streak || 0));
     }
 
-    // Store detected patterns in context vault
+    // ── LLM Labeling (mood + energy + blockers) ────────────────────────
+    let llmLabels: Record<string, unknown> = {};
+    if (recentMessages?.length) {
+      llmLabels = await labelWithLLM(recentMessages.map((m) => m.content));
+    }
+
+    // ── Compute risk flags ─────────────────────────────────────────────
+    const riskFlags: string[] = [];
+    const sessionsPerWeek = (patterns.sessions_per_week as number) ?? 0;
+    if (sessionsPerWeek > 14) riskFlags.push('high_usage_frequency');
+    if ((llmLabels.mood_trend as string) === 'declining') riskFlags.push('declining_mood');
+    if ((llmLabels.energy_level as string) === 'low') riskFlags.push('low_energy');
+
+    // ── Build state snapshot ───────────────────────────────────────────
+    const stateSnapshot = {
+      ...patterns,
+      ...llmLabels,
+      risk_flags: riskFlags,
+      computed_at: new Date().toISOString(),
+    };
+
+    // Store detected patterns in context vault (existing behavior)
     await userClient
       .from('context_vaults')
       .update({
@@ -122,7 +154,17 @@ serve(async (request) => {
       })
       .eq('user_id', userId);
 
-    return new Response(JSON.stringify({ success: true, patterns }), {
+    // Write state snapshot to user_state_snapshots (new v2 behavior)
+    const summary = buildSnapshotSummary(stateSnapshot);
+    await serviceClient
+      .from('user_state_snapshots')
+      .insert({
+        user_id: userId,
+        state: stateSnapshot,
+        summary,
+      });
+
+    return new Response(JSON.stringify({ success: true, patterns, state_snapshot: stateSnapshot }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -131,3 +173,62 @@ serve(async (request) => {
     return new Response('Internal server error', { status: 500, headers: corsHeaders });
   }
 });
+
+// ── LLM-based labeling ────────────────────────────────────────────────
+
+async function labelWithLLM(messages: string[]): Promise<Record<string, unknown>> {
+  const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
+  if (!apiKey || !messages.length) return {};
+
+  const messagesSample = messages.slice(0, 10).join('\n---\n').slice(0, 3000);
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-001',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Analyze these recent user messages from a coaching app. Return ONLY valid JSON with:\n' +
+              '- mood_trend: "improving" | "stable" | "declining"\n' +
+              '- energy_level: "high" | "medium" | "low"\n' +
+              '- primary_blockers: string[] (top 3 obstacles)\n' +
+              '- emotional_themes: string[] (top 3 recurring emotional themes)\n' +
+              '- confidence_level: number 0-1\n' +
+              'Be concise. No markdown.',
+          },
+          { role: 'user', content: messagesSample },
+        ],
+        max_tokens: 300,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!response.ok) return {};
+
+    const json = await response.json();
+    const content = json?.choices?.[0]?.message?.content ?? '';
+    return JSON.parse(content);
+  } catch (err) {
+    console.error('[Pattern Detection] LLM labeling failed:', err);
+    return {};
+  }
+}
+
+function buildSnapshotSummary(state: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (state.sessions_per_week) parts.push(`${state.sessions_per_week} sessions/week`);
+  if (state.mood_trend) parts.push(`mood: ${state.mood_trend}`);
+  if (state.energy_level) parts.push(`energy: ${state.energy_level}`);
+  if (state.avg_ritual_consistency) parts.push(`ritual consistency: ${state.avg_ritual_consistency}`);
+  const flags = state.risk_flags as string[] | undefined;
+  if (flags?.length) parts.push(`flags: ${flags.join(', ')}`);
+  return parts.join(' | ') || 'No patterns detected';
+}

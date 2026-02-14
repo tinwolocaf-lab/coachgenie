@@ -120,6 +120,13 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   created_at: string;
+  meta?: {
+    memories_used?: boolean;
+    safety_note?: boolean;
+    risk_blocked?: boolean;
+    is_minor?: boolean;
+    session_cap_reached?: boolean;
+  };
 }
 
 export interface SessionResult {

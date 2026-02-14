@@ -37,6 +37,9 @@ const DEEP_LINK_ROUTES = {
   paywall: '/paywall',
   integrations: '/integrations',
   'insights-dashboard': '/insights-dashboard',
+  'coach-inbox': '/coach-inbox',
+  approvals: '/approvals',
+  memory: '/memory',
 } as const;
 
 /**
@@ -137,7 +140,7 @@ function useDeepLinkHandler() {
       if (routePath) {
         router.replace('/(tabs)');
         setTimeout(() => {
-          router.push(routePath);
+          router.push(routePath as Parameters<typeof router.push>[0]);
         }, 100);
         return;
       }
@@ -355,6 +358,30 @@ function ThemedAppContent() {
       />
       <Stack.Screen
         name="insights-dashboard"
+        options={{
+          animation: 'fade',
+          animationDuration: 400,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="coach-inbox"
+        options={{
+          animation: 'fade',
+          animationDuration: 400,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="approvals"
+        options={{
+          animation: 'fade',
+          animationDuration: 400,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="memory"
         options={{
           animation: 'fade',
           animationDuration: 400,

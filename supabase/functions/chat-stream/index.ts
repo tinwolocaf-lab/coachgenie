@@ -25,6 +25,8 @@ import {
   mcreditsFromUsd,
   type UsageUnits,
 } from '../_shared/billing.ts';
+import { checkChatRateLimit, formatRateLimitError } from '../_shared/rate-limiter.ts';
+import { getNextFallbackModel } from '../_shared/fallback-policy.ts';
 
 interface ChatStreamBody {
   session_id: string;
@@ -81,6 +83,24 @@ serve(async (request) => {
 
   const { userClient, userId } = auth;
   const serviceClient = createServiceClient();
+
+  // ── Rate limit check ──
+  const rateCheck = await checkChatRateLimit(serviceClient, userId);
+  if (!rateCheck.allowed) {
+    return new Response(
+      JSON.stringify({ code: 'RATE_LIMITED', message: formatRateLimitError(rateCheck) }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          ...(rateCheck.retryAfterMs
+            ? { 'Retry-After': String(Math.ceil(rateCheck.retryAfterMs / 1000)) }
+            : {}),
+        },
+      },
+    );
+  }
 
   const tierResult = await resolveBillingTier(serviceClient, userId);
   const creditStatus = await ensureActiveCreditAccount(
@@ -184,6 +204,16 @@ serve(async (request) => {
     serviceClient,
   });
 
+  // Build response metadata for client
+  const responseMeta = {
+    run_id: orchResult.runId,
+    memories_used: orchResult.memoryContext.length > 0,
+    safety_note: !orchResult.riskBlocked && orchResult.systemPrompt.includes('--- SAFETY NOTE ---'),
+    risk_blocked: orchResult.riskBlocked,
+    is_minor: orchResult.isMinor,
+    session_cap_reached: orchResult.sessionCapReached,
+  };
+
   // If risk-blocked, return a safe crisis response and flush trace
   if (orchResult.riskBlocked && orchResult.crisisResponse) {
     const { data: crisisRow } = await userClient
@@ -205,6 +235,7 @@ serve(async (request) => {
     const crisisStream = new ReadableStream({
       start(controller) {
         const enc = new TextEncoder();
+        controller.enqueue(enc.encode(encodeSseEvent('meta', responseMeta)));
         controller.enqueue(enc.encode(encodeSseEvent('token', { t: orchResult.crisisResponse! })));
         controller.enqueue(
           enc.encode(
@@ -256,12 +287,40 @@ serve(async (request) => {
     throw error;
   }
 
-  const openRouterResponse = await openRouterChat({
-    model: chatModel,
-    stream: true,
-    stream_options: { include_usage: true },
-    messages,
-  });
+  // ── LLM call with fallback ──
+  let activeChatModel = chatModel;
+  const failedModels: string[] = [];
+  let openRouterResponse: Response | null = null;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      openRouterResponse = await openRouterChat({
+        model: activeChatModel,
+        stream: true,
+        stream_options: { include_usage: true },
+        messages,
+      });
+
+      if (openRouterResponse.ok) break;
+
+      // Non-OK response — try fallback
+      failedModels.push(activeChatModel);
+      const nextModel = getNextFallbackModel(failedModels);
+      if (!nextModel) break; // chain exhausted
+      console.warn(`[chat-stream] Model ${activeChatModel} returned ${openRouterResponse.status}, falling back to ${nextModel}`);
+      activeChatModel = nextModel;
+    } catch (err) {
+      failedModels.push(activeChatModel);
+      const nextModel = getNextFallbackModel(failedModels);
+      if (!nextModel) throw err; // chain exhausted, rethrow
+      console.warn(`[chat-stream] Model ${activeChatModel} failed, falling back to ${nextModel}:`, err);
+      activeChatModel = nextModel;
+    }
+  }
+
+  if (!openRouterResponse || !openRouterResponse.ok) {
+    return new Response('All models failed', { status: 502, headers: corsHeaders });
+  }
 
   const encoder = new TextEncoder();
   let assistantText = '';
@@ -269,6 +328,9 @@ serve(async (request) => {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Emit metadata event before tokens
+      controller.enqueue(encoder.encode(encodeSseEvent('meta', responseMeta)));
+
       const reader = openRouterResponse.body?.getReader();
       if (!reader) {
         controller.enqueue(encoder.encode(encodeSseEvent('error', { message: 'No stream body' })));

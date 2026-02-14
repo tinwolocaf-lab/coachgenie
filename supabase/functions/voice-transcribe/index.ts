@@ -4,6 +4,8 @@ import { requireAuth } from '../_shared/auth.ts';
 import { encodeSseEvent } from '../_shared/sse.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
 import { resolveBillingTier } from '../_shared/revenuecat.ts';
+import { AgentTrace } from '../_shared/trace.ts';
+import { assessRisk, logSafetyIncident, CRISIS_RESPONSE_TEMPLATE, CRISIS_RESOURCES } from '../_shared/risk-engine.ts';
 import {
   assertSufficientBalance,
   BillingError,
@@ -101,6 +103,15 @@ serve(async (request) => {
 
   const { userId } = auth;
   const serviceClient = createServiceClient();
+
+  // ── Initialize trace for observability ──
+  const trace = new AgentTrace({
+    userId,
+    triggerType: 'voice_turn',
+    modelProvider: 'gemini',
+    modelId: Deno.env.get('GEMINI_STT_MODEL') ?? 'gemini-2.5-flash',
+  });
+
   const tierResult = await resolveBillingTier(serviceClient, userId);
 
   if (tierResult.tier === 'free') {
@@ -208,12 +219,32 @@ serve(async (request) => {
     );
   }
 
+  const transcribeStep = trace.startStep('response', { action: 'transcribe' });
   const geminiPayload = (await geminiResponse.json()) as GeminiTranscribeResponse;
   const transcript =
     geminiPayload.candidates?.[0]?.content?.parts
       ?.map((part) => (typeof part.text === 'string' ? part.text : ''))
       .join('')
       .trim() ?? '';
+  transcribeStep.complete({ transcriptLength: transcript.length });
+
+  // ── Safety check on transcript ──
+  if (transcript) {
+    const safetyStep = trace.startStep('safety_check', { transcriptLength: transcript.length });
+    const risk = assessRisk(transcript);
+    safetyStep.complete({ severity: risk.severity, category: risk.category });
+
+    if (risk.severity === 'high' || risk.severity === 'critical') {
+      logSafetyIncident(serviceClient, {
+        userId,
+        runId: trace.runId,
+        severity: risk.severity,
+        category: risk.category!,
+        detectionSource: 'rule',
+        details: { source: 'voice-transcribe', transcriptSnippet: transcript.slice(0, 200) },
+      });
+    }
+  }
 
   const providerUsage: UsageUnits = {
     inputTokens: Math.max(0, Number(geminiPayload.usageMetadata?.promptTokenCount ?? 0)),
@@ -262,6 +293,11 @@ serve(async (request) => {
       }
     );
   }
+
+  // ── Flush trace (fire-and-forget) ──
+  trace.flush(serviceClient).catch((err) =>
+    console.error('[VoiceTranscribe] trace flush error:', err)
+  );
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

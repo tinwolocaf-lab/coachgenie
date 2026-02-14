@@ -3,7 +3,14 @@ import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 // ── Types ───────────────────────────────────────────────────────────────
 
 export type TriggerType = 'user_message' | 'voice_turn' | 'scheduled_nudge' | 'calendar_event';
-export type StepName = 'context_build' | 'memory_retrieve' | 'safety_check' | 'strategy' | 'response' | 'post_actions';
+export type StepName =
+  | 'context_build'
+  | 'memory_retrieve'
+  | 'safety_check'
+  | 'minors_check'
+  | 'strategy'
+  | 'response'
+  | 'post_actions';
 export type RunStatus = 'completed' | 'failed' | 'aborted';
 export type StepStatus = 'completed' | 'failed' | 'skipped';
 

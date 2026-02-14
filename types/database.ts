@@ -213,6 +213,67 @@ export type Database = {
           },
         ]
       }
+      breakthroughs: {
+        Row: {
+          action_items: Json
+          coach_id: string | null
+          created_at: string | null
+          date: string
+          id: string
+          key_takeaways: string[]
+          session_id: string | null
+          summary: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          action_items?: Json
+          coach_id?: string | null
+          created_at?: string | null
+          date: string
+          id?: string
+          key_takeaways?: string[]
+          session_id?: string | null
+          summary: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          action_items?: Json
+          coach_id?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          key_takeaways?: string[]
+          session_id?: string | null
+          summary?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "breakthroughs_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "breakthroughs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "breakthroughs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapter_milestones: {
         Row: {
           chapter_id: string
@@ -797,6 +858,41 @@ export type Database = {
         }
         Relationships: []
       }
+      history_queries: {
+        Row: {
+          created_at: string | null
+          id: string
+          query: string
+          response: string
+          sources: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          query: string
+          response: string
+          sources?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          query?: string
+          response?: string
+          sources?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "history_queries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installed_coaches: {
         Row: {
           coach_id: string
@@ -906,6 +1002,150 @@ export type Database = {
           },
         ]
       }
+      insight_collection_items: {
+        Row: {
+          collection_id: string
+          created_at: string | null
+          id: string
+          insight_id: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string | null
+          id?: string
+          insight_id: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string | null
+          id?: string
+          insight_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insight_collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "insight_collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "insight_collection_items_insight_id_fkey"
+            columns: ["insight_id"]
+            isOneToOne: false
+            referencedRelation: "key_insights"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insight_collections: {
+        Row: {
+          color: string
+          created_at: string | null
+          description: string | null
+          icon: string
+          id: string
+          insight_count: number
+          is_auto_generated: boolean
+          name: string
+          theme_keywords: string[]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string
+          id?: string
+          insight_count?: number
+          is_auto_generated?: boolean
+          name: string
+          theme_keywords?: string[]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string
+          id?: string
+          insight_count?: number
+          is_auto_generated?: boolean
+          name?: string
+          theme_keywords?: string[]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insight_collections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      key_insights: {
+        Row: {
+          category: string
+          coach_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          is_highlighted: boolean
+          session_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          coach_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          is_highlighted?: boolean
+          session_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          coach_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_highlighted?: boolean
+          session_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_insights_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_insights_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_insights_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       model_rate_cards: {
         Row: {
           created_at: string
@@ -939,6 +1179,62 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_synthesis: {
+        Row: {
+          breakthrough_count: number
+          coach_contributions: Json
+          created_at: string | null
+          executive_summary: string
+          growth_areas: string[]
+          id: string
+          insight_count: number
+          key_themes: Json
+          month_year: string
+          patterns_identified: Json
+          session_count: number
+          title: string
+          user_id: string
+        }
+        Insert: {
+          breakthrough_count?: number
+          coach_contributions?: Json
+          created_at?: string | null
+          executive_summary: string
+          growth_areas?: string[]
+          id?: string
+          insight_count?: number
+          key_themes?: Json
+          month_year: string
+          patterns_identified?: Json
+          session_count?: number
+          title: string
+          user_id: string
+        }
+        Update: {
+          breakthrough_count?: number
+          coach_contributions?: Json
+          created_at?: string | null
+          executive_summary?: string
+          growth_areas?: string[]
+          id?: string
+          insight_count?: number
+          key_themes?: Json
+          month_year?: string
+          patterns_identified?: Json
+          session_count?: number
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_synthesis_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -946,7 +1242,9 @@ export type Database = {
           email: string
           id: string
           name: string | null
+          notifications_enabled: boolean | null
           onboarding_completed: boolean | null
+          push_token: string | null
           updated_at: string | null
         }
         Insert: {
@@ -955,7 +1253,9 @@ export type Database = {
           email: string
           id: string
           name?: string | null
+          notifications_enabled?: boolean | null
           onboarding_completed?: boolean | null
+          push_token?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -964,7 +1264,9 @@ export type Database = {
           email?: string
           id?: string
           name?: string | null
+          notifications_enabled?: boolean | null
           onboarding_completed?: boolean | null
+          push_token?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1749,6 +2051,10 @@ export type Database = {
       credit_apply_delta: {
         Args: { p_delta: number; p_user_id: string }
         Returns: number
+      }
+      increment_collection_count: {
+        Args: { collection_id: string }
+        Returns: undefined
       }
       match_user_memories: {
         Args: {

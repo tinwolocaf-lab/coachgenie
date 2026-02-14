@@ -1,7 +1,17 @@
 import { supabase } from '@/lib/supabase';
 
+export interface StreamMeta {
+  run_id?: string;
+  memories_used?: boolean;
+  safety_note?: boolean;
+  risk_blocked?: boolean;
+  is_minor?: boolean;
+  session_cap_reached?: boolean;
+}
+
 export interface StreamCallbacks {
   onToken?: (chunk: string) => void;
+  onMeta?: (meta: StreamMeta) => void;
   onDone?: (payload: {
     messageId?: string | null;
     artifacts?: unknown[];
@@ -240,7 +250,14 @@ function handleSsePayload(payload: string, callbacks: StreamCallbacks) {
     const parsed = parseSseEvent(block);
     if (!parsed) continue;
 
-    if (parsed.event === 'token') {
+    if (parsed.event === 'meta') {
+      try {
+        const json = JSON.parse(parsed.data);
+        callbacks.onMeta?.(json as StreamMeta);
+      } catch {
+        // Ignore malformed meta events
+      }
+    } else if (parsed.event === 'token') {
       try {
         const json = JSON.parse(parsed.data);
         callbacks.onToken?.(json.t || '');
@@ -303,6 +320,9 @@ export async function streamChat(
   let messageId: string | null = null;
 
   const applyCallbacks: StreamCallbacks = {
+    onMeta: (meta) => {
+      callbacks.onMeta?.(meta);
+    },
     onToken: (chunk) => {
       fullText += chunk;
       callbacks.onToken?.(chunk);
@@ -790,4 +810,201 @@ export async function setPreferredModel(modelId: string): Promise<{ preferred_mo
   }
 
   return (await response.json()) as { preferred_model_id: string };
+}
+
+// ── Memory APIs ─────────────────────────────────────────────────────────
+
+export type MemoryType = 'episodic' | 'semantic' | 'profile' | 'summary';
+export type SourceType = 'session_message' | 'journal' | 'ritual' | 'calendar' | 'health' | 'system';
+
+export interface MemoryRecord {
+  id: string;
+  memoryType: MemoryType;
+  sourceType: SourceType;
+  content: string;
+  salienceScore: number;
+  confidenceScore: number;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  similarity?: number;
+}
+
+export async function upsertMemory(params: {
+  memoryType: MemoryType;
+  sourceType: SourceType;
+  content: string;
+  sourceId?: string;
+  salienceScore?: number;
+  metadata?: Record<string, unknown>;
+}): Promise<{ id: string }> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/memory-upsert`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify({
+      memory_type: params.memoryType,
+      source_type: params.sourceType,
+      content: params.content,
+      source_id: params.sourceId,
+      salience_score: params.salienceScore,
+      metadata: params.metadata,
+    }),
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(response, 'Failed to store memory', 'memory-upsert');
+  }
+
+  return (await response.json()) as { id: string };
+}
+
+export async function retrieveMemories(params: {
+  query: string;
+  limit?: number;
+  memoryTypes?: MemoryType[];
+  minSimilarity?: number;
+  format?: 'raw' | 'prompt';
+}): Promise<{
+  memories: MemoryRecord[];
+  total_found: number;
+  prompt_text?: string;
+}> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/memory-retrieve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify({
+      query: params.query,
+      limit: params.limit,
+      memory_types: params.memoryTypes,
+      min_similarity: params.minSimilarity,
+      format: params.format,
+    }),
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(response, 'Failed to retrieve memories', 'memory-retrieve');
+  }
+
+  return response.json();
+}
+
+// ── Actions / Approvals APIs ────────────────────────────────────────────
+
+export interface ApprovalRequest {
+  id: string;
+  tool_name: string;
+  action_summary: string;
+  payload: Record<string, unknown>;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  expires_at: string | null;
+  created_at: string;
+}
+
+export async function executeAction(params: {
+  toolName: string;
+  actionSummary?: string;
+  payload?: Record<string, unknown>;
+  runId?: string;
+}): Promise<{
+  status: 'executed' | 'pending_approval' | 'blocked';
+  approval_id?: string;
+  result?: Record<string, unknown>;
+  message?: string;
+}> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/actions-execute`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify({
+      action: 'execute',
+      tool_name: params.toolName,
+      action_summary: params.actionSummary,
+      payload: params.payload,
+      run_id: params.runId,
+    }),
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(response, 'Failed to execute action', 'actions-execute');
+  }
+
+  return response.json();
+}
+
+export async function resolveApproval(
+  approvalId: string,
+  decision: 'approve' | 'reject'
+): Promise<{ status: string; approval_id: string }> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/actions-execute`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify({
+      action: decision,
+      tool_name: '_resolve',
+      approval_id: approvalId,
+    }),
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(response, 'Failed to resolve approval', 'actions-execute');
+  }
+
+  return response.json();
+}
+
+// ── Safety Escalation API ───────────────────────────────────────────────
+
+export async function escalateSafety(params: {
+  message: string;
+  runId?: string;
+  locale?: string;
+}): Promise<{
+  severity: string;
+  blocked: boolean;
+  response: string | null;
+  resources: { name: string; contact: string; type: string }[];
+}> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/safety-escalate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify({
+      message: params.message,
+      run_id: params.runId,
+      locale: params.locale,
+    }),
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(response, 'Failed to escalate safety', 'safety-escalate');
+  }
+
+  return response.json();
 }

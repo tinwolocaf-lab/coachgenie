@@ -9,6 +9,13 @@ import {
 } from './risk-engine.ts';
 import { searchMemories, formatMemoriesForPrompt, storeMemory } from './memory.ts';
 import { buildEnrichedSystemPrompt } from './context-builder.ts';
+import {
+  detectMinorSignals,
+  checkMinorsPolicy,
+  flagUserAsMinor,
+  buildMinorsSystemPromptAddition,
+} from './minors-safeguards.ts';
+import { isFeatureEnabled } from './feature-flags.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,6 +40,8 @@ export interface OrchestratorResult {
   memoryContext: string;
   runId: string;
   trace: AgentTrace;
+  isMinor: boolean;
+  sessionCapReached: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +80,8 @@ export async function orchestratePreResponse(
 
   let systemPrompt = baseSystemPrompt;
   let memoryContext = '';
+  let isMinor = false;
+  let sessionCapReached = false;
 
   // ── Step 1: Safety Check ───────────────────────────────────────────────
 
@@ -103,6 +114,8 @@ export async function orchestratePreResponse(
         memoryContext: '',
         runId: trace.runId,
         trace,
+        isMinor: false,
+        sessionCapReached: false,
       };
     }
 
@@ -122,6 +135,38 @@ export async function orchestratePreResponse(
     console.error('[orchestrator] safety_check error:', err);
   }
 
+  // ── Step 1b: Minors Safeguards ─────────────────────────────────────────
+
+  const minorsStep = trace.startStep('minors_check');
+
+  try {
+    const hasMinorSignals = detectMinorSignals(userMessage);
+
+    if (hasMinorSignals) {
+      // Flag the user as a minor persistently
+      await flagUserAsMinor(serviceClient, userId);
+    }
+
+    // Check policy (covers both new detection and previously flagged users)
+    const minorsPolicy = await checkMinorsPolicy(serviceClient, userId);
+    isMinor = minorsPolicy.isMinor;
+    sessionCapReached = minorsPolicy.sessionCapReached;
+
+    if (minorsPolicy.isMinor) {
+      const addition = buildMinorsSystemPromptAddition(minorsPolicy);
+      systemPrompt += addition;
+    }
+
+    minorsStep.complete({
+      signalDetected: hasMinorSignals,
+      isMinor: minorsPolicy.isMinor,
+      sessionCapReached: minorsPolicy.sessionCapReached,
+    });
+  } catch (err) {
+    minorsStep.fail(err instanceof Error ? err.message : String(err));
+    console.error('[orchestrator] minors_check error:', err);
+  }
+
   // ── Step 2: Context Build ──────────────────────────────────────────────
 
   const contextStep = trace.startStep('context_build');
@@ -135,34 +180,43 @@ export async function orchestratePreResponse(
     // Fall through with whatever prompt we have so far
   }
 
-  // ── Step 3: Memory Retrieve ────────────────────────────────────────────
+  // ── Step 3: Memory Retrieve (feature-gated) ────────────────────────────
+
+  const memoryEnabled = await isFeatureEnabled(serviceClient, 'memory_plane', {
+    userId,
+  }).catch(() => true); // default to enabled on flag-check failure
 
   const memoryStep = trace.startStep('memory_retrieve', {
     query: userMessage.slice(0, 100),
+    featureEnabled: memoryEnabled,
   });
 
-  try {
-    const searchResult = await searchMemories(serviceClient, {
-      userId,
-      query: userMessage,
-      limit: 5,
-    });
+  if (memoryEnabled) {
+    try {
+      const searchResult = await searchMemories(serviceClient, {
+        userId,
+        query: userMessage,
+        limit: 5,
+      });
 
-    memoryContext = formatMemoriesForPrompt(searchResult.memories);
+      memoryContext = formatMemoriesForPrompt(searchResult.memories);
 
-    if (memoryContext) {
-      systemPrompt +=
-        '\n\n--- RELEVANT MEMORIES ---\n' +
-        'Use the following past context when it is relevant to the conversation. ' +
-        'Do not repeat memories verbatim to the user.\n\n' +
-        memoryContext;
+      if (memoryContext) {
+        systemPrompt +=
+          '\n\n--- RELEVANT MEMORIES ---\n' +
+          'Use the following past context when it is relevant to the conversation. ' +
+          'Do not repeat memories verbatim to the user.\n\n' +
+          memoryContext;
+      }
+
+      memoryStep.complete({ memoriesFound: searchResult.totalFound });
+    } catch (err) {
+      memoryStep.fail(err instanceof Error ? err.message : String(err));
+      console.error('[orchestrator] memory_retrieve error:', err);
+      // Continue without memories
     }
-
-    memoryStep.complete({ memoriesFound: searchResult.totalFound });
-  } catch (err) {
-    memoryStep.fail(err instanceof Error ? err.message : String(err));
-    console.error('[orchestrator] memory_retrieve error:', err);
-    // Continue without memories
+  } else {
+    memoryStep.complete({ memoriesFound: 0, skipped: 'feature_disabled' });
   }
 
   // ── Step 4: Strategy ───────────────────────────────────────────────────
@@ -193,6 +247,8 @@ export async function orchestratePreResponse(
     memoryContext,
     runId: trace.runId,
     trace,
+    isMinor,
+    sessionCapReached,
   };
 }
 
@@ -204,8 +260,8 @@ export async function orchestratePreResponse(
  * Run async post-response processing.
  *
  * This should be called AFTER the response has been sent to the user
- * (non-blocking / fire-and-forget). It stores conversation memories and
- * flushes the agent trace for observability.
+ * (non-blocking / fire-and-forget). It stores conversation memories,
+ * tags coaching interventions, and flushes the agent trace for observability.
  *
  * All errors are caught and logged — this function never throws.
  */
@@ -217,6 +273,7 @@ export async function orchestratePostResponse(
     userMessage: string;
     assistantMessage: string;
     trace: AgentTrace;
+    messageId?: string;
   },
 ): Promise<void> {
   const { userId, sessionId, userMessage, assistantMessage, trace } = opts;
@@ -250,11 +307,89 @@ export async function orchestratePostResponse(
     console.error('[orchestrator] post_actions error:', err);
   }
 
-  // ── Step 2: Flush Trace ────────────────────────────────────────────────
+  // ── Step 2: Tag Coaching Interventions ─────────────────────────────────
+
+  try {
+    await tagInterventions(serviceClient, {
+      userId,
+      sessionId,
+      runId: trace.runId,
+      messageId: opts.messageId,
+      assistantMessage,
+    });
+  } catch (err) {
+    console.error('[orchestrator] intervention tagging error:', err);
+  }
+
+  // ── Step 3: Flush Trace ────────────────────────────────────────────────
 
   try {
     await trace.flush(serviceClient);
   } catch (err) {
     console.error('[orchestrator] trace flush error:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Intervention tagging
+// ---------------------------------------------------------------------------
+
+const INTERVENTION_PATTERNS: { type: string; keywords: string[] }[] = [
+  { type: 'reframing', keywords: ['another way to look at', 'consider that', 'what if instead', 'perspective', 'reframe'] },
+  { type: 'accountability', keywords: ['committed to', 'follow through', 'check in', 'how will you', 'when will you'] },
+  { type: 'goal_setting', keywords: ['set a goal', 'your target', 'by when', 'measurable', 'specific steps'] },
+  { type: 'validation', keywords: ['that makes sense', 'understandable', 'valid feeling', 'it\'s okay to', 'natural to feel'] },
+  { type: 'challenging', keywords: ['push yourself', 'stretch zone', 'what\'s holding you', 'are you sure', 'challenge you'] },
+  { type: 'reflective', keywords: ['what do you notice', 'how does that feel', 'reflect on', 'what comes up', 'sit with that'] },
+  { type: 'action_planning', keywords: ['first step', 'next step', 'action item', 'here\'s a plan', 'start by'] },
+  { type: 'psychoeducation', keywords: ['research shows', 'studies suggest', 'this is common', 'many people', 'the science behind'] },
+  { type: 'motivational', keywords: ['you\'ve got this', 'believe in', 'capable of', 'strength', 'proud of'] },
+  { type: 'boundary_setting', keywords: ['it\'s okay to say no', 'set a boundary', 'protect your', 'your limits', 'prioritize yourself'] },
+];
+
+async function tagInterventions(
+  serviceClient: SupabaseClient,
+  opts: {
+    userId: string;
+    sessionId: string;
+    runId: string;
+    messageId?: string;
+    assistantMessage: string;
+  },
+): Promise<void> {
+  const lower = opts.assistantMessage.toLowerCase();
+  const detected: { type: string; confidence: number }[] = [];
+
+  for (const pattern of INTERVENTION_PATTERNS) {
+    const matches = pattern.keywords.filter((kw) => lower.includes(kw));
+    if (matches.length > 0) {
+      const confidence = Math.min(0.5 + matches.length * 0.15, 0.95);
+      detected.push({ type: pattern.type, confidence });
+    }
+  }
+
+  if (detected.length === 0) return;
+
+  // Insert top 3 interventions max
+  const topInterventions = detected
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 3);
+
+  const rows = topInterventions.map((d) => ({
+    user_id: opts.userId,
+    session_id: opts.sessionId || null,
+    run_id: opts.runId || null,
+    message_id: opts.messageId || null,
+    intervention_type: d.type,
+    confidence: d.confidence,
+    metadata: {},
+  }));
+
+  const { error } = await serviceClient
+    .from('coaching_interventions')
+    .insert(rows);
+
+  if (error) {
+    console.error('[orchestrator] Failed to insert interventions:', error.message);
   }
 }
