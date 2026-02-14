@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -53,7 +52,6 @@ function FilterPill({
   }, [index, opacity, translateX]);
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     scale.value = withSpring(0.95, Timing.springBouncy);
     setTimeout(() => {
       scale.value = withSpring(1, Timing.springBouncy);

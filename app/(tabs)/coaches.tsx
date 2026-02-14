@@ -14,7 +14,6 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
   withSpring,
@@ -90,7 +89,6 @@ export default function CoachesScreen() {
   }, [loadData]);
 
   const handleCoachPress = (coach: Coach) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const isMarketplaceCoach = coach.source === 'marketplace' || coach.source === 'owned_custom';
     if (!isMarketplaceCoach && !canAccessCoach(subscriptionTier, coach.id)) {
       router.push('/paywall');
@@ -108,7 +106,6 @@ export default function CoachesScreen() {
   };
 
   const handleCategorySelect = (categoryId: string | null) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedCategory(categoryId);
   };
 
@@ -387,7 +384,6 @@ function MasterclassCoachCard({
   }, [index, opacity, translateY]);
 
   const handlePressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     scale.value = withSpring(0.98, Timing.springGentle);
   };
 

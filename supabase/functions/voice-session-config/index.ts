@@ -267,7 +267,16 @@ serve(async (request) => {
     );
   }
 
-  const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
+  const creditStatus = await ensureActiveCreditAccount(
+      serviceClient,
+      userId,
+      tierResult.tier,
+      {
+        tierSource: tierResult.source,
+        trialTier: tierResult.trialTier,
+        trialEndsAt: tierResult.trialEndsAt,
+      }
+    );
 
   const holdUsage = buildHoldUsage(DEFAULT_HOLD_SECONDS);
   const holdUsd = await calculateUsdCost(serviceClient, model, holdUsage);

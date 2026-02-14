@@ -11,6 +11,10 @@ export interface StreamCallbacks {
   onError?: (message: string) => void;
 }
 
+export type BillingTier = 'free' | 'sovereign' | 'oracle';
+export type TrialTier = Exclude<BillingTier, 'free'>;
+export type BillingTierSource = 'cache' | 'revenuecat' | 'fallback' | 'trial_coupon';
+
 export interface StreamChatOptions {
   modelId?: string;
 }
@@ -152,7 +156,7 @@ export function isVoiceTierRequiredError(error: unknown): error is ApiFunctionEr
 }
 
 export interface CreditStatusResponse {
-  tier: 'free' | 'sovereign' | 'oracle';
+  tier: BillingTier;
   balance_mcredits: number;
   balance_credits: number;
   period_start: string;
@@ -160,7 +164,17 @@ export interface CreditStatusResponse {
   pack_credits: number;
   usd_per_credit: number;
   preferred_chat_model: string | null;
-  tier_source?: 'cache' | 'revenuecat' | 'fallback';
+  tier_source?: BillingTierSource;
+  paid_tier?: BillingTier;
+  trial_tier?: TrialTier | null;
+  trial_active?: boolean;
+  trial_end?: string | null;
+}
+
+export interface RedeemCouponResponse extends CreditStatusResponse {
+  trial_days: number;
+  trial_start: string;
+  trial_end: string;
 }
 
 export interface AvailableModel {
@@ -170,7 +184,7 @@ export interface AvailableModel {
 }
 
 export interface ModelCatalogResponse {
-  tier: 'free' | 'sovereign' | 'oracle';
+  tier: BillingTier;
   preferred_model_id: string | null;
   models: AvailableModel[];
 }
@@ -712,6 +726,26 @@ export async function getCreditStatus(): Promise<CreditStatusResponse> {
   }
 
   return (await response.json()) as CreditStatusResponse;
+}
+
+export async function redeemCoupon(code: string): Promise<RedeemCouponResponse> {
+  const baseUrl = getFunctionsBaseUrl();
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${baseUrl}/billing-redeem-coupon`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify({ code }),
+  });
+
+  if (!response.ok) {
+    await throwFunctionError(response, 'Failed to redeem coupon', 'billing-redeem-coupon');
+  }
+
+  return (await response.json()) as RedeemCouponResponse;
 }
 
 export async function getAvailableModels(): Promise<ModelCatalogResponse> {

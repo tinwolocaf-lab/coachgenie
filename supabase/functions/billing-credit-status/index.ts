@@ -26,7 +26,20 @@ serve(async (request) => {
 
   try {
     const tierResult = await resolveBillingTier(serviceClient, userId);
-    const status = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
+    const status = await ensureActiveCreditAccount(
+      serviceClient,
+      userId,
+      tierResult.tier,
+      {
+        tierSource: tierResult.source,
+        trialTier: tierResult.trialTier,
+        trialEndsAt: tierResult.trialEndsAt,
+      }
+    );
+    const trialActive =
+      tierResult.trialTier !== null &&
+      typeof tierResult.trialEndsAt === 'string' &&
+      new Date(tierResult.trialEndsAt).getTime() > Date.now();
 
     const { data: pref } = await serviceClient
       .from('user_model_preferences')
@@ -47,6 +60,10 @@ serve(async (request) => {
         ...creditStatusResponsePayload(status),
         preferred_chat_model: preferredModel,
         tier_source: tierResult.source,
+        paid_tier: tierResult.paidTier,
+        trial_tier: tierResult.trialTier,
+        trial_active: trialActive,
+        trial_end: tierResult.trialEndsAt,
       }),
       {
         status: 200,

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -45,7 +44,6 @@ export function SearchBar({
   }, [isFocused, focusProgress]);
 
   const handleFocus = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsFocused(true);
     onFocus?.();
   };
@@ -56,13 +54,11 @@ export function SearchBar({
   };
 
   const handleClear = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onChangeText('');
     inputRef.current?.focus();
   };
 
   const handleIconPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     iconScale.value = withSpring(0.8, Timing.springBouncy);
     setTimeout(() => {
       iconScale.value = withSpring(1, Timing.springBouncy);

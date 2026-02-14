@@ -49,7 +49,16 @@ serve(async (request) => {
   const { userClient, userId } = auth;
   const serviceClient = createServiceClient();
   const tierResult = await resolveBillingTier(serviceClient, userId);
-  const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
+  const creditStatus = await ensureActiveCreditAccount(
+      serviceClient,
+      userId,
+      tierResult.tier,
+      {
+        tierSource: tierResult.source,
+        trialTier: tierResult.trialTier,
+        trialEndsAt: tierResult.trialEndsAt,
+      }
+    );
   const model = await resolveChatModelForTier(serviceClient, tierResult.tier);
 
   const { data: session, error: sessionError } = await userClient

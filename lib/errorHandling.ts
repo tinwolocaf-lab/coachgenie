@@ -86,6 +86,16 @@ function shouldCaptureConsoleIssue(level: 'error' | 'warn', message: string): bo
 
   const lowerMessage = message.toLowerCase();
 
+  // RevenueCat purchase cancellation is an expected user action and should not
+  // surface as a runtime error banner.
+  if (
+    lowerMessage.includes('purchasecancellederror') ||
+    lowerMessage.includes('purchase_cancelled_error') ||
+    lowerMessage.includes('purchase cancelled')
+  ) {
+    return false;
+  }
+
   // These are expected environment/service-availability states that should not
   // trigger crash-style global issue overlays.
   if (

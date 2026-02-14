@@ -5,7 +5,6 @@ import Animated, {
   withSpring,
   useSharedValue,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { Radius, Typography, Spacing, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 
@@ -44,7 +43,6 @@ export function Chip({
   };
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress?.();
   };
 

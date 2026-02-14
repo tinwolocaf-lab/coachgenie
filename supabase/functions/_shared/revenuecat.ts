@@ -1,5 +1,5 @@
 import { createServiceClient } from './supabase.ts';
-import { BillingTier, normalizeTier } from './modelCatalog.ts';
+import { BillingTier, getTierRank, normalizeTier } from './modelCatalog.ts';
 
 const REVENUECAT_BASE_URL = Deno.env.get('REVENUECAT_BASE_URL') ?? 'https://api.revenuecat.com/v1';
 const REVENUECAT_SECRET_KEY =
@@ -15,7 +15,11 @@ const FALLBACK_CACHE_TTL_SECONDS = Number(Deno.env.get('BILLING_TIER_FALLBACK_TT
 
 export interface TierResolutionResult {
   tier: BillingTier;
-  source: 'cache' | 'revenuecat' | 'fallback';
+  source: 'cache' | 'revenuecat' | 'fallback' | 'trial_coupon';
+  paidTier: BillingTier;
+  trialTier: Exclude<BillingTier, 'free'> | null;
+  trialEndsAt: string | null;
+  trialDays: number | null;
   verifiedAt: string;
   expiresAt: string;
 }
@@ -24,6 +28,12 @@ interface BillingTierCacheRow {
   tier: string;
   verified_at: string;
   expires_at: string;
+}
+
+interface ActiveTrialRedemptionRow {
+  target_tier: string;
+  trial_days: number;
+  ends_at: string;
 }
 
 interface RevenueCatEntitlement {
@@ -72,6 +82,10 @@ function inferTierFromRevenueCat(payload: RevenueCatSubscriberResponse): Billing
     return 'sovereign';
   }
   return 'free';
+}
+
+function isTrialTier(value: string | null | undefined): value is Exclude<BillingTier, 'free'> {
+  return value === 'sovereign' || value === 'oracle';
 }
 
 async function fetchRevenueCatTier(userId: string): Promise<BillingTier> {
@@ -141,42 +155,89 @@ async function writeCache(
   }
 }
 
+async function getActiveTrialRedemption(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  userId: string
+): Promise<{ tier: Exclude<BillingTier, 'free'>; trialDays: number; endsAt: string } | null> {
+  const now = nowIso();
+  const { data, error } = await serviceClient
+    .from('trial_coupon_redemptions')
+    .select('target_tier, trial_days, ends_at')
+    .eq('user_id', userId)
+    .gt('ends_at', now)
+    .order('ends_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[RevenueCat] Failed to read active trial redemption:', error.message);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const row = data as ActiveTrialRedemptionRow;
+  if (!isTrialTier(row.target_tier)) {
+    return null;
+  }
+
+  return {
+    tier: row.target_tier,
+    trialDays: Number.isFinite(row.trial_days) ? row.trial_days : 30,
+    endsAt: row.ends_at,
+  };
+}
+
 export async function resolveBillingTier(
   serviceClient: ReturnType<typeof createServiceClient>,
   userId: string
 ): Promise<TierResolutionResult> {
+  let paidTier: BillingTier;
+  let paidSource: 'cache' | 'revenuecat' | 'fallback';
+  let verifiedAt: string;
+  let expiresAt: string;
+
   const cached = await getCache(serviceClient, userId);
   if (cached && isFuture(cached.expires_at)) {
-    return {
-      tier: normalizeTier(cached.tier),
-      source: 'cache',
-      verifiedAt: cached.verified_at,
-      expiresAt: cached.expires_at,
-    };
+    paidTier = normalizeTier(cached.tier);
+    paidSource = 'cache';
+    verifiedAt = cached.verified_at;
+    expiresAt = cached.expires_at;
+  } else {
+    verifiedAt = nowIso();
+    try {
+      paidTier = await fetchRevenueCatTier(userId);
+      paidSource = 'revenuecat';
+      expiresAt = plusSecondsIso(verifiedAt, CACHE_TTL_SECONDS);
+      await writeCache(serviceClient, userId, paidTier, paidSource, verifiedAt, expiresAt);
+    } catch (error) {
+      console.warn('[RevenueCat] Tier verification failed, using fallback free tier:', error);
+      paidTier = 'free';
+      paidSource = 'fallback';
+      expiresAt = plusSecondsIso(verifiedAt, FALLBACK_CACHE_TTL_SECONDS);
+      await writeCache(serviceClient, userId, paidTier, paidSource, verifiedAt, expiresAt);
+    }
   }
 
-  const verifiedAt = nowIso();
+  const trial = await getActiveTrialRedemption(serviceClient, userId);
+  let tier = paidTier;
+  let source: TierResolutionResult['source'] = paidSource;
 
-  try {
-    const tier = await fetchRevenueCatTier(userId);
-    const expiresAt = plusSecondsIso(verifiedAt, CACHE_TTL_SECONDS);
-    await writeCache(serviceClient, userId, tier, 'revenuecat', verifiedAt, expiresAt);
-    return {
-      tier,
-      source: 'revenuecat',
-      verifiedAt,
-      expiresAt,
-    };
-  } catch (error) {
-    console.warn('[RevenueCat] Tier verification failed, using fallback free tier:', error);
-    const fallbackTier: BillingTier = 'free';
-    const fallbackExpiresAt = plusSecondsIso(verifiedAt, FALLBACK_CACHE_TTL_SECONDS);
-    await writeCache(serviceClient, userId, fallbackTier, 'fallback', verifiedAt, fallbackExpiresAt);
-    return {
-      tier: fallbackTier,
-      source: 'fallback',
-      verifiedAt,
-      expiresAt: fallbackExpiresAt,
-    };
+  if (trial && getTierRank(trial.tier) > getTierRank(tier)) {
+    tier = trial.tier;
+    source = 'trial_coupon';
   }
+
+  return {
+    tier,
+    source,
+    paidTier,
+    trialTier: trial?.tier ?? null,
+    trialEndsAt: trial?.endsAt ?? null,
+    trialDays: trial?.trialDays ?? null,
+    verifiedAt,
+    expiresAt,
+  };
 }

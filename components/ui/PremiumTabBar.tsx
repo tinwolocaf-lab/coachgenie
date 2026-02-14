@@ -8,7 +8,6 @@ import Animated, {
     useSharedValue,
     withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography, Shadows, Spacing } from '@/constants/theme';
@@ -107,8 +106,6 @@ export function PremiumTabBar({ state, descriptors, navigation }: BottomTabBarPr
                             if (!isFocused && !event.defaultPrevented) {
                                 navigation.navigate(route.name);
                             }
-
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         };
 
                         const onLongPress = () => {
@@ -116,7 +113,6 @@ export function PremiumTabBar({ state, descriptors, navigation }: BottomTabBarPr
                                 type: 'tabLongPress',
                                 target: route.key,
                             });
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                         };
 
                         // Icon Mapping

@@ -80,7 +80,16 @@ serve(async (request) => {
   const serviceClient = createServiceClient();
 
   const tierResult = await resolveBillingTier(serviceClient, userId);
-  const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
+  const creditStatus = await ensureActiveCreditAccount(
+      serviceClient,
+      userId,
+      tierResult.tier,
+      {
+        tierSource: tierResult.source,
+        trialTier: tierResult.trialTier,
+        trialEndsAt: tierResult.trialEndsAt,
+      }
+    );
 
   let chatModel: string;
   try {

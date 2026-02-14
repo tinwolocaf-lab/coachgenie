@@ -7,7 +7,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
-import { getUserSubscriptionTier, addCustomerInfoUpdateListener, getTierFromCustomerInfo } from '@/lib/revenuecat';
+import { addCustomerInfoUpdateListener } from '@/lib/revenuecat';
+import { getUserTier, invalidateUserTierCache } from '@/lib/feature-gates';
 import type { SubscriptionTier } from '@/lib/feature-gates';
 
 // Theme IDs
@@ -699,6 +700,16 @@ export function ThemeProvider({ children, initialAtmosphere = 'original' }: Them
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
   const fadeOpacity = useSharedValue(1);
 
+  const refreshSubscriptionTier = useCallback(async () => {
+    try {
+      const tier = await getUserTier();
+      setSubscriptionTier(tier);
+      setIsSovereignMember(tier !== 'free');
+    } catch (error) {
+      console.warn('Failed to refresh subscription tier:', error);
+    }
+  }, []);
+
   const loadSavedTheme = useCallback(async () => {
     try {
       const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
@@ -718,17 +729,13 @@ export function ThemeProvider({ children, initialAtmosphere = 'original' }: Them
 
   // Check RevenueCat entitlement and listen for updates
   useEffect(() => {
-    getUserSubscriptionTier().then((tier) => {
-      setSubscriptionTier(tier);
-      setIsSovereignMember(tier !== 'free');
-    });
-    const unsubscribe = addCustomerInfoUpdateListener((info) => {
-      const tier = getTierFromCustomerInfo(info);
-      setSubscriptionTier(tier);
-      setIsSovereignMember(tier !== 'free');
+    void refreshSubscriptionTier();
+    const unsubscribe = addCustomerInfoUpdateListener((_info) => {
+      invalidateUserTierCache();
+      void refreshSubscriptionTier();
     });
     return unsubscribe;
-  }, []);
+  }, [refreshSubscriptionTier]);
 
   // Load saved theme on mount
   useEffect(() => {

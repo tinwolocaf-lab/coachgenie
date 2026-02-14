@@ -13,13 +13,19 @@ import * as Haptics from "expo-haptics";
 import Animated from "react-native-reanimated";
 import { Typography, Spacing, Radius, Shadows } from "@/constants/theme";
 import { useThemeSafe } from "@/contexts/ThemeContext";
+import { useAlert } from "@/contexts/AlertContext";
 import { Button } from "@/components/ui/Button";
+import CouponRedeemPanel from "@/components/billing/CouponRedeemCard";
 import {
   getOfferings,
   restorePurchases,
-  getUserSubscriptionTier,
 } from "@/lib/revenuecat";
-import type { SubscriptionTier } from "@/lib/feature-gates";
+import {
+  getUserTier,
+  invalidateUserTierCache,
+  type SubscriptionTier,
+} from "@/lib/feature-gates";
+import type { RedeemCouponResponse } from "@/lib/apiClient";
 import Purchases, {
   type PurchasesOffering,
   type PurchasesPackage,
@@ -164,9 +170,54 @@ function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function normalizeErrorMessage(error: unknown): string {
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (error && typeof error === "object") {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+
+function isRevenueCatPurchaseCancelledError(error: unknown): boolean {
+  if (error && typeof error === "object") {
+    const maybeCancelled = (error as { userCancelled?: unknown }).userCancelled;
+    if (typeof maybeCancelled === "boolean" && maybeCancelled) {
+      return true;
+    }
+
+    const maybeCode = (error as { code?: unknown }).code;
+    if (typeof maybeCode === "string") {
+      const normalizedCode = maybeCode.toLowerCase();
+      if (
+        normalizedCode.includes("purchasecancelled") ||
+        normalizedCode.includes("purchase_cancelled")
+      ) {
+        return true;
+      }
+    }
+  }
+
+  const normalizedMessage = normalizeErrorMessage(error).toLowerCase();
+  return (
+    normalizedMessage.includes("purchasecancellederror") ||
+    normalizedMessage.includes("purchase cancelled") ||
+    normalizedMessage.includes("purchase_cancelled")
+  );
+}
+
 export default function PaywallScreen() {
   const router = useRouter();
   const { palette, setSubscriptionTier } = useThemeSafe();
+  const { showToast } = useAlert();
   const { targetTier } = useLocalSearchParams<{ targetTier?: string }>();
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier>(
     (targetTier as SubscriptionTier) || "sovereign",
@@ -176,7 +227,6 @@ export default function PaywallScreen() {
   const [isRestoring, setIsRestoring] = useState(false);
 
   const handleSelectTier = (tier: SubscriptionTier) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTier(tier);
   };
 
@@ -204,21 +254,23 @@ export default function PaywallScreen() {
       }
 
       await Purchases.purchasePackage(pkg);
-      const tier = await getUserSubscriptionTier();
+      invalidateUserTierCache();
+      const tier = await getUserTier();
       setSubscriptionTier(tier);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (error: unknown) {
-      const userCancelled = Boolean(
-        error &&
-        typeof error === "object" &&
-        "userCancelled" in error &&
-        (error as { userCancelled?: boolean }).userCancelled,
-      );
-      if (userCancelled) {
-        // User cancelled - do nothing
+      if (isRevenueCatPurchaseCancelledError(error)) {
+        showToast("Purchase canceled", {
+          variant: "info",
+          message: "No payment was made. You are still on your current plan.",
+        });
       } else {
-        console.error("[Paywall] Purchase error:", error);
+        console.warn("[Paywall] Purchase error:", error);
+        showToast("Purchase not completed", {
+          variant: "error",
+          message: "We could not complete the purchase. Your plan is unchanged.",
+        });
       }
     } finally {
       setIsLoading(false);
@@ -229,7 +281,8 @@ export default function PaywallScreen() {
     setIsRestoring(true);
     try {
       await restorePurchases();
-      const tier = await getUserSubscriptionTier();
+      invalidateUserTierCache();
+      const tier = await getUserTier();
       setSubscriptionTier(tier);
       if (tier !== "free") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -240,6 +293,16 @@ export default function PaywallScreen() {
     } finally {
       setIsRestoring(false);
     }
+  };
+
+  const handleCouponRedeemed = async (payload: RedeemCouponResponse) => {
+    invalidateUserTierCache();
+    setSubscriptionTier(payload.tier);
+    showToast("Trial activated", {
+      variant: "success",
+      message: `${payload.tier === "oracle" ? "Oracle" : "Sovereign"} trial is now active.`,
+    });
+    router.back();
   };
 
   return (
@@ -295,6 +358,8 @@ export default function PaywallScreen() {
             ))}
           </View>
         </View>
+
+        <CouponRedeemPanel onRedeemed={handleCouponRedeemed} />
 
         {/* Tier Cards */}
         {TIERS.map((tier) => {

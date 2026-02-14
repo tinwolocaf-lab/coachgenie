@@ -116,3 +116,5 @@ Uses `EXPO_PUBLIC_*` prefix. Required: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_
 - Only make changes that are directly requested. Keep solutions simple and focused.
 - ALWAYS read and understand relevant files before proposing edits. Do not speculate about code you have not inspected.
 - after everytime user request something, first learn all of the files related to that, and then using skills in the skills do the changes!
+- always if i ask send you a prompt, make sure to add that prompt in sequence to the prompts.md file so that we can keep track of the prompts. also, if the prompt is repeated, or about github, expo, npm related very short tasks, dont include them in that file.
+- when you deploy the android build to the production build, always make sure to upgrade the versions of the app not to have uploading issues to the google play with old versions.

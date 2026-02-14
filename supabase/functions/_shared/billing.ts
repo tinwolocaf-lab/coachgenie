@@ -382,11 +382,26 @@ async function writeGrantEvent(
 export async function ensureActiveCreditAccount(
   serviceClient: ReturnType<typeof createServiceClient>,
   userId: string,
-  resolvedTier: BillingTier
+  resolvedTier: BillingTier,
+  options?: {
+    tierSource?: 'cache' | 'revenuecat' | 'fallback' | 'trial_coupon';
+    trialTier?: Exclude<BillingTier, 'free'> | null;
+    trialEndsAt?: string | null;
+  }
 ): Promise<CreditStatus> {
   const now = nowIso();
-  const periodEnd = addDaysIso(now, CREDIT_PERIOD_DAYS);
   const targetPackMcredits = getTierPackMcredits(resolvedTier);
+  let periodStart = now;
+  let periodEnd = addDaysIso(now, CREDIT_PERIOD_DAYS);
+  const isTrialBackedTier =
+    options?.tierSource === 'trial_coupon' &&
+    options.trialTier === resolvedTier &&
+    typeof options.trialEndsAt === 'string' &&
+    new Date(options.trialEndsAt).getTime() > Date.now();
+
+  if (isTrialBackedTier) {
+    periodEnd = options.trialEndsAt as string;
+  }
 
   const { data, error } = await serviceClient
     .from('credit_accounts')
@@ -404,7 +419,7 @@ export async function ensureActiveCreditAccount(
       user_id: userId,
       tier: resolvedTier,
       balance_mcredits: targetPackMcredits,
-      period_start: now,
+      period_start: periodStart,
       period_end: periodEnd,
     });
 
@@ -417,7 +432,7 @@ export async function ensureActiveCreditAccount(
     return {
       tier: resolvedTier,
       balanceMcredits: targetPackMcredits,
-      periodStart: now,
+      periodStart,
       periodEnd,
       packCredits: getTierPackCredits(resolvedTier),
     };
@@ -437,7 +452,7 @@ export async function ensureActiveCreditAccount(
       .update({
         tier: resolvedTier,
         balance_mcredits: nextBalance,
-        period_start: now,
+        period_start: periodStart,
         period_end: periodEnd,
       })
       .eq('user_id', userId);
@@ -458,7 +473,7 @@ export async function ensureActiveCreditAccount(
     return {
       tier: resolvedTier,
       balanceMcredits: nextBalance,
-      periodStart: now,
+      periodStart,
       periodEnd,
       packCredits: getTierPackCredits(resolvedTier),
     };
@@ -478,7 +493,7 @@ export async function ensureActiveCreditAccount(
   return {
     tier: resolvedTier,
     balanceMcredits: current.balance_mcredits,
-    periodStart: current.period_start ?? now,
+    periodStart: current.period_start ?? periodStart,
     periodEnd: current.period_end ?? periodEnd,
     packCredits: getTierPackCredits(resolvedTier),
   };

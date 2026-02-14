@@ -28,11 +28,12 @@ import { Button } from '@/components/ui/Button';
 import { GoldDustLoader } from '@/components/ui/GoldDustLoader';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { AtmosphereGallery } from '@/components/settings/AtmosphereGallery';
+import CouponRedeemPanel from '@/components/billing/CouponRedeemCard';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import RevenueCatUI from 'react-native-purchases-ui';
-import { getUserSubscriptionTier } from '@/lib/revenuecat';
+import { getUserTier, invalidateUserTierCache } from '@/lib/feature-gates';
 import {
   ApiFunctionError,
   getAvailableModels,
@@ -40,6 +41,7 @@ import {
   setPreferredModel,
   type AvailableModel,
   type CreditStatusResponse,
+  type RedeemCouponResponse,
 } from '@/lib/apiClient';
 import { useAlert } from '@/contexts/AlertContext';
 
@@ -136,17 +138,14 @@ export default function AccountScreen() {
   }, [loadBillingData, subscriptionTier]);
 
   const handleBack = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
   };
 
   const handleEditProfile = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsEditing(true);
   };
 
   const handleCancelEdit = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditedName(profile.fullName);
     setIsEditing(false);
   };
@@ -221,11 +220,44 @@ export default function AccountScreen() {
     try {
       await RevenueCatUI.presentPaywall();
       // After paywall closes, check if purchase was made
-      const tier = await getUserSubscriptionTier();
+      invalidateUserTierCache();
+      const tier = await getUserTier();
       setSubscriptionTier(tier);
       setSovereignMember(tier !== 'free');
-    } catch (error) {
-      console.error('[Paywall] Error presenting paywall:', error);
+      await loadBillingData();
+    } catch (error: unknown) {
+      const normalizedMessage = (
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : ''
+      ).toLowerCase();
+      const userCancelled = Boolean(
+        error &&
+        typeof error === 'object' &&
+        'userCancelled' in error &&
+        (error as { userCancelled?: boolean }).userCancelled,
+      );
+
+      if (
+        userCancelled ||
+        normalizedMessage.includes('purchasecancellederror') ||
+        normalizedMessage.includes('purchase cancelled') ||
+        normalizedMessage.includes('purchase_cancelled')
+      ) {
+        showToast('Purchase canceled', {
+          variant: 'info',
+          message: 'No payment was made. You are still on your current plan.',
+        });
+        return;
+      }
+
+      console.warn('[Paywall] Error presenting paywall:', error);
+      showToast('Purchase not completed', {
+        variant: 'error',
+        message: 'We could not complete the purchase. Your plan is unchanged.',
+      });
     }
   };
 
@@ -327,6 +359,22 @@ export default function AccountScreen() {
     }
   }, [isUpdatingModel, preferredModelId, showToast]);
 
+  const handleCouponRedeemed = useCallback(async (payload: RedeemCouponResponse) => {
+    invalidateUserTierCache();
+    setSubscriptionTier(payload.tier);
+    setSovereignMember(payload.tier !== 'free');
+    await loadBillingData();
+  }, [loadBillingData, setSovereignMember, setSubscriptionTier]);
+
+  const currentPackCredits =
+    creditStatus?.pack_credits ??
+    (subscriptionTier === 'oracle' ? 1000 : subscriptionTier === 'sovereign' ? 300 : 50);
+  const remainingCredits = creditStatus?.balance_credits ?? currentPackCredits;
+  const usedCredits = Math.max(0, currentPackCredits - remainingCredits);
+  const periodEndLabel = creditStatus?.period_end
+    ? new Date(creditStatus.period_end).toLocaleDateString()
+    : null;
+
   const headerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: headerScale.value }],
   }));
@@ -410,7 +458,7 @@ export default function AccountScreen() {
                 <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>What You Can Do</Text>
               </View>
 
-              <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+              <View style={[styles.profileSettingsCard, { backgroundColor: palette.cardBg }]}>
                 <View style={[styles.settingItem, { borderBottomColor: palette.borderLight }]}>
                   <View style={[styles.settingIcon, { backgroundColor: palette.successLight }]}>
                     <Ionicons name="checkmark-circle" size={20} color={palette.success} />
@@ -494,7 +542,6 @@ export default function AccountScreen() {
                 <TouchableOpacity
                   style={styles.settingItemClickable}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     Linking.openURL('https://coachgenie.app/privacy');
                   }}
                 >
@@ -659,11 +706,8 @@ export default function AccountScreen() {
                 <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Subscription</Text>
               </View>
 
-              <View style={[styles.subscriptionCard, { borderColor: palette.borderAccent }]}>
-                <LinearGradient
-                  colors={[`${palette.accent}06`, `${palette.accent}03`]}
-                  style={styles.subscriptionGradient}
-                >
+              <View style={[styles.subscriptionCard, { backgroundColor: palette.cardBg }]}>
+                <View style={styles.subscriptionGradient}>
                   <View style={styles.subscriptionHeader}>
                     <View style={[styles.subscriptionIcon, { backgroundColor: palette.accentMuted }]}>
                       <Ionicons name="diamond" size={24} color={palette.accent} />
@@ -682,15 +726,26 @@ export default function AccountScreen() {
                     <View style={styles.featureItem}>
                       <Ionicons name="checkmark" size={16} color={palette.success} />
                       <Text style={[styles.featureText, { color: palette.textSecondary }]}>
-                        {(creditStatus?.pack_credits ??
-                          (subscriptionTier === 'oracle' ? 1000 : subscriptionTier === 'sovereign' ? 300 : 50))} monthly credits included
+                        {currentPackCredits.toFixed(1)} monthly credits included
                       </Text>
                     </View>
                     <View style={styles.featureItem}>
                       <Ionicons name="checkmark" size={16} color={palette.success} />
                       <Text style={[styles.featureText, { color: palette.textSecondary }]}>
-                        {creditStatus
-                          ? `${creditStatus.balance_credits.toFixed(1)} credits remaining this period`
+                        {remainingCredits.toFixed(1)} credits remaining this period
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="checkmark" size={16} color={palette.success} />
+                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>
+                        {usedCredits.toFixed(1)} credits used this period
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="checkmark" size={16} color={palette.success} />
+                      <Text style={[styles.featureText, { color: palette.textSecondary }]}>
+                        {periodEndLabel
+                          ? `Current period ends on ${periodEndLabel}`
                           : 'Credits refresh every 30-day billing period'}
                       </Text>
                     </View>
@@ -707,13 +762,15 @@ export default function AccountScreen() {
                   </View>
                   <TouchableOpacity
                     onPress={handleManageSubscription}
-                    style={[styles.manageButton, { borderTopColor: palette.borderAccent }]}
+                    style={[styles.manageButton, { borderTopColor: palette.borderLight }]}
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.manageButtonText, { color: palette.accent }]}>Manage Subscription</Text>
                     <Ionicons name="arrow-forward" size={14} color={palette.accent} />
                   </TouchableOpacity>
-                </LinearGradient>
+
+                  <CouponRedeemPanel onRedeemed={handleCouponRedeemed} />
+                </View>
               </View>
             </Animated.View>
 
@@ -727,7 +784,6 @@ export default function AccountScreen() {
                 <TouchableOpacity
                   style={styles.settingItemClickable}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push('/coach/manage');
                   }}
                 >
@@ -828,7 +884,6 @@ export default function AccountScreen() {
                 <TouchableOpacity
                   style={styles.settingItemClickable}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push('/integrations');
                   }}
                 >
@@ -1056,6 +1111,13 @@ const styles = StyleSheet.create({
     marginBottom: EditorialSpacing.sectionGap,
     ...Shadows.md,
   },
+  profileSettingsCard: {
+    marginHorizontal: EditorialSpacing.breathingMargin,
+    borderRadius: Radius.lg,
+    marginBottom: EditorialSpacing.sectionGap,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1162,8 +1224,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     overflow: 'hidden',
     marginBottom: EditorialSpacing.sectionGap,
-    borderWidth: 1,
-    ...Shadows.md,
+    ...Shadows.subtle,
   },
   subscriptionGradient: {
     padding: Spacing.xl,

@@ -45,7 +45,7 @@ export function Button({
   loading = false,
   style,
   textStyle,
-  haptic = true,
+  haptic = false,
   icon,
   iconPosition = 'left',
 }: ButtonProps) {

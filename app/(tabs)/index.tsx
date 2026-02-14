@@ -59,6 +59,7 @@ import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getFlashbackInsights } from '@/lib/supabase-archive';
 import { getTodayPractice, getTimeOfDay, completeRitual, uncompleteRitual } from '@/lib/supabase-rituals';
 import { getOnboardingData } from '@/lib/onboarding';
+import { getCreditStatus, type CreditStatusResponse } from '@/lib/apiClient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -170,6 +171,7 @@ export default function HomeScreen() {
   const [flashbackInsight, setFlashbackInsight] = useState<{ insight: KeyInsight; type: 'monthAgo' | 'yearAgo' } | null>(null);
   const [todayPractice, setTodayPractice] = useState<TodayPractice | null>(null);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay());
+  const [creditStatus, setCreditStatus] = useState<CreditStatusResponse | null>(null);
 
   const flourishRef = useRef<RitualCompletionFlourishRef>(null);
 
@@ -270,6 +272,35 @@ export default function HomeScreen() {
   }, [auth.user]);
 
   useEffect(() => {
+    let isCancelled = false;
+
+    if (!auth.user) {
+      setCreditStatus(null);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    const loadCreditStatus = async () => {
+      try {
+        const status = await getCreditStatus();
+        if (!isCancelled) {
+          setCreditStatus(status);
+        }
+      } catch {
+        if (!isCancelled) {
+          setCreditStatus(null);
+        }
+      }
+    };
+
+    void loadCreditStatus();
+    return () => {
+      isCancelled = true;
+    };
+  }, [auth.user, subscriptionTier]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setTimeOfDay(getTimeOfDay());
     }, 60000);
@@ -300,58 +331,48 @@ export default function HomeScreen() {
   }, [activeCoach, router]);
 
   const handleOpenChat = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (activeCoach) {
       router.push(`/chat/${activeCoach.id}`);
     }
   }, [activeCoach, router]);
 
   const handleAccountPress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/account');
   }, [router]);
 
   const handleFeaturedPress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (featuredCoach) {
       router.push(`/coach/${featuredCoach.id}`);
     }
   }, [featuredCoach, router]);
 
   const handleFlashbackPress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (flashbackInsight) {
       router.push(`/archive/insight/${flashbackInsight.insight.id}`);
     }
   }, [flashbackInsight, router]);
 
   const handleMorningPress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/rituals/morning');
   }, [router]);
 
   const handleEveningPress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/rituals/evening');
   }, [router]);
 
   const handlePracticePress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/rituals');
   }, [router]);
 
   const handleOraclePress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/oracle');
   }, [router]);
 
   const handleArchivePress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/archive');
   }, [router]);
 
   const handleVaultPress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(tabs)/vault');
   }, [router]);
 
@@ -509,6 +530,14 @@ export default function HomeScreen() {
                     <Text style={[styles.heroName, { color: palette.textPrimary }]}>{userName}</Text>
                   )}
                   <Text style={[styles.heroDate, { color: palette.textTertiary }]}>{dateString}</Text>
+                  {creditStatus ? (
+                    <View style={[styles.creditBadge, { backgroundColor: palette.accentMuted, borderColor: palette.borderAccent }]}>
+                      <Ionicons name="flash-outline" size={12} color={palette.accent} />
+                      <Text style={[styles.creditBadgeText, { color: palette.textSecondary }]}>
+                        {creditStatus.balance_credits.toFixed(1)} credits left
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <TouchableOpacity
                   style={styles.avatarButton}
@@ -1067,7 +1096,6 @@ function PriorityItem({
   }));
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     scale.value = withSpring(0.98, Timing.springBouncy);
     setTimeout(() => {
       scale.value = withSpring(1, Timing.springBouncy);
@@ -1187,6 +1215,21 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     letterSpacing: Typography.letterSpacing.wider,
     textTransform: 'uppercase',
+  },
+  creditBadge: {
+    marginTop: Spacing.md,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+  },
+  creditBadgeText: {
+    fontSize: Typography.sizes.caption,
+    fontFamily: Typography.fonts.sansMedium,
   },
   avatarButton: {
     padding: 2,

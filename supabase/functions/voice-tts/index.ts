@@ -108,7 +108,16 @@ serve(async (request) => {
     );
   }
 
-  const creditStatus = await ensureActiveCreditAccount(serviceClient, userId, tierResult.tier);
+  const creditStatus = await ensureActiveCreditAccount(
+      serviceClient,
+      userId,
+      tierResult.tier,
+      {
+        tierSource: tierResult.source,
+        trialTier: tierResult.trialTier,
+        trialEndsAt: tierResult.trialEndsAt,
+      }
+    );
 
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiApiKey) {

@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -38,7 +37,6 @@ function QuickActionButton({ action, index, baseDelay }: { action: QuickAction; 
   }, [index, baseDelay, opacity, translateY]);
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     action.onPress();
   };
 
