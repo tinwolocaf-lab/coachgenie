@@ -8,14 +8,27 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const allowGuestModeFromEnv = (process.env.EXPO_PUBLIC_ALLOW_GUEST_MODE ?? '').toLowerCase() === 'true';
 
+function isValidHttpUrl(value: string | undefined): boolean {
+  if (!value) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+const hasValidSupabaseUrl = isValidHttpUrl(supabaseUrl);
+const resolvedSupabaseUrl = hasValidSupabaseUrl ? supabaseUrl : undefined;
+
 // Check if Supabase is configured
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+export const isSupabaseConfigured = !!(resolvedSupabaseUrl && supabaseAnonKey);
 export const isGuestModeEnabled = !isSupabaseConfigured && allowGuestModeFromEnv;
 export const isAuthMisconfigured = !isSupabaseConfigured && !isGuestModeEnabled;
 
 // Create Supabase client (with fallback for unconfigured state)
 export const supabase = createClient<Database>(
-  supabaseUrl || 'https://placeholder.supabase.co',
+  resolvedSupabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {

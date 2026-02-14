@@ -2,7 +2,7 @@
   "expo": {
     "name": "CoachZeno",
     "slug": "coachgenie",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "coachgenie",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.coachgenie.app",
-      "buildNumber": "5"
+      "buildNumber": "6"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.coachgenie.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "intentFilters": [
         {
           "action": "VIEW",

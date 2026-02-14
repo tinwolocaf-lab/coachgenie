@@ -88,3 +88,5 @@ supabase/.branches/
 # Claude / AI
 CLAUDE.md
 .claude/
+
+eas.json
