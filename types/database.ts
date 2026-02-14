@@ -12,33 +12,169 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
+      agent_runs: {
+        Row: {
+          created_at: string | null
+          id: string
+          latency_ms: number | null
+          model_id: string
+          model_provider: string
+          session_id: string | null
+          status: string
+          total_cost_usd: number | null
+          total_input_tokens: number | null
+          total_output_tokens: number | null
+          trigger_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          latency_ms?: number | null
+          model_id: string
+          model_provider: string
+          session_id?: string | null
+          status?: string
+          total_cost_usd?: number | null
+          total_input_tokens?: number | null
+          total_output_tokens?: number | null
+          trigger_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          latency_ms?: number | null
+          model_id?: string
+          model_provider?: string
+          session_id?: string | null
+          status?: string
+          total_cost_usd?: number | null
+          total_input_tokens?: number | null
+          total_output_tokens?: number | null
+          trigger_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_steps: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          id: string
+          input: Json | null
+          latency_ms: number | null
+          output: Json | null
+          run_id: string
+          status: string
+          step_index: number
+          step_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          input?: Json | null
+          latency_ms?: number | null
+          output?: Json | null
+          run_id: string
+          status: string
+          step_index: number
+          step_name: string
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          input?: Json | null
+          latency_ms?: number | null
+          output?: Json | null
+          run_id?: string
+          status?: string
+          step_index?: number
+          step_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_steps_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_requests: {
+        Row: {
+          action_summary: string
+          created_at: string | null
+          decided_at: string | null
+          expires_at: string | null
+          id: string
+          payload: Json
+          run_id: string | null
+          status: string
+          tool_name: string
+          user_id: string
+        }
+        Insert: {
+          action_summary: string
+          created_at?: string | null
+          decided_at?: string | null
+          expires_at?: string | null
+          id?: string
+          payload: Json
+          run_id?: string | null
+          status?: string
+          tool_name: string
+          user_id: string
+        }
+        Update: {
+          action_summary?: string
+          created_at?: string | null
+          decided_at?: string | null
+          expires_at?: string | null
+          id?: string
+          payload?: Json
+          run_id?: string | null
+          status?: string
+          tool_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_tier_cache: {
         Row: {
           created_at: string
@@ -72,67 +208,6 @@ export type Database = {
             foreignKeyName: "billing_tier_cache_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      breakthroughs: {
-        Row: {
-          action_items: Json
-          coach_id: string | null
-          created_at: string | null
-          date: string
-          id: string
-          key_takeaways: string[]
-          session_id: string | null
-          summary: string
-          title: string
-          user_id: string
-        }
-        Insert: {
-          action_items?: Json
-          coach_id?: string | null
-          created_at?: string | null
-          date: string
-          id?: string
-          key_takeaways?: string[]
-          session_id?: string | null
-          summary: string
-          title: string
-          user_id: string
-        }
-        Update: {
-          action_items?: Json
-          coach_id?: string | null
-          created_at?: string | null
-          date?: string
-          id?: string
-          key_takeaways?: string[]
-          session_id?: string | null
-          summary?: string
-          title?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "breakthroughs_coach_id_fkey"
-            columns: ["coach_id"]
-            isOneToOne: false
-            referencedRelation: "coaches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "breakthroughs_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "coaching_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "breakthroughs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -234,6 +309,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      coach_eval_cases: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          expected: Json | null
+          id: string
+          input: Json
+          name: string
+          tags: string[] | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          expected?: Json | null
+          id?: string
+          input: Json
+          name: string
+          tags?: string[] | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          expected?: Json | null
+          id?: string
+          input?: Json
+          name?: string
+          tags?: string[] | null
+        }
+        Relationships: []
+      }
+      coach_eval_runs: {
+        Row: {
+          commit_sha: string | null
+          created_at: string | null
+          id: string
+          metrics: Json
+          model_id: string | null
+          score: number | null
+        }
+        Insert: {
+          commit_sha?: string | null
+          created_at?: string | null
+          id?: string
+          metrics: Json
+          model_id?: string | null
+          score?: number | null
+        }
+        Update: {
+          commit_sha?: string | null
+          created_at?: string | null
+          id?: string
+          metrics?: Json
+          model_id?: string | null
+          score?: number | null
+        }
+        Relationships: []
       }
       coach_shares: {
         Row: {
@@ -665,185 +797,6 @@ export type Database = {
         }
         Relationships: []
       }
-      history_queries: {
-        Row: {
-          created_at: string | null
-          id: string
-          query: string
-          response: string
-          sources: Json
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          query: string
-          response: string
-          sources?: Json
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          query?: string
-          response?: string
-          sources?: Json
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "history_queries_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      insight_collection_items: {
-        Row: {
-          collection_id: string
-          created_at: string | null
-          id: string
-          insight_id: string
-        }
-        Insert: {
-          collection_id: string
-          created_at?: string | null
-          id?: string
-          insight_id: string
-        }
-        Update: {
-          collection_id?: string
-          created_at?: string | null
-          id?: string
-          insight_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "insight_collection_items_collection_id_fkey"
-            columns: ["collection_id"]
-            isOneToOne: false
-            referencedRelation: "insight_collections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "insight_collection_items_insight_id_fkey"
-            columns: ["insight_id"]
-            isOneToOne: false
-            referencedRelation: "key_insights"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      insight_collections: {
-        Row: {
-          color: string
-          created_at: string | null
-          description: string | null
-          icon: string
-          id: string
-          insight_count: number
-          is_auto_generated: boolean
-          name: string
-          theme_keywords: string[]
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          color?: string
-          created_at?: string | null
-          description?: string | null
-          icon?: string
-          id?: string
-          insight_count?: number
-          is_auto_generated?: boolean
-          name: string
-          theme_keywords?: string[]
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          color?: string
-          created_at?: string | null
-          description?: string | null
-          icon?: string
-          id?: string
-          insight_count?: number
-          is_auto_generated?: boolean
-          name?: string
-          theme_keywords?: string[]
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "insight_collections_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      key_insights: {
-        Row: {
-          category: string
-          coach_id: string | null
-          content: string
-          created_at: string | null
-          id: string
-          is_highlighted: boolean
-          session_id: string | null
-          title: string
-          user_id: string
-        }
-        Insert: {
-          category?: string
-          coach_id?: string | null
-          content: string
-          created_at?: string | null
-          id?: string
-          is_highlighted?: boolean
-          session_id?: string | null
-          title: string
-          user_id: string
-        }
-        Update: {
-          category?: string
-          coach_id?: string | null
-          content?: string
-          created_at?: string | null
-          id?: string
-          is_highlighted?: boolean
-          session_id?: string | null
-          title?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "key_insights_coach_id_fkey"
-            columns: ["coach_id"]
-            isOneToOne: false
-            referencedRelation: "coaches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "key_insights_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "coaching_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "key_insights_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       installed_coaches: {
         Row: {
           coach_id: string
@@ -986,62 +939,6 @@ export type Database = {
         }
         Relationships: []
       }
-      monthly_synthesis: {
-        Row: {
-          breakthrough_count: number
-          coach_contributions: Json
-          created_at: string | null
-          executive_summary: string
-          growth_areas: string[]
-          id: string
-          insight_count: number
-          key_themes: Json
-          month_year: string
-          patterns_identified: Json
-          session_count: number
-          title: string
-          user_id: string
-        }
-        Insert: {
-          breakthrough_count?: number
-          coach_contributions?: Json
-          created_at?: string | null
-          executive_summary: string
-          growth_areas?: string[]
-          id?: string
-          insight_count?: number
-          key_themes?: Json
-          month_year: string
-          patterns_identified?: Json
-          session_count?: number
-          title: string
-          user_id: string
-        }
-        Update: {
-          breakthrough_count?: number
-          coach_contributions?: Json
-          created_at?: string | null
-          executive_summary?: string
-          growth_areas?: string[]
-          id?: string
-          insight_count?: number
-          key_themes?: Json
-          month_year?: string
-          patterns_identified?: Json
-          session_count?: number
-          title?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "monthly_synthesis_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1049,9 +946,7 @@ export type Database = {
           email: string
           id: string
           name: string | null
-          notifications_enabled: boolean | null
           onboarding_completed: boolean | null
-          push_token: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1060,9 +955,7 @@ export type Database = {
           email: string
           id: string
           name?: string | null
-          notifications_enabled?: boolean | null
           onboarding_completed?: boolean | null
-          push_token?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1071,9 +964,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string | null
-          notifications_enabled?: boolean | null
           onboarding_completed?: boolean | null
-          push_token?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1219,6 +1110,57 @@ export type Database = {
           },
         ]
       }
+      safety_incidents: {
+        Row: {
+          category: string
+          created_at: string | null
+          details: Json
+          detection_source: string
+          id: string
+          resolved: boolean | null
+          run_id: string | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          details: Json
+          detection_source: string
+          id?: string
+          resolved?: boolean | null
+          run_id?: string | null
+          severity: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          details?: Json
+          detection_source?: string
+          id?: string
+          resolved?: boolean | null
+          run_id?: string | null
+          severity?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_incidents_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "safety_incidents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_artifacts: {
         Row: {
           content: Json
@@ -1344,6 +1286,102 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          redeemed_at: string
+          starts_at: string
+          target_tier: string
+          trial_days: number
+          user_id: string
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          redeemed_at?: string
+          starts_at?: string
+          target_tier: string
+          trial_days: number
+          user_id: string
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          redeemed_at?: string
+          starts_at?: string
+          target_tier?: string
+          trial_days?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trial_coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "trial_coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trial_coupon_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trial_coupons: {
+        Row: {
+          code: string
+          created_at: string
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          max_redemptions: number
+          metadata: Json
+          redemptions_count: number
+          starts_at: string | null
+          target_tier: string
+          trial_days: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_redemptions: number
+          metadata?: Json
+          redemptions_count?: number
+          starts_at?: string | null
+          target_tier: string
+          trial_days?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_redemptions?: number
+          metadata?: Json
+          redemptions_count?: number
+          starts_at?: string | null
+          target_tier?: string
+          trial_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       usage_tracking: {
         Row: {
           action_type: string
@@ -1419,6 +1457,59 @@ export type Database = {
         }
         Relationships: []
       }
+      user_memories: {
+        Row: {
+          confidence_score: number | null
+          content: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          memory_type: string
+          metadata: Json | null
+          salience_score: number | null
+          source_id: string | null
+          source_type: string
+          ttl_expires_at: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          content: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          memory_type: string
+          metadata?: Json | null
+          salience_score?: number | null
+          source_id?: string | null
+          source_type: string
+          ttl_expires_at?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence_score?: number | null
+          content?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          memory_type?: string
+          metadata?: Json | null
+          salience_score?: number | null
+          source_id?: string | null
+          source_type?: string
+          ttl_expires_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_memories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_model_preferences: {
         Row: {
           created_at: string
@@ -1443,6 +1534,38 @@ export type Database = {
             foreignKeyName: "user_model_preferences_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_state_snapshots: {
+        Row: {
+          created_at: string | null
+          id: string
+          state: Json
+          summary: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          state: Json
+          summary?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          state?: Json
+          summary?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_state_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1609,6 +1732,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      billing_redeem_coupon: {
+        Args: { p_coupon_code: string; p_user_id: string }
+        Returns: {
+          coupon_id: string
+          target_tier: string
+          trial_days: number
+          trial_end: string
+          trial_start: string
+        }[]
+      }
       coachgenie_can_manage_custom_coaches: {
         Args: { p_user: string }
         Returns: boolean
@@ -1617,9 +1750,26 @@ export type Database = {
         Args: { p_delta: number; p_user_id: string }
         Returns: number
       }
-      increment_collection_count: {
-        Args: { collection_id: string }
-        Returns: undefined
+      match_user_memories: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          match_user_id: string
+          query_embedding: string
+        }
+        Returns: {
+          confidence_score: number
+          content: string
+          created_at: string
+          id: string
+          memory_type: string
+          metadata: Json
+          salience_score: number
+          similarity: number
+          source_id: string
+          source_type: string
+          user_id: string
+        }[]
       }
     }
     Enums: {
@@ -1749,9 +1899,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

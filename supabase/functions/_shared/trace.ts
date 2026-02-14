@@ -118,10 +118,9 @@ export class AgentTrace {
         model_id: this.modelId,
         status,
         latency_ms: totalLatencyMs,
-        input_tokens: totalInputTokens,
-        output_tokens: totalOutputTokens,
-        cost: totalCost,
-        step_count: this.steps.length,
+        total_input_tokens: totalInputTokens,
+        total_output_tokens: totalOutputTokens,
+        total_cost_usd: totalCost,
         created_at: new Date(this.startTime).toISOString(),
       });
 
@@ -134,12 +133,12 @@ export class AgentTrace {
       if (this.steps.length > 0) {
         const stepRows = this.steps.map((s, i) => ({
           run_id: this.runId,
-          step_order: i,
-          name: s.name,
+          step_index: i,
+          step_name: s.name,
           status: s.status,
           latency_ms: s.endTime ? s.endTime - s.startTime : now - s.startTime,
-          input: s.input !== undefined ? JSON.stringify(s.input) : null,
-          output: s.output !== undefined ? JSON.stringify(s.output) : null,
+          input: s.input !== undefined ? s.input : null,
+          output: s.output !== undefined ? s.output : null,
           error: s.error ?? null,
         }));
 

@@ -7,8 +7,11 @@ import {
   parseOpenRouterSseChunkWithUsage,
   type OpenRouterUsage,
 } from '../_shared/openrouter.ts';
-import { buildEnrichedSystemPrompt } from '../_shared/context-builder.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
+import {
+  orchestratePreResponse,
+  orchestratePostResponse,
+} from '../_shared/agent-orchestrator.ts';
 import { resolveBillingTier } from '../_shared/revenuecat.ts';
 import { resolveChatModelForTier } from '../_shared/modelCatalog.ts';
 import {
@@ -168,10 +171,68 @@ serve(async (request) => {
     ? `${effectivePrompt}\n\nCOACHING METHOD: ${effectiveMethod ?? ''}`
     : 'You are a helpful coaching assistant. Be concise and actionable.';
 
-  const systemPrompt = await buildEnrichedSystemPrompt(userId, basePrompt, userClient);
+  // ── Orchestrator pre-response pipeline ──
+  const orchResult = await orchestratePreResponse({
+    userId,
+    sessionId: session_id,
+    userMessage: user_message.trim(),
+    triggerType: 'user_message',
+    modelProvider: 'openrouter',
+    modelId: chatModel,
+    baseSystemPrompt: basePrompt,
+    userClient,
+    serviceClient,
+  });
+
+  // If risk-blocked, return a safe crisis response and flush trace
+  if (orchResult.riskBlocked && orchResult.crisisResponse) {
+    const { data: crisisRow } = await userClient
+      .from('session_messages')
+      .insert({
+        session_id,
+        user_id: userId,
+        role: 'assistant',
+        content: orchResult.crisisResponse,
+      })
+      .select('id')
+      .single();
+
+    // Flush trace in background
+    orchResult.trace.flush(serviceClient, 'completed').catch((err) =>
+      console.error('[chat-stream] crisis trace flush error:', err)
+    );
+
+    const crisisStream = new ReadableStream({
+      start(controller) {
+        const enc = new TextEncoder();
+        controller.enqueue(enc.encode(encodeSseEvent('token', { t: orchResult.crisisResponse! })));
+        controller.enqueue(
+          enc.encode(
+            encodeSseEvent('done', {
+              message_id: crisisRow?.id ?? null,
+              artifacts: [],
+              credits_debited: 0,
+              credits_remaining: null,
+            })
+          )
+        );
+        controller.close();
+      },
+    });
+
+    return new Response(crisisStream, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
+  }
 
   const messages = [
-    { role: 'system', content: systemPrompt },
+    { role: 'system', content: orchResult.systemPrompt },
     ...(history || []).map((item) => ({ role: item.role, content: item.content })),
   ];
 
@@ -301,6 +362,17 @@ serve(async (request) => {
             credits_remaining: remainingMcredits !== null ? remainingMcredits / 1000 : null,
           })
         )
+      );
+
+      // ── Orchestrator post-response pipeline (fire-and-forget) ──
+      orchestratePostResponse(serviceClient, {
+        userId,
+        sessionId: session_id,
+        userMessage: user_message.trim(),
+        assistantMessage: finalMessage,
+        trace: orchResult.trace,
+      }).catch((err) =>
+        console.error('[chat-stream] post-response error:', err)
       );
 
       controller.close();

@@ -58,6 +58,54 @@ CREATE INDEX IF NOT EXISTS idx_user_state_snapshots_user_created
   ON public.user_state_snapshots(user_id, created_at DESC);
 
 -- ============================================
+-- VECTOR SIMILARITY SEARCH FUNCTION
+-- ============================================
+CREATE OR REPLACE FUNCTION public.match_user_memories(
+  query_embedding vector(1536),
+  match_user_id UUID,
+  match_threshold FLOAT DEFAULT 0.3,
+  match_count INT DEFAULT 5
+)
+RETURNS TABLE (
+  id UUID,
+  user_id UUID,
+  memory_type TEXT,
+  source_type TEXT,
+  source_id UUID,
+  content TEXT,
+  salience_score NUMERIC(4,3),
+  confidence_score NUMERIC(4,3),
+  metadata JSONB,
+  created_at TIMESTAMPTZ,
+  similarity FLOAT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    um.id,
+    um.user_id,
+    um.memory_type,
+    um.source_type,
+    um.source_id,
+    um.content,
+    um.salience_score,
+    um.confidence_score,
+    um.metadata,
+    um.created_at,
+    1 - (um.embedding <=> query_embedding) AS similarity
+  FROM public.user_memories um
+  WHERE um.user_id = match_user_id
+    AND um.embedding IS NOT NULL
+    AND (um.ttl_expires_at IS NULL OR um.ttl_expires_at > NOW())
+    AND 1 - (um.embedding <=> query_embedding) > match_threshold
+  ORDER BY um.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+
+-- ============================================
 -- RLS: USER MEMORIES
 -- ============================================
 ALTER TABLE public.user_memories ENABLE ROW LEVEL SECURITY;
