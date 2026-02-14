@@ -2,7 +2,7 @@
   "expo": {
     "name": "CoachZeno",
     "slug": "coachgenie",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "coachgenie",
@@ -19,6 +19,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.coachgenie.app",
+      "versionCode": 2,
       "intentFilters": [
         {
           "action": "VIEW",
