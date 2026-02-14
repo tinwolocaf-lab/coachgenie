@@ -30,6 +30,14 @@ interface ChatStreamBody {
   model_id?: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
 function usageFromOpenRouterUsage(usage: OpenRouterUsage | null): UsageUnits | null {
   if (!usage) return null;
   return {
@@ -92,7 +100,7 @@ serve(async (request) => {
 
   const { data: session, error: sessionError } = await userClient
     .from('coaching_sessions')
-    .select('id, coach_id')
+    .select('id, coach_id, coach_snapshot')
     .eq('id', session_id)
     .eq('user_id', userId)
     .maybeSingle();
@@ -112,11 +120,20 @@ serve(async (request) => {
     return new Response(`Failed to save user message: ${insertUserError.message}`, { status: 500, headers: corsHeaders });
   }
 
-  const { data: coach } = await userClient
-    .from('coaches')
-    .select('name, system_prompt, method')
-    .eq('id', session.coach_id ?? '')
-    .maybeSingle();
+  const sessionCoachSnapshot = isRecord(session.coach_snapshot) ? session.coach_snapshot : null;
+
+  let coach: Record<string, unknown> | null = null;
+  if (session.coach_id) {
+    const { data: coachRow, error: coachError } = await userClient
+      .from('coaches')
+      .select('*')
+      .eq('id', session.coach_id)
+      .maybeSingle();
+
+    if (!coachError && coachRow) {
+      coach = coachRow as Record<string, unknown>;
+    }
+  }
 
   const { data: history } = await userClient
     .from('session_messages')
@@ -125,8 +142,21 @@ serve(async (request) => {
     .order('created_at', { ascending: true })
     .limit(12);
 
-  const basePrompt = coach?.system_prompt
-    ? `${coach.system_prompt}\n\nCOACHING METHOD: ${coach.method ?? ''}`
+  const snapshotPrompt = sessionCoachSnapshot
+    ? asOptionalString(sessionCoachSnapshot.system_prompt)
+    : null;
+  const snapshotMethod = sessionCoachSnapshot
+    ? asOptionalString(sessionCoachSnapshot.method)
+    : null;
+
+  const coachPrompt = coach ? asOptionalString(coach.system_prompt) : null;
+  const coachMethod = coach ? asOptionalString(coach.method) : null;
+
+  const effectivePrompt = snapshotPrompt ?? coachPrompt;
+  const effectiveMethod = snapshotMethod ?? coachMethod;
+
+  const basePrompt = effectivePrompt
+    ? `${effectivePrompt}\n\nCOACHING METHOD: ${effectiveMethod ?? ''}`
     : 'You are a helpful coaching assistant. Be concise and actionable.';
 
   const systemPrompt = await buildEnrichedSystemPrompt(userId, basePrompt, userClient);

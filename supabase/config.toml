@@ -1,0 +1,85 @@
+project_id = "REDACTED_PROJECT_REF"
+
+[functions.archive-ask-history]
+verify_jwt = false
+
+[functions.archive-monthly-synthesis]
+verify_jwt = false
+
+[functions.artifacts-generate]
+verify_jwt = false
+
+[functions.billing-credit-status]
+verify_jwt = false
+
+[functions.billing-model-catalog]
+verify_jwt = false
+
+[functions.billing-set-model-preference]
+verify_jwt = false
+
+[functions.chat-stream]
+verify_jwt = false
+
+[functions.coach-share]
+verify_jwt = false
+
+[functions.integrations-calendar-nudge]
+verify_jwt = false
+
+[functions.integrations-exchange-token]
+verify_jwt = false
+
+[functions.integrations-github-sync]
+verify_jwt = false
+
+[functions.integrations-google-calendar-sync]
+verify_jwt = false
+
+[functions.integrations-notion-push]
+verify_jwt = false
+
+[functions.integrations-notion-sync]
+verify_jwt = false
+
+[functions.integrations-refresh-token]
+verify_jwt = false
+
+[functions.nudges-generate]
+verify_jwt = false
+
+[functions.patterns-detect]
+verify_jwt = false
+
+[functions.plans-generate]
+verify_jwt = false
+
+[functions.rituals-closing-thought]
+verify_jwt = false
+
+[functions.rituals-suggest-ritual]
+verify_jwt = false
+
+[functions.sanctuary-breakthrough]
+verify_jwt = false
+
+[functions.sanctuary-expand]
+verify_jwt = false
+
+[functions.sanctuary-insight-title]
+verify_jwt = false
+
+[functions.voice-session-config]
+verify_jwt = false
+
+[functions.voice-session-finalize]
+verify_jwt = false
+
+[functions.voice-transcribe]
+verify_jwt = false
+
+[functions.voice-tts]
+verify_jwt = false
+
+[functions.widget-data]
+verify_jwt = false

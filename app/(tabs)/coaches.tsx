@@ -30,9 +30,9 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { FilterPills } from '@/components/ui/FilterPills';
 import { StaggeredFadeIn } from '@/components/ui/AnimatedContainer';
 import { Coach, InstalledCoach } from '@/types';
-import { SAMPLE_COACHES, getCoachById } from '@/data/coaches';
-import { getInstalledCoaches, getActiveCoachId } from '@/store/app';
-import { canAccessCoach } from '@/lib/feature-gates';
+import { getActiveCoachId } from '@/store/app';
+import { canAccessCoach, canAccessMarketplaceCoach } from '@/lib/feature-gates';
+import { listInstalledCoaches, listMarketplaceCoaches } from '@/lib/coaches';
 
 // Coach categories for filtering
 const COACH_CATEGORIES = [
@@ -57,6 +57,7 @@ export default function CoachesScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   const [installedCoaches, setInstalledCoaches] = useState<InstalledCoach[]>([]);
+  const [marketplaceCoaches, setMarketplaceCoaches] = useState<Coach[]>([]);
   const [activeCoachId, setActiveCoachIdState] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,8 +66,12 @@ export default function CoachesScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const installed = await getInstalledCoaches();
+      const [installed, marketplace] = await Promise.all([
+        listInstalledCoaches(),
+        listMarketplaceCoaches(),
+      ]);
       setInstalledCoaches(installed);
+      setMarketplaceCoaches(marketplace);
       const activeId = await getActiveCoachId();
       setActiveCoachIdState(activeId);
     } catch (error) {
@@ -84,13 +89,18 @@ export default function CoachesScreen() {
     setRefreshing(false);
   }, [loadData]);
 
-  const handleCoachPress = (coachId: string) => {
+  const handleCoachPress = (coach: Coach) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!canAccessCoach(subscriptionTier, coachId)) {
+    const isMarketplaceCoach = coach.source === 'marketplace' || coach.source === 'owned_custom';
+    if (!isMarketplaceCoach && !canAccessCoach(subscriptionTier, coach.id)) {
       router.push('/paywall');
       return;
     }
-    router.push(`/coach/${coachId}`);
+    if (isMarketplaceCoach && !canAccessMarketplaceCoach(subscriptionTier, coach.id)) {
+      router.push('/paywall');
+      return;
+    }
+    router.push(`/coach/${coach.id}`);
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -104,7 +114,7 @@ export default function CoachesScreen() {
 
   // Filter coaches based on search and category
   const filteredCoaches = useMemo(() => {
-    let coaches = SAMPLE_COACHES;
+    let coaches = marketplaceCoaches;
 
     // Filter by search query
     if (searchQuery.trim()) {
@@ -125,14 +135,14 @@ export default function CoachesScreen() {
     }
 
     return coaches;
-  }, [searchQuery, selectedCategory]);
+  }, [marketplaceCoaches, searchQuery, selectedCategory]);
 
   const installedIds = installedCoaches.map((c) => c.coach_id);
 
   const myCoaches = installedCoaches
     .map((ic) => ({
       ...ic,
-      coach: getCoachById(ic.coach_id),
+      coach: ic.coach ?? marketplaceCoaches.find((coach) => coach.id === ic.coach_id),
     }))
     .filter((ic) => ic.coach) as (InstalledCoach & { coach: Coach })[];
 
@@ -205,7 +215,7 @@ export default function CoachesScreen() {
                     key={item.id}
                     coach={item.coach}
                     isActive={item.coach_id === activeCoachId}
-                    onPress={() => handleCoachPress(item.coach_id)}
+                    onPress={() => handleCoachPress(item.coach)}
                     index={index}
                     scrollOffset={scrollOffset}
                   />
@@ -233,10 +243,10 @@ export default function CoachesScreen() {
                   <MasterclassCoachCard
                     key={coach.id}
                     coach={coach}
-                    onPress={() => handleCoachPress(coach.id)}
+                    onPress={() => handleCoachPress(coach)}
                     index={index}
                     scrollOffset={scrollOffset}
-                    isLocked={!canAccessCoach(subscriptionTier, coach.id)}
+                    isLocked={coach.source === 'builtin' ? !canAccessCoach(subscriptionTier, coach.id) : false}
                   />
                 ))
               ) : (
@@ -253,7 +263,7 @@ export default function CoachesScreen() {
             </View>
 
             {/* All coaches installed message */}
-            {availableCoaches.length === 0 && !searchQuery && !selectedCategory && installedIds.length === SAMPLE_COACHES.length && (
+            {availableCoaches.length === 0 && !searchQuery && !selectedCategory && installedIds.length === marketplaceCoaches.length && (
               <Card variant="glass" style={styles.allInstalledCard}>
                 <View style={styles.allInstalledIcon}>
                   <Ionicons name="checkmark-circle" size={48} color={palette.success} />

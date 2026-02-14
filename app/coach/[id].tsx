@@ -16,11 +16,13 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { Coach } from '@/types';
-import { getCoachById } from '@/data/coaches';
 import {
-  getInstalledCoaches,
-  installCoach,
+  listInstalledCoaches,
+  installCoachFromMarketplace,
   uninstallCoach,
+  getCoachByIdResolved,
+} from '@/lib/coaches';
+import {
   setActiveCoachId,
   getActiveCoachId,
 } from '@/store/app';
@@ -40,10 +42,10 @@ export default function CoachDetailScreen() {
   const loadCoach = useCallback(async () => {
     if (!id) return;
 
-    const coachData = getCoachById(id);
+    const coachData = await getCoachByIdResolved(id);
     setCoach(coachData || null);
 
-    const installed = await getInstalledCoaches();
+    const installed = await listInstalledCoaches();
     const isCoachInstalled = installed.some((c) => c.coach_id === id);
     setIsInstalled(isCoachInstalled);
 
@@ -59,13 +61,7 @@ export default function CoachDetailScreen() {
     if (!coach) return;
     setLoading(true);
     try {
-      await installCoach({
-        id: Date.now().toString(),
-        user_id: 'local-user',
-        coach_id: coach.id,
-        is_active: false,
-        installed_at: new Date().toISOString(),
-      });
+      await installCoachFromMarketplace(coach.id);
       setIsInstalled(true);
       showToast('Installed', { variant: 'success', message: `${coach.name} has been added to your coaches.` });
     } catch (error) {
@@ -247,6 +243,16 @@ export default function CoachDetailScreen() {
                   Install to unlock private sessions with this coach
                 </Text>
               </>
+            )}
+
+            {coach.source === 'owned_custom' && (
+              <Button
+                title="Edit Coach"
+                onPress={() => router.push({ pathname: '/coach/create', params: { coachId: coach.id } })}
+                variant="outline"
+                fullWidth
+                style={styles.secondaryAction}
+              />
             )}
           </Animated.View>
 

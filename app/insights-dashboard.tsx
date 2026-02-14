@@ -12,6 +12,7 @@ import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Typography, Spacing, Radius, EditorialSpacing, Shadows } from '@/constants/theme';
 import { useThemeSafe, type AtmospherePalette } from '@/contexts/ThemeContext';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { getCoachesByIdsResolved } from '@/lib/coaches';
 
 interface WeeklySession { week: string; count: number }
 interface CategoryCount { category: string; count: number }
@@ -100,17 +101,21 @@ async function fetchData(): Promise<DashboardData> {
     supabase.from('ritual_streaks').select('longest_streak').eq('user_id', user.id),
   ]);
 
-  const sessions = (sessionsRes.data ?? []).map((row) => ({
-    id: row.id,
-    coach_id: row.coach_id,
-    created_at: row.created_at,
-  }));
+  const sessions = ((sessionsRes.data ?? []) as { id: string; coach_id: string | null; created_at: string | null }[])
+    .filter((row) => typeof row.created_at === 'string')
+    .map((row) => ({
+      id: row.id,
+      coach_id: row.coach_id,
+      created_at: row.created_at as string,
+    }));
 
-  const insights = (insightsRes.data ?? []).map((row) => ({
-    id: row.id,
-    category: row.category,
-    created_at: row.created_at,
-  }));
+  const insights = ((insightsRes.data ?? []) as { id: string; category: string | null; created_at: string | null }[])
+    .filter((row) => typeof row.id === 'string')
+    .map((row) => ({
+      id: row.id,
+      category: row.category,
+      created_at: row.created_at,
+    }));
 
   const vaultValues = parseStringArray(vaultRes.data?.values);
 
@@ -136,12 +141,11 @@ async function fetchData(): Promise<DashboardData> {
   const coachIds = [...new Set(sessions.map((s) => s.coach_id).filter(Boolean))] as string[];
   let coaches: CoachUsage[] = [];
   if (coachIds.length > 0) {
-    const { data: rows } = await supabase.from('coaches').select('id, name').in('id', coachIds);
-    const nameMap = new Map((rows ?? []).map((row) => [row.id, row.name]));
+    const resolvedCoaches = await getCoachesByIdsResolved(coachIds);
     const countMap = new Map<string, number>();
     sessions.forEach((s) => { if (s.coach_id) countMap.set(s.coach_id, (countMap.get(s.coach_id) || 0) + 1); });
     coaches = Array.from(countMap.entries())
-      .map(([id, n]) => ({ id, name: nameMap.get(id) || 'Unknown', sessionCount: n }))
+      .map(([id, n]) => ({ id, name: resolvedCoaches.get(id)?.name || 'Unknown Coach', sessionCount: n }))
       .sort((a, b) => b.sessionCount - a.sessionCount);
   }
 

@@ -28,8 +28,8 @@ import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { toggleInsightHighlight } from '@/lib/supabase-sanctuary';
 import { createRitualFromInsight, getRituals } from '@/lib/supabase-rituals';
 import { suggestRitualFromInsight } from '@/lib/apiClient';
-import { KeyInsight } from '@/types';
-import { getCoachById } from '@/data/coaches';
+import { Coach, KeyInsight } from '@/types';
+import { getCoachByIdResolved } from '@/lib/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { Button } from '@/components/ui/Button';
 
@@ -41,6 +41,7 @@ export default function InsightDetailScreen() {
 
   const [loading, setLoading] = useState(true);
   const [insight, setInsight] = useState<KeyInsight | null>(null);
+  const [coach, setCoach] = useState<Coach | null>(null);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [showRitualModal, setShowRitualModal] = useState(false);
   const [ritualTitle, setRitualTitle] = useState('');
@@ -63,6 +64,10 @@ export default function InsightDetailScreen() {
       const insightData = data as KeyInsight;
       setInsight(insightData);
       setIsHighlighted(insightData?.is_highlighted || false);
+      if (insightData?.coach_id) {
+        const resolvedCoach = await getCoachByIdResolved(insightData.coach_id);
+        setCoach(resolvedCoach);
+      }
     } catch (error) {
       console.error('Error loading insight:', error);
     } finally {
@@ -214,7 +219,6 @@ export default function InsightDetailScreen() {
     );
   }
 
-  const coach = getCoachById(insight.coach_id);
   const date = new Date(insight.created_at);
   const formattedDate = date.toLocaleDateString('en-US', {
     weekday: 'long',

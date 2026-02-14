@@ -10,6 +10,12 @@ interface OAuthConfig {
   scopes: string[];
 }
 
+type IntegrationStatus = 'active' | 'expired' | 'revoked' | 'error';
+
+function isIntegrationStatus(value: string): value is IntegrationStatus {
+  return value === 'active' || value === 'expired' || value === 'revoked' || value === 'error';
+}
+
 const REDIRECT_URI = AuthSession.makeRedirectUri({
   scheme: 'coachgenie',
   path: 'integrations/callback',
@@ -94,7 +100,9 @@ export async function getIntegrationStatus(provider: IntegrationProvider): Promi
       .eq('provider', provider)
       .maybeSingle();
 
-    return data?.status ?? null;
+    const status = data?.status;
+    if (!status) return null;
+    return isIntegrationStatus(status) ? status : null;
   } catch {
     return null;
   }

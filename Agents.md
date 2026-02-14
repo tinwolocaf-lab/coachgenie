@@ -77,6 +77,42 @@ Uses `EXPO_PUBLIC_*` prefix. Required: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_
 - `supabase/functions/` — Edge functions
 - `supabase/migrations/` — Database migrations
 
+## Coach Marketplace V1 (Current)
+
+### Canonical Plan/Tier Naming
+
+- Canonical tiers are `free`, `sovereign`, `oracle`.
+- `Tuberine` maps to `sovereign` (alias only; storage and gating remain `sovereign`).
+- Custom-coach creation/edit/publish is allowed only for `sovereign` and `oracle`.
+- Marketplace install/use is allowed for all tiers, including `free`.
+
+### Data + Runtime Rules
+
+- Canonical coach domain layer: `lib/coaches.ts` for marketplace, installed snapshots, and built-in fallback.
+- Built-ins in `data/coaches.ts` are seed/fallback, not the canonical mutable source.
+- Installed marketplace coaches are snapshot-based; creator edits do not auto-update prior installs.
+- If a coach is admin-removed from marketplace, new installs are blocked, but existing installed snapshots remain usable.
+
+### Database + Edge Function Requirements
+
+- Migration-first strategy is additive/non-destructive (no destructive normalization in V1).
+- Required migration artifacts include additive `coaches` columns, snapshot fields on `installed_coaches`, `coach_snapshot` in `coaching_sessions`, and `coach_deletion_requests`.
+- Storage bucket `coach-images` must be public-read with owner-scoped write/delete policies (`{auth.uid()}/...` path).
+- Edge functions must resolve coach config in this order:
+  1. `coaching_sessions.coach_snapshot`
+  2. `coaches` row
+  3. generic fallback prompt/method
+- Functions must not hard-fail on legacy rows missing newer prompt fields.
+
+### Migration Order (Do Not Reorder)
+
+1. Apply SQL migration (`supabase db push` on linked project).
+2. Regenerate `types/database.ts`.
+3. Update client/domain logic and routing.
+4. Update paywall/gates and UX copy.
+5. Run lint/build checks.
+6. Run Android smoke validation.
+
 - Only make changes that are directly requested. Keep solutions simple and focused.
 - ALWAYS read and understand relevant files before proposing edits. Do not speculate about code you have not inspected.
 - after everytime user request something, first learn all of the files related to that, and then using skills in the skills do the changes!

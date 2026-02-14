@@ -30,8 +30,8 @@ import {
   getInsightsWithDetails,
   searchInsights,
 } from '@/lib/supabase-archive';
-import { KeyInsight } from '@/types';
-import { getCoachById } from '@/data/coaches';
+import { Coach, KeyInsight } from '@/types';
+import { getCoachByIdResolved } from '@/lib/coaches';
 
 type FilterCategory = 'all' | 'mindset' | 'strategy' | 'productivity' | 'systems' | 'general';
 
@@ -52,6 +52,7 @@ export default function InsightsGalleryScreen() {
 
   const [insights, setInsights] = useState<KeyInsight[]>([]);
   const [filteredInsights, setFilteredInsights] = useState<KeyInsight[]>([]);
+  const [coachMap, setCoachMap] = useState<Record<string, Coach>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,6 +82,34 @@ export default function InsightsGalleryScreen() {
       setFilteredInsights(insights.filter(i => i.category === activeFilter));
     }
   }, [activeFilter, insights]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const hydrateCoaches = async () => {
+      const ids = [...new Set(insights.map((insight) => insight.coach_id).filter(Boolean))];
+      if (ids.length === 0) {
+        if (mounted) setCoachMap({});
+        return;
+      }
+
+      const pairs = await Promise.all(
+        ids.map(async (id) => [id, await getCoachByIdResolved(id)] as const),
+      );
+
+      if (!mounted) return;
+      const nextMap: Record<string, Coach> = {};
+      for (const [id, coach] of pairs) {
+        if (coach) nextMap[id] = coach;
+      }
+      setCoachMap(nextMap);
+    };
+
+    void hydrateCoaches();
+    return () => {
+      mounted = false;
+    };
+  }, [insights]);
 
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
@@ -227,6 +256,7 @@ export default function InsightsGalleryScreen() {
                   <InsightCard
                     key={insight.id}
                     insight={insight}
+                    coach={coachMap[insight.coach_id]}
                     index={groupIndex * 10 + index}
                     onPress={() => handleInsightPress(insight)}
                   />
@@ -292,16 +322,15 @@ function FilterPill({
 
 interface InsightCardProps {
   insight: KeyInsight;
+  coach?: Coach;
   index: number;
   onPress: () => void;
 }
 
-function InsightCard({ insight, index, onPress }: InsightCardProps) {
+function InsightCard({ insight, coach, index, onPress }: InsightCardProps) {
   const { palette } = useThemeSafe();
   const scale = useSharedValue(0.95);
   const opacity = useSharedValue(0);
-
-  const coach = getCoachById(insight.coach_id);
 
   useEffect(() => {
     const delay = Math.min(index * 50, 500);

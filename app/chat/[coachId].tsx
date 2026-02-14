@@ -32,7 +32,7 @@ import { CoachIcon } from '@/components/ui/CoachIcon';
 import { MarkdownText } from '@/components/ui/MarkdownText';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { Coach, Message, Session, SessionResult, ContextVault } from '@/types';
-import { getCoachById } from '@/data/coaches';
+import { getCoachByIdResolved } from '@/lib/coaches';
 import { supabase } from '@/lib/supabase';
 import {
   addSession,
@@ -53,6 +53,7 @@ import {
 import {
   getUserTier,
   canAccessCoach,
+  canAccessMarketplaceCoach,
   canAccessFeature,
   FREE_COACH_ID,
 } from '@/lib/feature-gates';
@@ -149,15 +150,24 @@ export default function ChatScreen() {
   const initializeChat = useCallback(async () => {
     if (!coachId) return;
 
-    const coachData = getCoachById(coachId);
+    const coachData = await getCoachByIdResolved(coachId);
     setCoach(coachData || null);
+    if (!coachData) {
+      showToast('Error', { variant: 'error', message: 'Coach not found.' });
+      router.back();
+      return;
+    }
 
     // Check feature gates
     const tier = await getUserTier();
-    if (!canAccessCoach(tier, coachId)) {
+    const isMarketplaceCoach = coachData.source === 'marketplace' || coachData.source === 'owned_custom';
+    const hasCoachAccess = isMarketplaceCoach
+      ? canAccessMarketplaceCoach(tier, coachId)
+      : canAccessCoach(tier, coachId);
+    if (!hasCoachAccess) {
       showAlert(
         'Upgrade Required',
-        'This coach requires a Sovereign or Oracle subscription.',
+        'This coach requires a higher subscription tier.',
         [
           { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
           { text: 'View Plans', onPress: () => { router.back(); router.push('/paywall'); } },
@@ -216,7 +226,13 @@ export default function ChatScreen() {
       await addSession(localSession);
     } else {
       // Authenticated user: create database session
-      const dbSession = await createSession(authUser!.id, coachId, 'New Session');
+      const dbSession = await createSession(authUser!.id, coachId, 'New Session', {
+        coach_id: coachData.id,
+        name: coachData.name,
+        method: coachData.method,
+        system_prompt: coachData.system_prompt,
+        version: coachData.version,
+      });
       if (!dbSession) {
         showToast('Error', { variant: 'error', message: 'Could not start a session. Please try again.' });
         return;
@@ -257,7 +273,7 @@ export default function ChatScreen() {
     };
 
     setMessages([initialMessage]);
-  }, [coachId, context, router]);
+  }, [coachId, context, router, showAlert, showToast]);
 
   useEffect(() => {
     initializeChat();

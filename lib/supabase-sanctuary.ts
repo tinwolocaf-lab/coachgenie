@@ -15,6 +15,7 @@ interface BreakthroughActionItem {
 }
 
 type BreakthroughRow = Database['public']['Tables']['breakthroughs']['Row'];
+type SessionSnapshot = Database['public']['Tables']['coaching_sessions']['Insert']['coach_snapshot'];
 
 type JsonValue =
   | string
@@ -43,6 +44,7 @@ function parseBreakthroughActions(value: unknown): BreakthroughActionItem[] {
 function mapBreakthroughRow(row: BreakthroughRow): Breakthrough {
   return {
     ...row,
+    created_at: row.created_at ?? new Date().toISOString(),
     session_id: row.session_id ?? undefined,
     coach_id: row.coach_id ?? '',
     action_items: parseBreakthroughActions(row.action_items),
@@ -53,7 +55,8 @@ function mapBreakthroughRow(row: BreakthroughRow): Breakthrough {
 export async function createSession(
   userId: string,
   coachId: string,
-  title?: string
+  title?: string,
+  coachSnapshot?: SessionSnapshot
 ): Promise<EnhancedSession | null> {
   if (!isSupabaseConfigured) return null;
   try {
@@ -64,6 +67,7 @@ export async function createSession(
         coach_id: coachId,
         title: title || 'New Session',
         status: 'active',
+        coach_snapshot: coachSnapshot ?? null,
       })
       .select()
       .single();
@@ -167,9 +171,17 @@ export async function addMessage(
 ): Promise<EnhancedMessage | null> {
   if (!isSupabaseConfigured) return null;
   try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const { data, error } = await supabase
       .from('session_messages')
       .insert({
+        user_id: user.id,
         session_id: sessionId,
         role,
         content,

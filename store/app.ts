@@ -4,6 +4,7 @@ import { InstalledCoach, Session, DayPlan, ContextVault } from '@/types';
 
 const KEYS = {
   INSTALLED_COACHES: 'coachgenie_installed_coaches',
+  INSTALLED_COACHES_MIGRATION_PREFIX: 'coachgenie_installed_coaches_migrated_',
   ACTIVE_COACH_ID: 'coachgenie_active_coach_id',
   SESSIONS: 'coachgenie_sessions',
   CURRENT_SESSION_ID: 'coachgenie_current_session_id',
@@ -39,6 +40,22 @@ export async function uninstallCoach(coachId: string): Promise<void> {
   const coaches = await getInstalledCoaches();
   const filtered = coaches.filter(c => c.coach_id !== coachId);
   await saveInstalledCoaches(filtered);
+}
+
+export async function hasInstalledCoachMigrationRun(userId: string): Promise<boolean> {
+  try {
+    const key = `${KEYS.INSTALLED_COACHES_MIGRATION_PREFIX}${userId}`;
+    const value = await AsyncStorage.getItem(key);
+    return value === '1';
+  } catch (error) {
+    console.error('Error reading installed coach migration flag:', error);
+    return false;
+  }
+}
+
+export async function markInstalledCoachMigrationRun(userId: string): Promise<void> {
+  const key = `${KEYS.INSTALLED_COACHES_MIGRATION_PREFIX}${userId}`;
+  await AsyncStorage.setItem(key, '1');
 }
 
 // Active Coach

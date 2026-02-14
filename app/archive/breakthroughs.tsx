@@ -30,8 +30,8 @@ import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme'
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getAllBreakthroughs } from '@/lib/supabase-archive';
-import { Breakthrough, BreakthroughAction } from '@/types';
-import { getCoachById } from '@/data/coaches';
+import { Breakthrough, BreakthroughAction, Coach } from '@/types';
+import { getCoachByIdResolved } from '@/lib/coaches';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -42,6 +42,7 @@ export default function BreakthroughsScreen() {
   const auth = useAuthSafe();
 
   const [breakthroughs, setBreakthroughs] = useState<Breakthrough[]>([]);
+  const [coachMap, setCoachMap] = useState<Record<string, Coach>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(highlightId || null);
 
@@ -59,6 +60,34 @@ export default function BreakthroughsScreen() {
   useEffect(() => {
     loadBreakthroughs();
   }, [loadBreakthroughs]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const hydrateCoaches = async () => {
+      const ids = [...new Set(breakthroughs.map((item) => item.coach_id).filter(Boolean))];
+      if (ids.length === 0) {
+        if (mounted) setCoachMap({});
+        return;
+      }
+
+      const pairs = await Promise.all(
+        ids.map(async (id) => [id, await getCoachByIdResolved(id)] as const),
+      );
+      if (!mounted) return;
+
+      const nextMap: Record<string, Coach> = {};
+      for (const [id, coach] of pairs) {
+        if (coach) nextMap[id] = coach;
+      }
+      setCoachMap(nextMap);
+    };
+
+    void hydrateCoaches();
+    return () => {
+      mounted = false;
+    };
+  }, [breakthroughs]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -160,6 +189,7 @@ export default function BreakthroughsScreen() {
                   <BreakthroughCard
                     key={breakthrough.id}
                     breakthrough={breakthrough}
+                    coach={coachMap[breakthrough.coach_id]}
                     index={groupIndex * 10 + index}
                     isExpanded={expandedId === breakthrough.id}
                     isHighlighted={highlightId === breakthrough.id}
@@ -179,6 +209,7 @@ export default function BreakthroughsScreen() {
 
 interface BreakthroughCardProps {
   breakthrough: Breakthrough;
+  coach?: Coach;
   index: number;
   isExpanded: boolean;
   isHighlighted: boolean;
@@ -187,6 +218,7 @@ interface BreakthroughCardProps {
 
 function BreakthroughCard({
   breakthrough,
+  coach,
   index,
   isExpanded,
   isHighlighted,
@@ -197,8 +229,6 @@ function BreakthroughCard({
   const opacity = useSharedValue(0);
   const shimmerPosition = useSharedValue(0);
   const expandHeight = useSharedValue(0);
-
-  const coach = getCoachById(breakthrough.coach_id);
 
   useEffect(() => {
     const delay = Math.min(index * 80, 500);

@@ -41,7 +41,7 @@ export const FEATURE_GATES: Record<SubscriptionTier, FeatureGate> = {
     voiceNotes: true,
     integrations: true,
     allAtmospheres: true,
-    customCoaches: false,
+    customCoaches: true,
     premiumModels: false,
     proactiveNudges: false,
     voiceCoaching: true,
@@ -94,4 +94,9 @@ export function canAccessFeature(
   feature: keyof Omit<FeatureGate, 'monthlyCredits' | 'maxCoaches' | 'allowedCoachIds'>
 ): boolean {
   return FEATURE_GATES[tier][feature];
+}
+
+// Marketplace coaches are explicitly available to all tiers.
+export function canAccessMarketplaceCoach(_tier: SubscriptionTier, _coachId: string): boolean {
+  return true;
 }

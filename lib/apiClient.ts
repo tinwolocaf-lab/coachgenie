@@ -139,6 +139,10 @@ export function isInsufficientCreditsError(error: unknown): error is ApiFunction
   return error instanceof ApiFunctionError && error.kind === 'insufficient_credits';
 }
 
+export function isUnauthorizedError(error: unknown): error is ApiFunctionError {
+  return error instanceof ApiFunctionError && error.kind === 'unauthorized';
+}
+
 export function isVoiceTierRequiredError(error: unknown): error is ApiFunctionError {
   return (
     error instanceof ApiFunctionError &&

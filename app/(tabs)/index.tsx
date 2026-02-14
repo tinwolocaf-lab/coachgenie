@@ -45,12 +45,15 @@ import { RitualCompletionFlourish, RitualCompletionFlourishRef } from '@/compone
 import { Coach, Session, DayPlan, Priority, KeyInsight, TodayPractice, TimeOfDay, RitualWithStatus } from '@/types';
 import { PaywallBanner } from '@/components/PaywallBanner';
 import { CalendarPreview } from '@/components/home/CalendarPreview';
-import { getCoachById, SAMPLE_COACHES } from '@/data/coaches';
+import {
+  getCoachByIdResolved,
+  listInstalledCoaches as listInstalledCoachesResolved,
+  listMarketplaceCoaches,
+} from '@/lib/coaches';
 import {
   getActiveCoachId,
   getSessions,
   getDayPlan,
-  getInstalledCoaches,
 } from '@/store/app';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { getFlashbackInsights } from '@/lib/supabase-archive';
@@ -172,9 +175,14 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
+      const [marketplaceCoaches, installedCoaches] = await Promise.all([
+        listMarketplaceCoaches(),
+        listInstalledCoachesResolved(),
+      ]);
+
       const activeId = await getActiveCoachId();
       if (activeId) {
-        const coach = getCoachById(activeId);
+        const coach = await getCoachByIdResolved(activeId);
         setActiveCoach(coach || null);
       }
 
@@ -185,14 +193,13 @@ export default function HomeScreen() {
       const plan = await getDayPlan(today);
       setTodayPlan(plan);
 
-      const installedCoaches = await getInstalledCoaches();
       const installedIds = installedCoaches.map(c => c.coach_id);
 
-      const uninstalledCoaches = SAMPLE_COACHES.filter(c => !installedIds.includes(c.id));
+      const uninstalledCoaches = marketplaceCoaches.filter(c => !installedIds.includes(c.id));
       if (uninstalledCoaches.length > 0) {
         setFeaturedCoach(uninstalledCoaches[0]);
       } else {
-        setFeaturedCoach(SAMPLE_COACHES[0]);
+        setFeaturedCoach(marketplaceCoaches[0] ?? null);
       }
 
       const sessionCount = sessions.length;

@@ -54,15 +54,50 @@ export interface Coach {
   version: string;
   is_public: boolean;
   system_prompt: string;
+  source?: CoachSource;
+  marketplace_status?: CoachMarketplaceStatus;
+  image_url?: string | null;
+  owner_user_id?: string | null;
   created_at: string;
 }
 
-export interface InstalledCoach {
+export type CoachSource = 'builtin' | 'marketplace' | 'owned_custom' | 'installed_snapshot';
+
+export type CoachMarketplaceStatus = 'draft' | 'published' | 'unpublished' | 'removed';
+
+export interface CoachInstallSnapshot {
+  snapshot_name: string;
+  snapshot_tagline?: string | null;
+  snapshot_description?: string | null;
+  snapshot_method?: string | null;
+  snapshot_system_prompt?: string | null;
+  snapshot_icon_name?: string | null;
+  snapshot_color?: string | null;
+  snapshot_image_url?: string | null;
+  snapshot_version?: string | null;
+}
+
+export interface CoachDeletionRequest {
   id: string;
+  coach_id: string;
+  requester_id: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_reason?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstalledCoach {
+  id?: string;
   user_id: string;
   coach_id: string;
   is_active: boolean;
   installed_at: string;
+  uninstalled_at?: string | null;
+  snapshot?: CoachInstallSnapshot;
   coach?: Coach;
 }
 

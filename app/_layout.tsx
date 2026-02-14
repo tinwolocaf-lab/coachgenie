@@ -346,6 +346,14 @@ function ThemedAppContent() {
         }}
       />
       <Stack.Screen
+        name="coach/manage"
+        options={{
+          animation: 'fade',
+          animationDuration: 400,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
         name="insights-dashboard"
         options={{
           animation: 'fade',

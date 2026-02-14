@@ -205,7 +205,7 @@ export function VoiceLiveSession({
       setConnectionState('error');
       showToast('Microphone Error', { variant: 'error', message: 'Could not start microphone capture. Please try again.' });
     }
-  }, []);
+  }, [showToast]);
 
   const ensurePermissions = useCallback(async () => {
     const current = await getRecordingPermissionsAsync();
@@ -312,7 +312,7 @@ export function VoiceLiveSession({
       );
       onClose();
     }
-  }, [coachId, sessionId, selectedVoice, ensurePermissions, onClose, onTranscriptUpdate, onInsightSaved, startAudioCapture]);
+  }, [coachId, sessionId, selectedVoice, ensurePermissions, onClose, onTranscriptUpdate, onInsightSaved, showAlert, showToast, startAudioCapture]);
 
   const stopVoiceSession = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

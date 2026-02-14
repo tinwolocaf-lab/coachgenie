@@ -28,6 +28,14 @@ interface GeminiAuthTokenResponse {
   expireTime?: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
 const DEFAULT_LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview';
 const DEFAULT_HOLD_SECONDS = Number(Deno.env.get('VOICE_LIVE_DEFAULT_HOLD_SECONDS') ?? '300');
 const MIN_HOLD_MCREDITS = Number(Deno.env.get('VOICE_LIVE_MIN_HOLD_MCREDITS') ?? '250');
@@ -196,7 +204,7 @@ serve(async (request) => {
 
   const { data: session, error: sessionError } = await userClient
     .from('coaching_sessions')
-    .select('id, coach_id')
+    .select('id, coach_id, coach_snapshot')
     .eq('id', session_id)
     .eq('user_id', userId)
     .maybeSingle();
@@ -205,18 +213,39 @@ serve(async (request) => {
     return new Response('Session not found', { status: 404, headers: corsHeaders });
   }
 
-  const { data: coach, error: coachError } = await userClient
-    .from('coaches')
-    .select('id, system_prompt, method')
-    .eq('id', coach_id)
-    .maybeSingle();
+  const sessionCoachSnapshot = isRecord(session.coach_snapshot) ? session.coach_snapshot : null;
 
-  if (coachError || !coach) {
-    return new Response('Coach not found', { status: 404, headers: corsHeaders });
+  let coach: Record<string, unknown> | null = null;
+  const effectiveCoachId = (typeof session.coach_id === 'string' && session.coach_id.length > 0)
+    ? session.coach_id
+    : coach_id;
+
+  if (effectiveCoachId) {
+    const { data: coachRow, error: coachError } = await userClient
+      .from('coaches')
+      .select('*')
+      .eq('id', effectiveCoachId)
+      .maybeSingle();
+
+    if (!coachError && coachRow) {
+      coach = coachRow as Record<string, unknown>;
+    }
   }
 
-  const basePrompt = coach.system_prompt
-    ? `${coach.system_prompt}\n\nCOACHING METHOD: ${coach.method ?? ''}`
+  const snapshotPrompt = sessionCoachSnapshot
+    ? asOptionalString(sessionCoachSnapshot.system_prompt)
+    : null;
+  const snapshotMethod = sessionCoachSnapshot
+    ? asOptionalString(sessionCoachSnapshot.method)
+    : null;
+  const coachPrompt = coach ? asOptionalString(coach.system_prompt) : null;
+  const coachMethod = coach ? asOptionalString(coach.method) : null;
+
+  const effectivePrompt = snapshotPrompt ?? coachPrompt;
+  const effectiveMethod = snapshotMethod ?? coachMethod;
+
+  const basePrompt = effectivePrompt
+    ? `${effectivePrompt}\n\nCOACHING METHOD: ${effectiveMethod ?? ''}`
     : 'You are a helpful coaching assistant. Be concise and actionable.';
   const systemInstruction = await buildEnrichedSystemPrompt(userId, basePrompt, userClient);
 

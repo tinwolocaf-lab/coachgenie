@@ -131,6 +131,7 @@ function parseBreakthroughActions(value: unknown): BreakthroughActionItem[] {
 function mapBreakthroughRow(row: BreakthroughRow): Breakthrough {
   return {
     ...row,
+    created_at: row.created_at ?? new Date().toISOString(),
     session_id: row.session_id ?? undefined,
     coach_id: row.coach_id ?? '',
     action_items: parseBreakthroughActions(row.action_items),
@@ -191,6 +192,7 @@ function parseCoachContributions(value: unknown): Record<string, CoachContributi
 function mapMonthlySynthesisRow(row: MonthlySynthesisRow): MonthlySynthesis {
   return {
     ...row,
+    created_at: row.created_at ?? new Date().toISOString(),
     key_themes: parseThemeItems(row.key_themes),
     growth_areas: toStringArray(row.growth_areas),
     patterns_identified: parsePatternItems(row.patterns_identified),
@@ -256,6 +258,7 @@ function parseQuerySources(value: unknown): QuerySource[] {
 function mapHistoryQueryRow(row: HistoryQueryRow): HistoryQuery {
   return {
     ...row,
+    created_at: row.created_at ?? new Date().toISOString(),
     sources: parseQuerySources(row.sources),
   };
 }

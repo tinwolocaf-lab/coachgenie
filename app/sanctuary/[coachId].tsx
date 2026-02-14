@@ -25,10 +25,10 @@ import Animated, {
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Coach, EnhancedMessage, ContextVault } from '@/types';
-import { getCoachById } from '@/data/coaches';
+import { getCoachByIdResolved } from '@/lib/coaches';
 import { getContextVault } from '@/store/app';
 import { supabase } from '@/lib/supabase';
-import { canAccessFeature, getUserTier } from '@/lib/feature-gates';
+import { canAccessCoach, canAccessFeature, canAccessMarketplaceCoach, getUserTier } from '@/lib/feature-gates';
 import {
   detectInsightInMessage,
 } from '@/lib/ai-sanctuary';
@@ -119,10 +119,27 @@ export default function SanctuaryScreen() {
   const initializeSession = useCallback(async () => {
     if (!coachId) return;
 
-    const coachData = getCoachById(coachId);
+    const coachData = await getCoachByIdResolved(coachId);
     if (!coachData) {
       showToast('Error', { variant: 'error', message: 'Coach not found' });
       router.back();
+      return;
+    }
+
+    const tier = await getUserTier();
+    const isMarketplaceCoach = coachData.source === 'marketplace' || coachData.source === 'owned_custom';
+    const hasCoachAccess = isMarketplaceCoach
+      ? canAccessMarketplaceCoach(tier, coachId)
+      : canAccessCoach(tier, coachId);
+    if (!hasCoachAccess) {
+      showAlert(
+        'Upgrade Required',
+        'This coach requires a higher subscription tier.',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
+          { text: 'View Plans', onPress: () => { router.back(); router.push('/paywall'); } },
+        ],
+      );
       return;
     }
 
@@ -152,14 +169,20 @@ export default function SanctuaryScreen() {
       }
     }
 
-    const dbSession = await createSession(authUser.id, coachId, 'New Session');
+    const dbSession = await createSession(authUser.id, coachId, 'New Session', {
+      coach_id: coachData.id,
+      name: coachData.name,
+      method: coachData.method,
+      system_prompt: coachData.system_prompt,
+      version: coachData.version,
+    });
     if (!dbSession) {
       showToast('Error', { variant: 'error', message: 'Could not start a session. Please try again.' });
       return;
     }
 
     setSessionId(dbSession.id);
-  }, [coachId, router]);
+  }, [coachId, router, showAlert, showToast]);
 
   useEffect(() => {
     initializeSession();
@@ -177,6 +200,18 @@ export default function SanctuaryScreen() {
     };
 
     void loadVoiceAccess();
+  }, []);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 80);
+    });
+
+    return () => {
+      showSub.remove();
+    };
   }, []);
 
   // Start session after entry animation
@@ -738,7 +773,7 @@ export default function SanctuaryScreen() {
       {/* Messages */}
       <KeyboardAvoidingView
         style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         <FlatList
@@ -788,6 +823,9 @@ export default function SanctuaryScreen() {
               editable={!isGenerating}
               onFocus={() => {
                 inputScale.value = withSpring(1.01, Timing.springGentle);
+                setTimeout(() => {
+                  flatListRef.current?.scrollToEnd({ animated: true });
+                }, 80);
               }}
               onBlur={() => {
                 inputScale.value = withSpring(1, Timing.springGentle);

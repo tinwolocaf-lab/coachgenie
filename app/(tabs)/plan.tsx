@@ -28,7 +28,7 @@ import { getDayPlans, updateDayPlan, getActiveCoachId } from '@/store/app';
 import { supabase } from '@/lib/supabase';
 import { createSession } from '@/lib/supabase-sanctuary';
 import { generatePlan } from '@/lib/apiClient';
-import { getCoachById } from '@/data/coaches';
+import { getCoachByIdResolved } from '@/lib/coaches';
 import { useAlert } from '@/contexts/AlertContext';
 
 function normalizeErrorMessage(error: unknown): string {
@@ -134,7 +134,7 @@ export default function PlanScreen() {
         return;
       }
 
-      const coach = getCoachById(activeCoachId);
+      const coach = await getCoachByIdResolved(activeCoachId);
       if (!coach) {
         showAlert('Coach not found', 'Please select a coach and try again.');
         return;

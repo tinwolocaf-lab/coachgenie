@@ -45,6 +45,7 @@ import { addSession } from '@/store/app';
 import {
   isFunctionUnavailableError,
   isInsufficientCreditsError,
+  isUnauthorizedError,
   streamChat,
 } from '@/lib/apiClient';
 import { getUserTier, canAccessFeature } from '@/lib/feature-gates';
@@ -131,6 +132,7 @@ export default function FirstSessionScreen() {
   const [isBooting, setIsBooting] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [aiFailureCount, setAiFailureCount] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -196,7 +198,13 @@ export default function FirstSessionScreen() {
         return;
       }
 
-      const dbSession = await createSession(authUser.id, selectedCoach.id, 'First Session');
+      const dbSession = await createSession(authUser.id, selectedCoach.id, 'First Session', {
+        coach_id: selectedCoach.id,
+        name: selectedCoach.name,
+        method: selectedCoach.method,
+        system_prompt: selectedCoach.system_prompt,
+        version: selectedCoach.version,
+      });
       if (!dbSession) {
         throw new Error('Could not create coaching session');
       }
@@ -252,6 +260,48 @@ export default function FirstSessionScreen() {
     void initializeSession();
   }, [initializeSession]);
 
+  const completeOnboardingAndEnter = useCallback(async () => {
+    if (isCompleting) return;
+
+    setIsCompleting(true);
+
+    try {
+      await completeNewOnboarding();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showToast('Error', {
+        variant: 'error',
+        message: 'Could not complete onboarding. Please try again.',
+      });
+    } finally {
+      setIsCompleting(false);
+    }
+  }, [isCompleting, router, showToast]);
+
+  const handleSkipForNow = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void completeOnboardingAndEnter();
+  }, [completeOnboardingAndEnter]);
+
+  const promptSkipForNow = useCallback(() => {
+    showAlert(
+      'Skip onboarding for now?',
+      'You can enter the app now and start a full coaching session later.',
+      [
+        { text: 'Stay here', style: 'cancel' },
+        {
+          text: 'Skip for now',
+          onPress: () => {
+            handleSkipForNow();
+          },
+        },
+      ],
+    );
+  }, [handleSkipForNow, showAlert]);
+
   const handleSendMessage = useCallback(async () => {
     if (!inputValue.trim() || isStreaming) return;
 
@@ -306,6 +356,7 @@ export default function FirstSessionScreen() {
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingText('');
       setIsStreaming(false);
+      setAiFailureCount(0);
 
       const userTurns = messages.filter((message) => message.role === 'user').length + 1;
       if (userTurns >= MIN_USER_TURNS_TO_COMPLETE) {
@@ -318,6 +369,7 @@ export default function FirstSessionScreen() {
 
       const unavailable = isFunctionUnavailableError(error);
       const insufficientCredits = isInsufficientCreditsError(error);
+      const unauthorized = isUnauthorizedError(error);
 
       if (insufficientCredits) {
         showAlert(
@@ -328,6 +380,25 @@ export default function FirstSessionScreen() {
             { text: 'View Plans', onPress: () => router.push('/paywall') },
           ],
         );
+      } else {
+        const nextFailureCount = aiFailureCount + 1;
+        setAiFailureCount(nextFailureCount);
+
+        if (unavailable || unauthorized || nextFailureCount >= 2) {
+          showAlert(
+            'Coaching is having trouble connecting',
+            'You can keep trying, or skip onboarding for now and explore the app.',
+            [
+              { text: 'Keep trying', style: 'cancel' },
+              {
+                text: 'Skip for now',
+                onPress: () => {
+                  handleSkipForNow();
+                },
+              },
+            ],
+          );
+        }
       }
 
       const errorMessage: Message = {
@@ -336,6 +407,8 @@ export default function FirstSessionScreen() {
         role: 'assistant',
         content: unavailable
           ? 'The coaching service is temporarily unavailable. Please try again in a moment.'
+          : unauthorized
+            ? 'Your session is not authorized right now. Please try again, or skip onboarding for now.'
           : insufficientCredits
             ? 'You are out of credits for now. Upgrade your plan to continue this conversation.'
             : 'I hit an issue while responding. Please try once more.',
@@ -344,29 +417,22 @@ export default function FirstSessionScreen() {
 
       setMessages((prev) => [...prev, errorMessage]);
     }
-  }, [inputValue, isStreaming, messages, router, sessionId, showAlert, showToast]);
+  }, [
+    aiFailureCount,
+    handleSkipForNow,
+    inputValue,
+    isStreaming,
+    messages,
+    router,
+    sessionId,
+    showAlert,
+    showToast,
+  ]);
 
   const handleEnterCoachZeno = useCallback(async () => {
-    if (isCompleting) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsCompleting(true);
-
-    try {
-      await completeNewOnboarding();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/(tabs)');
-    } catch (error) {
-      console.error('Error completing onboarding:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast('Error', {
-        variant: 'error',
-        message: 'Could not complete onboarding. Please try again.',
-      });
-    } finally {
-      setIsCompleting(false);
-    }
-  }, [isCompleting, router, showToast]);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await completeOnboardingAndEnter();
+  }, [completeOnboardingAndEnter]);
 
   const pulseStyle = useAnimatedStyle(() => ({
     opacity: pulseAnim.value,
@@ -542,6 +608,17 @@ export default function FirstSessionScreen() {
                   />
                 </TouchableOpacity>
               </View>
+
+              <Button
+                title="Skip for now"
+                onPress={promptSkipForNow}
+                disabled={isCompleting}
+                loading={isCompleting}
+                variant="outline"
+                size="sm"
+                fullWidth
+                style={styles.skipButton}
+              />
             </View>
           ) : (
             <Animated.View
@@ -808,6 +885,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  skipButton: {
+    marginTop: Spacing.sm,
   },
 
   completeFooter: {

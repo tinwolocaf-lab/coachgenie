@@ -20,7 +20,10 @@ import {
   getUserSubscriptionTier,
 } from "@/lib/revenuecat";
 import type { SubscriptionTier } from "@/lib/feature-gates";
-import Purchases from "react-native-purchases";
+import Purchases, {
+  type PurchasesOffering,
+  type PurchasesPackage,
+} from "react-native-purchases";
 
 interface TierInfo {
   id: SubscriptionTier;
@@ -32,6 +35,62 @@ interface TierInfo {
   tagline: string;
   features: { label: string; included: boolean }[];
   highlight?: boolean;
+}
+
+type BillingInterval = "monthly" | "yearly";
+
+const BILLING_INTERVALS: BillingInterval[] = ["monthly", "yearly"];
+
+function normalizeIdentifier(value: string) {
+  return value.toLowerCase();
+}
+
+function isPaidSubscriptionTier(
+  tier: SubscriptionTier,
+): tier is Exclude<SubscriptionTier, "free"> {
+  return tier === "sovereign" || tier === "oracle";
+}
+
+function getPackageForInterval(
+  offerings: PurchasesOffering,
+  tier: Exclude<SubscriptionTier, "free">,
+  interval: BillingInterval,
+): PurchasesPackage | null {
+  const packages = offerings.availablePackages || [];
+  const preferredIdentifier = `${tier}_${interval === "yearly" ? "annual" : "monthly"}`;
+  const fallbackRevenueCatIdentifier =
+    interval === "yearly" ? "$rc_annual" : "$rc_monthly";
+
+  const exact = packages.find(
+    (p) =>
+      p.identifier === preferredIdentifier ||
+      p.identifier === fallbackRevenueCatIdentifier,
+  );
+  if (exact) return exact;
+
+  const intervalNeedles =
+    interval === "monthly"
+      ? ["monthly", "month"]
+      : ["annual", "year", "yearly", "12month"];
+
+  const normalizedTier = normalizeIdentifier(tier);
+  const normalizedCandidate = normalizeIdentifier;
+  const defaultPackage = interval === "yearly" ? offerings.annual : offerings.monthly;
+
+  return (
+    packages.find((p) => {
+      const normalizedId = normalizedCandidate(p.identifier);
+      const isTierMatch =
+        normalizedId.includes(`${normalizedTier}_`) ||
+        normalizedId.includes(`-${normalizedTier}`) ||
+        normalizedId === normalizedTier;
+      const isIntervalMatch = intervalNeedles.some((needle) =>
+        normalizedId.includes(needle),
+      );
+      return isTierMatch && isIntervalMatch;
+    }) ??
+    defaultPackage
+  );
 }
 
 const TIERS: TierInfo[] = [
@@ -46,6 +105,7 @@ const TIERS: TierInfo[] = [
       { label: "50 monthly credits", included: true },
       { label: "Basic archive", included: true },
       { label: "Text coaching only", included: true },
+      { label: "Marketplace coach installs", included: true },
       { label: "All coaches", included: false },
       { label: "Voice notes", included: false },
       { label: "Live voice coaching", included: false },
@@ -71,6 +131,7 @@ const TIERS: TierInfo[] = [
       { label: "Integrations", included: true },
       { label: "All atmospheres", included: true },
       { label: "Curated chat model selection", included: true },
+      { label: "Custom coach creation + publishing", included: true },
       { label: "Premium AI reasoning models", included: false },
     ],
   },
@@ -110,6 +171,7 @@ export default function PaywallScreen() {
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier>(
     (targetTier as SubscriptionTier) || "sovereign",
   );
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("yearly");
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -133,20 +195,19 @@ export default function PaywallScreen() {
         throw new Error("No offerings available");
       }
 
-      const packageId =
-        selectedTier === "oracle" ? "oracle_annual" : "sovereign_annual";
-      const pkg =
-        offerings.availablePackages.find(
-          (p) => p.identifier === packageId || p.identifier === `$rc_annual`,
-        ) || offerings.annual;
+      const pkg = isPaidSubscriptionTier(selectedTier)
+        ? getPackageForInterval(offerings, selectedTier, billingInterval)
+        : null;
 
-      if (pkg) {
-        await Purchases.purchasePackage(pkg);
-        const tier = await getUserSubscriptionTier();
-        setSubscriptionTier(tier);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.back();
+      if (!pkg) {
+        throw new Error(`No ${billingInterval} package found for ${selectedTier}`);
       }
+
+      await Purchases.purchasePackage(pkg);
+      const tier = await getUserSubscriptionTier();
+      setSubscriptionTier(tier);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
     } catch (error: unknown) {
       const userCancelled = Boolean(
         error &&
@@ -204,120 +265,158 @@ export default function PaywallScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Tier Cards */}
-        {TIERS.map((tier, index) => (
-          <Animated.View key={tier.id}>
-            <TouchableOpacity
-              style={[
-                styles.tierCard,
-                {
-                  backgroundColor: palette.cardBg,
-                  borderColor: palette.border,
-                },
-                selectedTier === tier.id && {
-                  borderColor: palette.accent,
-                  borderWidth: 2,
-                },
-                tier.highlight && selectedTier === tier.id && Shadows.gold,
-              ]}
-              onPress={() => handleSelectTier(tier.id)}
-              activeOpacity={0.9}
-            >
-              {tier.highlight && (
-                <View
+        <View style={styles.billingIntervalWrapper}>
+          <View style={[styles.billingIntervalContainer, { backgroundColor: palette.cardBg, borderColor: palette.border }]}>
+            {BILLING_INTERVALS.map((interval) => (
+              <TouchableOpacity
+                key={interval}
+                onPress={() => setBillingInterval(interval)}
+                style={[
+                  styles.billingIntervalOption,
+                  {
+                    backgroundColor: billingInterval === interval ? palette.accent : "transparent",
+                  },
+                ]}
+              >
+                <Text
                   style={[
-                    styles.popularBadge,
-                    { backgroundColor: palette.accent },
+                    styles.billingIntervalText,
+                    {
+                      color:
+                        billingInterval === interval
+                          ? palette.textInverse
+                          : palette.textSecondary,
+                    },
                   ]}
                 >
-                  <Text
-                    style={[styles.popularText, { color: palette.textInverse }]}
-                  >
-                    MOST POPULAR
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.tierHeader}>
-                <View style={styles.tierTitleRow}>
-                  <Text
-                    style={[styles.tierName, { color: palette.textPrimary }]}
-                  >
-                    {tier.name}
-                  </Text>
-                  {selectedTier === tier.id && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={24}
-                      color={palette.accent}
-                    />
-                  )}
-                </View>
-                <Text
-                  style={[styles.tierTagline, { color: palette.textTertiary }]}
-                >
-                  {tier.tagline}
+                  {interval === "monthly" ? "Monthly" : "Yearly"}
                 </Text>
-                <View style={styles.priceRow}>
-                  <Text style={[styles.tierPrice, { color: palette.accent }]}>
-                    {tier.yearlyPriceLabel}
-                  </Text>
-                </View>
-                {tier.id !== "free" && tier.monthlyPriceCents && tier.yearlyPriceCents && (
-                  <>
-                    <Text style={[styles.monthlyPrice, { color: palette.textTertiary }]}>
-                      ≈ {formatUsd(tier.yearlyPriceCents / 12)}/mo billed yearly
-                    </Text>
-                    <Text style={[styles.savingsText, { color: palette.success }]}>
-                      Save {formatUsd(tier.monthlyPriceCents - tier.yearlyPriceCents / 12)}/mo
-                      {' '}(
-                      {Math.round(((tier.monthlyPriceCents - tier.yearlyPriceCents / 12) / tier.monthlyPriceCents) * 100)}
-                      %)
-                      {' '}vs monthly {tier.monthlyPriceLabel}
-                    </Text>
-                  </>
-                )}
-              </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
-              <View
+        {/* Tier Cards */}
+        {TIERS.map((tier) => {
+          const isYearly = billingInterval === "yearly";
+          const priceLabel = isYearly ? tier.yearlyPriceLabel : tier.monthlyPriceLabel;
+          return (
+            <Animated.View key={tier.id}>
+              <TouchableOpacity
                 style={[
-                  styles.tierDivider,
-                  { backgroundColor: palette.borderLight },
+                  styles.tierCard,
+                  {
+                    backgroundColor: palette.cardBg,
+                    borderColor: palette.border,
+                  },
+                  selectedTier === tier.id && {
+                    borderColor: palette.accent,
+                    borderWidth: 2,
+                  },
+                  tier.highlight && selectedTier === tier.id && Shadows.gold,
                 ]}
-              />
-
-              <View style={styles.featuresList}>
-                {tier.features.map((feature, idx) => (
-                  <View key={idx} style={styles.featureItem}>
-                    <Ionicons
-                      name={
-                        feature.included ? "checkmark-circle" : "close-circle"
-                      }
-                      size={18}
-                      color={
-                        feature.included
-                          ? palette.success
-                          : palette.textTertiary
-                      }
-                    />
+                onPress={() => handleSelectTier(tier.id)}
+                activeOpacity={0.9}
+              >
+                {tier.highlight && (
+                  <View
+                    style={[
+                      styles.popularBadge,
+                      { backgroundColor: palette.accent },
+                    ]}
+                  >
                     <Text
-                      style={[
-                        styles.featureText,
-                        {
-                          color: feature.included
-                            ? palette.textSecondary
-                            : palette.textTertiary,
-                        },
-                      ]}
+                      style={[styles.popularText, { color: palette.textInverse }]}
                     >
-                      {feature.label}
+                      MOST POPULAR
                     </Text>
                   </View>
-                ))}
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        ))}
+                )}
+
+                <View style={styles.tierHeader}>
+                  <View style={styles.tierTitleRow}>
+                    <Text
+                      style={[styles.tierName, { color: palette.textPrimary }]}
+                    >
+                      {tier.name}
+                    </Text>
+                    {selectedTier === tier.id && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={24}
+                        color={palette.accent}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[styles.tierTagline, { color: palette.textTertiary }]}
+                  >
+                    {tier.tagline}
+                  </Text>
+                  <View style={styles.priceRow}>
+                    <Text style={[styles.tierPrice, { color: palette.accent }]}>
+                      {priceLabel}
+                    </Text>
+                  </View>
+                  {isYearly &&
+                    tier.id !== "free" &&
+                    typeof tier.monthlyPriceCents === "number" &&
+                    typeof tier.yearlyPriceCents === "number" && (
+                    <>
+                      <Text style={[styles.monthlyPrice, { color: palette.textTertiary }]}>
+                        ≈ {formatUsd(tier.yearlyPriceCents / 12)}/mo billed yearly
+                      </Text>
+                      <Text style={[styles.savingsText, { color: palette.success }]}>
+                        Save {formatUsd(tier.monthlyPriceCents - tier.yearlyPriceCents / 12)}/mo
+                        {' '}(
+                        {Math.round(((tier.monthlyPriceCents - tier.yearlyPriceCents / 12) / tier.monthlyPriceCents) * 100)}
+                        %)
+                        {' '}vs monthly {tier.monthlyPriceLabel}
+                      </Text>
+                    </>
+                  )}
+                </View>
+
+                <View
+                  style={[
+                    styles.tierDivider,
+                    { backgroundColor: palette.borderLight },
+                  ]}
+                />
+
+                <View style={styles.featuresList}>
+                  {tier.features.map((feature, idx) => (
+                    <View key={idx} style={styles.featureItem}>
+                      <Ionicons
+                        name={
+                          feature.included ? "checkmark-circle" : "close-circle"
+                        }
+                        size={18}
+                        color={
+                          feature.included
+                            ? palette.success
+                            : palette.textTertiary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.featureText,
+                          {
+                            color: feature.included
+                              ? palette.textSecondary
+                              : palette.textTertiary,
+                          },
+                        ]}
+                      >
+                        {feature.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        })}
 
         {/* Restore purchases */}
         <Animated.View>
@@ -347,7 +446,7 @@ export default function PaywallScreen() {
           title={
             selectedTier === "free"
               ? "Continue Free"
-              : `Subscribe to ${selectedTier === "sovereign" ? "Sovereign" : "Oracle"}`
+              : `Subscribe to ${selectedTier === "sovereign" ? "Sovereign" : "Oracle"} (${billingInterval === "monthly" ? "Monthly" : "Yearly"})`
           }
           onPress={handlePurchase}
           variant="gold"
@@ -378,6 +477,27 @@ const styles = StyleSheet.create({
   },
   headerSpacer: { width: 40 },
   scrollContent: { paddingHorizontal: Spacing.xxl, paddingBottom: Spacing.xxl },
+  billingIntervalWrapper: {
+    marginBottom: Spacing.lg,
+  },
+  billingIntervalContainer: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    overflow: "hidden",
+  },
+  billingIntervalOption: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+    margin: Spacing.xs / 2,
+    borderRadius: Radius.md,
+  },
+  billingIntervalText: {
+    fontSize: Typography.sizes.body,
+    fontFamily: Typography.fonts.sans,
+    fontWeight: Typography.weights.semibold,
+  },
   tierCard: {
     borderRadius: Radius.squircle,
     borderWidth: 1,

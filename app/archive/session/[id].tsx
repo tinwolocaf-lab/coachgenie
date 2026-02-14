@@ -25,8 +25,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing, Radius } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { getSessionWithMessages } from '@/lib/supabase-archive';
-import { EnhancedSession, EnhancedMessage } from '@/types';
-import { getCoachById } from '@/data/coaches';
+import { Coach, EnhancedSession, EnhancedMessage } from '@/types';
+import { getCoachByIdResolved } from '@/lib/coaches';
 import { CoachIcon } from '@/components/ui/CoachIcon';
 import { MarkdownText } from '@/components/ui/MarkdownText';
 
@@ -37,6 +37,7 @@ export default function SessionReviewScreen() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<EnhancedSession | null>(null);
   const [messages, setMessages] = useState<EnhancedMessage[]>([]);
+  const [coach, setCoach] = useState<Coach | null>(null);
 
   const loadSession = useCallback(async () => {
     if (!id) return;
@@ -46,6 +47,10 @@ export default function SessionReviewScreen() {
       if (result) {
         setSession(result.session);
         setMessages(result.messages);
+        if (result.session.coach_id) {
+          const resolvedCoach = await getCoachByIdResolved(result.session.coach_id);
+          setCoach(resolvedCoach);
+        }
       }
     } catch (error) {
       console.error('Error loading session:', error);
@@ -92,7 +97,6 @@ export default function SessionReviewScreen() {
     );
   }
 
-  const coach = getCoachById(session.coach_id);
   const sessionDate = new Date(session.created_at);
   const formattedDate = sessionDate.toLocaleDateString('en-US', {
     weekday: 'long',

@@ -325,7 +325,7 @@ export default function AccountScreen() {
     } finally {
       setIsUpdatingModel(false);
     }
-  }, [isUpdatingModel, preferredModelId]);
+  }, [isUpdatingModel, preferredModelId, showToast]);
 
   const headerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: headerScale.value }],
@@ -714,6 +714,52 @@ export default function AccountScreen() {
                     <Ionicons name="arrow-forward" size={14} color={palette.accent} />
                   </TouchableOpacity>
                 </LinearGradient>
+              </View>
+            </Animated.View>
+
+            {/* Coach Studio Section */}
+            <Animated.View entering={FadeInUp.duration(500).delay(320)}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Coach Studio</Text>
+              </View>
+
+              <View style={[styles.settingsCard, { backgroundColor: palette.cardBg }]}>
+                <TouchableOpacity
+                  style={styles.settingItemClickable}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push('/coach/manage');
+                  }}
+                >
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons name="construct-outline" size={20} color={palette.accent} />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Manage Coaches</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>
+                      Create, publish, edit, and request deletion for your custom coaches
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
+                </TouchableOpacity>
+
+                <View style={[styles.settingItem, { borderTopColor: palette.borderLight, borderTopWidth: 1 }]}>
+                  <View style={[styles.settingIcon, { backgroundColor: palette.accentMuted }]}>
+                    <Ionicons
+                      name={subscriptionTier === 'free' ? 'lock-closed-outline' : 'checkmark-circle-outline'}
+                      size={20}
+                      color={subscriptionTier === 'free' ? palette.warning : palette.success}
+                    />
+                  </View>
+                  <View style={styles.settingContent}>
+                    <Text style={[styles.settingLabel, { color: palette.textTertiary }]}>Creation Access</Text>
+                    <Text style={[styles.settingDescription, { color: palette.textTertiary }]}>
+                      {subscriptionTier === 'free'
+                        ? 'Custom coach creation is available on Sovereign and Oracle plans.'
+                        : 'Custom coach creation enabled for your plan.'}
+                    </Text>
+                  </View>
+                </View>
               </View>
             </Animated.View>
 

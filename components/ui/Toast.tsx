@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -52,6 +52,12 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
     }
   })();
 
+  const dismiss = useCallback(() => {
+    opacity.value = withTiming(0, { duration: 200 }, () => {
+      runOnJS(onDismiss)(item.id);
+    });
+  }, [item.id, onDismiss, opacity]);
+
   useEffect(() => {
     Haptics.notificationAsync(
       item.variant === 'error'
@@ -68,7 +74,7 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
       duration: item.duration,
       easing: Easing.linear,
     });
-  }, []);
+  }, [accentBarScale, iconScale, item.duration, item.variant, progressScale]);
 
   // Auto-dismiss timer
   useEffect(() => {
@@ -76,13 +82,7 @@ export function Toast({ item, index, onDismiss }: ToastProps) {
       dismiss();
     }, item.duration);
     return () => clearTimeout(timer);
-  }, [item.duration]);
-
-  const dismiss = () => {
-    opacity.value = withTiming(0, { duration: 200 }, () => {
-      runOnJS(onDismiss)(item.id);
-    });
-  };
+  }, [dismiss, item.duration]);
 
   // Swipe up to dismiss
   const gesture = Gesture.Pan()
