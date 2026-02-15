@@ -7,7 +7,6 @@ import {
   Share,
   StyleSheet,
   ActivityIndicator,
-  useColorScheme,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useAlert } from '@/contexts/AlertContext';
@@ -22,6 +21,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Coach } from '@/types';
 import { createShareLink } from '@/lib/coachSharing';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface ShareCoachModalProps {
   coach: Coach;
@@ -37,9 +37,8 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
   onShareSuccess,
 }) => {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
+  const { palette } = useThemeSafe();
   const { showToast } = useAlert();
-  const isDark = colorScheme === 'dark';
 
   const [loading, setLoading] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -144,9 +143,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
     <Animated.View
       style={[
         styles.overlay,
-        {
-          backgroundColor: isDark ? 'rgba(26, 26, 46, 0.5)' : 'rgba(0, 0, 0, 0.5)',
-        },
+        { backgroundColor: palette.overlay },
       ]}
       entering={FadeIn}
     >
@@ -161,7 +158,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
         style={[
           styles.container,
           {
-            backgroundColor: isDark ? '#2a2a4a' : '#ffffff',
+            backgroundColor: palette.cardBg,
             paddingBottom: Math.max(insets.bottom, 16),
           },
         ]}
@@ -170,17 +167,13 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
         <View
           style={[
             styles.header,
-            {
-              borderBottomColor: isDark ? '#3a3a5a' : '#f0f0f0',
-            },
+            { borderBottomColor: palette.border },
           ]}
         >
           <Text
             style={[
               styles.title,
-              {
-                color: isDark ? '#e8e8e8' : '#1a1a2e',
-              },
+              { color: palette.textPrimary },
             ]}
           >
             Share Coach
@@ -189,9 +182,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
             <Text
               style={[
                 styles.closeButton,
-                {
-                  color: isDark ? '#a0a0c0' : '#666',
-                },
+                { color: palette.textTertiary },
               ]}
             >
               ✕
@@ -215,7 +206,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                 },
               ]}
             >
-              <Text style={styles.avatarText}>
+              <Text style={[styles.avatarText, { color: palette.accent }]}>
                 {coach.icon_name.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -223,9 +214,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
             <Text
               style={[
                 styles.coachName,
-                {
-                  color: isDark ? '#e8e8e8' : '#1a1a2e',
-                },
+                { color: palette.textPrimary },
               ]}
             >
               {coach.name}
@@ -234,9 +223,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
             <Text
               style={[
                 styles.coachTagline,
-                {
-                  color: isDark ? '#b0b0d0' : '#666',
-                },
+                { color: palette.textSecondary },
               ]}
             >
               {coach.tagline}
@@ -248,14 +235,12 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
             <View style={styles.loadingContainer}>
               <ActivityIndicator
                 size="large"
-                color="#d4af37"
+                color={palette.accent}
               />
               <Text
                 style={[
                   styles.loadingText,
-                  {
-                    color: isDark ? '#b0b0d0' : '#666',
-                  },
+                  { color: palette.textSecondary },
                 ]}
               >
                 Generating share link...
@@ -266,17 +251,15 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
               style={[
                 styles.errorContainer,
                 {
-                  backgroundColor: isDark ? '#4a2a2a' : '#fff3f0',
-                  borderColor: '#d9534f',
+                  backgroundColor: palette.errorLight,
+                  borderColor: palette.error,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.errorText,
-                  {
-                    color: isDark ? '#ff9999' : '#d9534f',
-                  },
+                  { color: palette.error },
                 ]}
               >
                 {error}
@@ -289,17 +272,15 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                 style={[
                   styles.previewSection,
                   {
-                    backgroundColor: isDark ? '#1a1a2e' : '#f8f8f8',
-                    borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
+                    backgroundColor: palette.backgroundSecondary,
+                    borderColor: palette.border,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.previewLabel,
-                    {
-                      color: isDark ? '#b0b0d0' : '#999',
-                    },
+                    { color: palette.textTertiary },
                   ]}
                 >
                   Recipients will see:
@@ -309,8 +290,8 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                   style={[
                     styles.previewCard,
                     {
-                      backgroundColor: isDark ? '#2a2a4a' : '#ffffff',
-                      borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
+                      backgroundColor: palette.cardBg,
+                      borderColor: palette.border,
                     },
                   ]}
                 >
@@ -323,7 +304,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                       },
                     ]}
                   >
-                    <Text style={styles.previewAvatarText}>
+                    <Text style={[styles.previewAvatarText, { color: palette.accent }]}>
                       {coach.icon_name.charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -331,9 +312,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                   <Text
                     style={[
                       styles.previewName,
-                      {
-                        color: isDark ? '#e8e8e8' : '#1a1a2e',
-                      },
+                      { color: palette.textPrimary },
                     ]}
                   >
                     {coach.name}
@@ -342,9 +321,7 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                   <Text
                     style={[
                       styles.previewSpecialty,
-                      {
-                        color: isDark ? '#b0b0d0' : '#666',
-                      },
+                      { color: palette.textSecondary },
                     ]}
                   >
                     {coach.method}
@@ -358,17 +335,15 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                   style={[
                     styles.linkBox,
                     {
-                      backgroundColor: isDark ? '#1a1a2e' : '#f8f8f8',
-                      borderColor: '#d4af37',
+                      backgroundColor: palette.backgroundSecondary,
+                      borderColor: palette.borderAccent,
                     },
                   ]}
                 >
                   <Text
                     style={[
                       styles.linkText,
-                      {
-                        color: isDark ? '#b0b0d0' : '#666',
-                      },
+                      { color: palette.textSecondary },
                     ]}
                     numberOfLines={1}
                     ellipsizeMode="middle"
@@ -384,18 +359,14 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                   style={[
                     styles.button,
                     styles.copyButton,
-                    {
-                      backgroundColor: isDark ? '#d4af37' : '#d4af37',
-                    },
+                    { backgroundColor: palette.accent },
                   ]}
                   onPress={handleCopyLink}
                 >
                   <Text
                     style={[
                       styles.buttonText,
-                      {
-                        color: isDark ? '#1a1a2e' : '#1a1a2e',
-                      },
+                      { color: palette.textInverse },
                     ]}
                   >
                     {copied ? '✓ Copied' : 'Copy Link'}
@@ -406,18 +377,14 @@ export const ShareCoachModal: React.FC<ShareCoachModalProps> = ({
                   style={[
                     styles.button,
                     styles.shareButton,
-                    {
-                      backgroundColor: isDark ? '#4a4a7a' : '#e8e8e8',
-                    },
+                    { backgroundColor: palette.backgroundSecondary },
                   ]}
                   onPress={handleShare}
                 >
                   <Text
                     style={[
                       styles.buttonText,
-                      {
-                        color: isDark ? '#d4af37' : '#1a1a2e',
-                      },
+                      { color: palette.accent },
                     ]}
                   >
                     Share
@@ -481,7 +448,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 36,
     fontWeight: '700',
-    color: '#d4af37',
   },
   coachName: {
     fontSize: 18,
@@ -542,7 +508,6 @@ const styles = StyleSheet.create({
   previewAvatarText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#d4af37',
   },
   previewName: {
     fontSize: 16,

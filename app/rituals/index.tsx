@@ -119,10 +119,29 @@ export default function RitualsHubScreen() {
       // Fetch fresh data since React state hasn't flushed yet
       if (auth.user.id) {
         getTodayPractice(auth.user.id).then((freshPractice) => {
+          const rituals = freshPractice?.rituals ?? [];
+          const completedCount = rituals.filter((r: { is_completed_today?: boolean }) => r.is_completed_today).length;
+          const totalCount = rituals.length;
+
+          // Sync DailyFocus widget
           WidgetBridge.syncWidgetData({
-            ritualsCompleted: freshPractice?.rituals?.filter((r: { is_completed_today?: boolean }) => r.is_completed_today).length ?? 0,
-            ritualTotal: freshPractice?.rituals?.length ?? 0,
+            ritualsCompleted: completedCount,
+            ritualTotal: totalCount,
             streakCount: freshPractice?.streakDays ?? 0,
+          }).catch(() => {});
+
+          // Sync RitualChecklist widget with full ritual list
+          const hour = new Date().getHours();
+          WidgetBridge.updateRitualChecklist({
+            rituals: rituals.map((r: { id: string; title: string; is_completed_today?: boolean; icon?: string }) => ({
+              id: r.id,
+              label: r.title,
+              completed: r.is_completed_today ?? false,
+              emoji: r.icon || '✨',
+            })),
+            completedCount,
+            totalCount,
+            timeOfDay: hour < 17 ? 'morning' : 'evening',
           }).catch(() => {});
         }).catch(() => {});
       }

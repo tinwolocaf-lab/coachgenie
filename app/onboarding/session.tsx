@@ -113,6 +113,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           ]}
           accentColor={palette.accent}
           mutedColor={palette.textTertiary}
+          surfaceBg={palette.accentMuted}
         />
       </View>
     </Animated.View>
@@ -467,6 +468,7 @@ export default function FirstSessionScreen() {
                 textStyle={[styles.transcriptText, { color: palette.textSecondary }]}
                 accentColor={palette.accent}
                 mutedColor={palette.textTertiary}
+                surfaceBg={palette.accentMuted}
               />
               <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
             </View>

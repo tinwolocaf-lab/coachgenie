@@ -425,14 +425,14 @@ function BreakthroughCard({
     <Animated.View entering={FadeInDown.duration(400).delay(index * 100)}>
       <TouchableOpacity style={styles.breakthroughCard} onPress={onPress} activeOpacity={0.9}>
         <LinearGradient
-          colors={[palette.textPrimary, '#243D2E']}
+          colors={[palette.gradientStart, palette.gradientEnd]}
           style={styles.breakthroughGradient}
         >
           <View style={styles.breakthroughHeader}>
             <Ionicons name="star" size={14} color={palette.accent} />
             <Text style={[styles.breakthroughDate, { color: palette.accentLight }]}>{date}</Text>
           </View>
-          <Text style={[styles.breakthroughTitle, { color: palette.textInverse }]} numberOfLines={2}>
+          <Text style={[styles.breakthroughTitle, { color: '#FFFFFF' }]} numberOfLines={2}>
             {breakthrough.title}
           </Text>
           <Text style={styles.breakthroughSummary} numberOfLines={2}>

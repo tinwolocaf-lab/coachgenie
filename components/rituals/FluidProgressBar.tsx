@@ -118,7 +118,7 @@ export function FluidProgressBar({
         {/* Shimmer effect */}
         <Animated.View style={[styles.shimmer, shimmerStyle]}>
           <LinearGradient
-            colors={['transparent', 'rgba(255,255,255,0.3)', 'transparent']}
+            colors={['transparent', `${palette.textInverse}4D`, 'transparent']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.shimmerGradient}

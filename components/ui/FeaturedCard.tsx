@@ -114,7 +114,7 @@ export function FeaturedCard({
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={[styles.cardContainer, { backgroundColor: palette.cardBg }]}
+        style={[styles.cardContainer, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
       >
         <View style={styles.content}>
           <View style={styles.topRow}>

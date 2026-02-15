@@ -2,7 +2,7 @@
   "expo": {
     "name": "CoachZeno",
     "slug": "coachgenie",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "coachgenie",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.coachgenie.app",
-      "buildNumber": "8"
+      "buildNumber": "9"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.coachgenie.app",
-      "versionCode": 8,
+      "versionCode": 9,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -103,6 +103,66 @@
               "minHeight": "320dp",
               "targetCellWidth": 4,
               "targetCellHeight": 4,
+              "updatePeriodMillis": 3600000
+            },
+            {
+              "name": "RitualChecklistWidget",
+              "label": "Ritual Checklist",
+              "description": "Track your daily rituals with an interactive checklist",
+              "minWidth": "320dp",
+              "minHeight": "240dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 3,
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "TodayPlanWidget",
+              "label": "Today's Plan",
+              "description": "Your daily priorities and focus time at a glance",
+              "minWidth": "320dp",
+              "minHeight": "320dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 4,
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "WeeklyProgressWidget",
+              "label": "Weekly Progress",
+              "description": "Your weekly coaching progress and streak",
+              "minWidth": "180dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "updatePeriodMillis": 3600000
+            },
+            {
+              "name": "QuoteWidget",
+              "label": "Quote of the Day",
+              "description": "Daily inspiration from your coaching breakthroughs",
+              "minWidth": "320dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "updatePeriodMillis": 3600000
+            },
+            {
+              "name": "ActiveCoachWidget",
+              "label": "Active Coach",
+              "description": "Quick access to your active coaching session",
+              "minWidth": "240dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 2,
+              "updatePeriodMillis": 3600000
+            },
+            {
+              "name": "CreditBalanceWidget",
+              "label": "Credits",
+              "description": "Your AI credit balance and subscription tier",
+              "minWidth": "180dp",
+              "minHeight": "80dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 1,
               "updatePeriodMillis": 3600000
             }
           ]

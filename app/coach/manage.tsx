@@ -246,7 +246,7 @@ export default function ManageCoachesScreen() {
       </ScrollView>
 
       <Modal visible={deleteModalVisible} transparent animationType="fade" onRequestClose={() => setDeleteModalVisible(false)}>
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: palette.overlay }]}>
           <View style={[styles.modalCard, { backgroundColor: palette.cardBg }]}> 
             <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>Request coach deletion</Text>
             <Text style={[styles.modalBody, { color: palette.textTertiary }]}>Explain why this coach should be removed from marketplace.</Text>

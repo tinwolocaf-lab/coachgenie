@@ -41,6 +41,7 @@ import {
 import { generateClosingThought } from '@/lib/apiClient';
 import { canAccessFeature, getUserTier } from '@/lib/feature-gates';
 import { getContextVault } from '@/store/app';
+import { WidgetBridge } from '@/lib/widgetBridge';
 import { DailyReflection, RitualWithStatus, ContextVault } from '@/types';
 import { AIResonanceNote, CandlelightPalette } from '@/components/oracle/AIResonanceNote';
 import { VoiceMode } from '@/components/chat/VoiceMode';
@@ -233,6 +234,15 @@ export default function EveningAuditScreen() {
       });
 
       if (reflection) {
+        // Sync evening reflection to widget
+        WidgetBridge.updateReflection({
+          contentType: 'evening',
+          mainContent: filteredWins[0] || 'Evening reflection complete',
+          insight: finalThought?.slice(0, 100),
+          timeOfDay: 'evening',
+          subtitle: filteredLessons[0],
+        }).catch(() => {});
+
         // Show the Resonance experience
         setShowResonance(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

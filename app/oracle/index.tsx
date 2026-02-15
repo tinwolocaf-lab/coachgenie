@@ -427,7 +427,7 @@ export default function OracleScreen() {
               <Ionicons
                 name="arrow-up"
                 size={18}
-                color={inputText.trim() && !isGenerating ? '#FFFFFF' : palette.textTertiary}
+                color={inputText.trim() && !isGenerating ? palette.textInverse : palette.textTertiary}
               />
             </TouchableOpacity>
           </View>

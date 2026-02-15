@@ -85,13 +85,13 @@ const SafetyBanner = React.memo(function SafetyBanner({
   isBlocked?: boolean;
 }) {
   return (
-    <View style={[styles.safetyBanner, { backgroundColor: isBlocked ? '#FEE2E2' : '#FEF3C7' }]}>
+    <View style={[styles.safetyBanner, { backgroundColor: isBlocked ? palette.errorLight : palette.warningLight }]}>
       <Ionicons
         name={isBlocked ? 'shield' : 'heart'}
         size={12}
-        color={isBlocked ? '#DC2626' : '#D97706'}
+        color={isBlocked ? palette.error : palette.warning}
       />
-      <Text style={[styles.safetyBannerText, { color: isBlocked ? '#DC2626' : '#92400E' }]}>
+      <Text style={[styles.safetyBannerText, { color: isBlocked ? palette.error : palette.warning }]}>
         {isBlocked ? 'Safety resources provided' : 'Responding with extra care'}
       </Text>
     </View>
@@ -104,9 +104,9 @@ const SessionCapBanner = React.memo(function SessionCapBanner({
   palette: ChatMessageRowProps['palette'];
 }) {
   return (
-    <View style={[styles.safetyBanner, { backgroundColor: '#DBEAFE', marginHorizontal: Spacing.lg, marginBottom: Spacing.sm }]}>
-      <Ionicons name="time-outline" size={14} color="#1D4ED8" />
-      <Text style={[styles.safetyBannerText, { color: '#1E40AF', flex: 1 }]}>
+    <View style={[styles.safetyBanner, { backgroundColor: palette.accentMuted, marginHorizontal: Spacing.lg, marginBottom: Spacing.sm }]}>
+      <Ionicons name="time-outline" size={14} color={palette.accent} />
+      <Text style={[styles.safetyBannerText, { color: palette.accent, flex: 1 }]}>
         {"You've reached your daily session limit. Take a break and come back tomorrow!"}
       </Text>
     </View>
@@ -154,6 +154,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           textStyle={[styles.transcriptText, { color: palette.textSecondary }, isUser && styles.transcriptTextUser]}
           accentColor={palette.accent}
           mutedColor={palette.textTertiary}
+          surfaceBg={palette.accentMuted}
         />
       </View>
     </Animated.View>
@@ -580,6 +581,7 @@ export default function ChatScreen() {
                 textStyle={[styles.transcriptText, { color: palette.textSecondary }]}
                 accentColor={palette.accent}
                 mutedColor={palette.textTertiary}
+                surfaceBg={palette.accentMuted}
               />
               <Animated.View style={[styles.cursor, { backgroundColor: palette.accent }, pulseStyle]} />
             </View>

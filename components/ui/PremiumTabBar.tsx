@@ -145,6 +145,7 @@ export function PremiumTabBar({ state, descriptors, navigation }: BottomTabBarPr
                                 label={options.title || route.name}
                                 activeColor={isFocused ? '#FFF' : palette.textSecondary}
                                 accentColor={palette.accent}
+                                focusedColor={palette.textInverse}
                             />
                         );
                     })}
@@ -164,6 +165,7 @@ function TabItem({
     label,
     activeColor,
     accentColor,
+    focusedColor,
 }: {
     isFocused: boolean;
     onPress: () => void;
@@ -174,6 +176,7 @@ function TabItem({
     label: string;
     activeColor: string;
     accentColor: string;
+    focusedColor: string;
 }) {
     const scale = useSharedValue(1);
     const opacity = useSharedValue(0.6);
@@ -200,13 +203,13 @@ function TabItem({
                 <Ionicons
                     name={isFocused ? iconName : iconOutline}
                     size={24}
-                    color={isFocused ? '#FFFFFF' : activeColor} // Always white when focused for contrast against the accent pill
+                    color={isFocused ? focusedColor : activeColor}
                 />
                 <Animated.Text
                     style={[
                         styles.label,
                         {
-                            color: isFocused ? '#FFFFFF' : activeColor,
+                            color: isFocused ? focusedColor : activeColor,
                             opacity: isFocused ? 1 : 0.7
                         }
                     ]}

@@ -91,6 +91,7 @@ interface FeaturedRitual {
   subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
   gradient: [string, string];
+  textColor: string;
   action: () => void;
   isCompleted: boolean;
   timeLabel: string;
@@ -113,6 +114,7 @@ function getFeaturedRitual(
         subtitle: 'Set your focus and align your energy for today',
         icon: 'sunny',
         gradient: [palette.accent, palette.accentLight],
+        textColor: palette.textInverse,
         action: onMorning,
         isCompleted: morningCompleted,
         timeLabel: 'MORNING RITUAL',
@@ -126,6 +128,7 @@ function getFeaturedRitual(
           : 'Set your intention for the rest of the day',
         icon: morningCompleted ? 'compass' : 'sunny',
         gradient: [palette.gradientStart, palette.gradientEnd],
+        textColor: '#FFFFFF',
         action: morningCompleted ? onCheckIn : onMorning,
         isCompleted: false,
         timeLabel: morningCompleted ? 'AFTERNOON FOCUS' : 'MORNING RITUAL',
@@ -137,6 +140,7 @@ function getFeaturedRitual(
         subtitle: 'Reflect on your day and capture what matters',
         icon: 'moon',
         gradient: [palette.gradientStart, palette.gradientEnd],
+        textColor: '#FFFFFF',
         action: onEvening,
         isCompleted: eveningCompleted,
         timeLabel: 'EVENING RITUAL',
@@ -148,6 +152,7 @@ function getFeaturedRitual(
         subtitle: 'Close the day with intention',
         icon: 'moon',
         gradient: [palette.gradientStart, palette.gradientEnd],
+        textColor: '#FFFFFF',
         action: onEvening,
         isCompleted: eveningCompleted,
         timeLabel: 'NIGHT RITUAL',
@@ -924,23 +929,23 @@ function FeaturedRitualCard({
       <Animated.View style={[styles.featuredShimmer, shimmerOverlayStyle]} />
 
       <View style={styles.featuredCardContent}>
-        <View style={[styles.featuredIconContainer, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-          <Ionicons name={ritual.icon} size={32} color={palette.textInverse} />
+        <View style={[styles.featuredIconContainer, { backgroundColor: `${ritual.textColor}26` }]}>
+          <Ionicons name={ritual.icon} size={32} color={ritual.textColor} />
         </View>
         <View style={styles.featuredTextContainer}>
-          <Text style={[styles.featuredTitle, { color: palette.textInverse }]}>{ritual.title}</Text>
-          <Text style={[styles.featuredSubtitle, { color: `${palette.textInverse}BB` }]}>{ritual.subtitle}</Text>
+          <Text style={[styles.featuredTitle, { color: ritual.textColor }]}>{ritual.title}</Text>
+          <Text style={[styles.featuredSubtitle, { color: `${ritual.textColor}BB` }]}>{ritual.subtitle}</Text>
         </View>
         {ritual.isCompleted ? (
           <View style={styles.featuredCompletedBadge}>
-            <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
-            <Text style={styles.featuredCompletedText}>Complete</Text>
+            <Ionicons name="checkmark-circle" size={28} color={ritual.textColor} />
+            <Text style={[styles.featuredCompletedText, { color: `${ritual.textColor}CC` }]}>Complete</Text>
           </View>
         ) : (
           <View style={styles.featuredActionRow}>
-            <View style={styles.featuredActionButton}>
-              <Text style={styles.featuredActionText}>Begin</Text>
-              <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.9)" />
+            <View style={[styles.featuredActionButton, { backgroundColor: `${ritual.textColor}26` }]}>
+              <Text style={[styles.featuredActionText, { color: `${ritual.textColor}E6` }]}>Begin</Text>
+              <Ionicons name="arrow-forward" size={16} color={`${ritual.textColor}E6`} />
             </View>
           </View>
         )}
@@ -1042,7 +1047,7 @@ function SecondaryRitualItem({
       >
         {ritual.is_completed_today && (
           <Animated.View style={checkAnimStyle}>
-            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={12} color={palette.textInverse} />
           </Animated.View>
         )}
       </View>

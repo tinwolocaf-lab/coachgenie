@@ -324,14 +324,14 @@ function ActiveCoachCard({
   return (
     <Animated.View style={containerStyle}>
       <TouchableOpacity
-        style={[styles.activeCoachCard, { backgroundColor: palette.cardBg }]}
+        style={[styles.activeCoachCard, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={1}
       >
         <View style={styles.activeCoachBody}>
-          <View style={styles.iconContainer}>
+          <View style={[styles.iconContainer, { backgroundColor: palette.borderLight }]}>
             {coach.image ? (
               <View style={styles.activeCoachImageContainer}>
                 <Image
@@ -402,7 +402,7 @@ function MasterclassCoachCard({
   return (
     <Animated.View style={containerStyle}>
       <TouchableOpacity
-        style={[styles.masterclassCard, { backgroundColor: palette.cardBg }]}
+        style={[styles.masterclassCard, { backgroundColor: palette.cardBg, borderColor: palette.borderLight }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -411,7 +411,7 @@ function MasterclassCoachCard({
         <View style={styles.masterclassContent}>
           <View style={styles.masterclassHeader}>
             {coach.image ? (
-              <View style={styles.masterclassImageContainer}>
+              <View style={[styles.masterclassImageContainer, { borderColor: palette.borderLight }]}>
                 <Image
                   source={coach.image}
                   style={styles.masterclassImage}
@@ -437,7 +437,7 @@ function MasterclassCoachCard({
 
           <Text style={[styles.masterclassTagline, { color: palette.textSecondary }]}>{coach.tagline}</Text>
 
-          <View style={styles.methodContainer}>
+          <View style={[styles.methodContainer, { borderTopColor: palette.borderLight }]}>
             <Text style={[styles.methodLabel, { color: palette.textTertiary }]}>Method:</Text>
             <Text style={[styles.methodText, { color: palette.textSecondary }]} numberOfLines={1}>
               {coach.method}

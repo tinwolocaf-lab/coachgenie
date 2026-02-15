@@ -952,7 +952,7 @@ export default function AccountScreen() {
               style={[styles.modalSubmitBtn, { backgroundColor: palette.accent }]}
               onPress={handleSubmitPassword}
             >
-              <Text style={styles.modalSubmitText}>Update</Text>
+              <Text style={[styles.modalSubmitText, { color: palette.textInverse }]}>Update</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1407,6 +1407,5 @@ const styles = StyleSheet.create({
   modalSubmitText: {
     fontSize: Typography.sizes.body,
     fontFamily: Typography.fonts.sansMedium,
-    color: '#FFFFFF',
   },
 });

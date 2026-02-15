@@ -200,6 +200,7 @@ export default function SessionReviewScreen() {
               textStyle={[styles.summaryText, { color: palette.textSecondary }]}
               accentColor={palette.accent}
               mutedColor={palette.textTertiary}
+              surfaceBg={palette.accentMuted}
             />
           </Animated.View>
         )}
@@ -264,6 +265,7 @@ function MessageBlock({ message, index, coachName, isLastMessage }: MessageBlock
         textStyle={[styles.messageText, { color: palette.textSecondary }]}
         accentColor={palette.accent}
         mutedColor={palette.textTertiary}
+        surfaceBg={palette.accentMuted}
       />
 
       {/* Insight Marker */}

@@ -33,7 +33,7 @@ export function PaywallBanner({ onDismiss }: PaywallBannerProps) {
           style={styles.gradient}
         >
           <View style={styles.content}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: `${palette.textInverse}1F` }]}>
               <Ionicons name="diamond" size={24} color={palette.accent} />
             </View>
             <View style={styles.textContainer}>
@@ -44,7 +44,7 @@ export function PaywallBanner({ onDismiss }: PaywallBannerProps) {
                 All coaches, unlimited sessions, integrations
               </Text>
             </View>
-            <View style={styles.arrowContainer}>
+            <View style={[styles.arrowContainer, { backgroundColor: `${palette.textInverse}1A` }]}>
               <Ionicons name="arrow-forward" size={18} color={palette.accent} />
             </View>
           </View>

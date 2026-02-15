@@ -83,15 +83,15 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
 
   const coach = getCoachById(insight.coach_id);
   const categoryColors: Record<string, string[]> = {
-    mindset: ['#1B3022', '#2D4A38'],
-    strategy: ['#2C1E1B', '#4A3632'],
-    productivity: ['#1A2A3A', '#2B3D50'],
-    systems: ['#2A2A1A', '#454530'],
+    mindset: [palette.gradientStart, palette.gradientEnd],
+    strategy: [palette.gradientStart, palette.gradientEnd],
+    productivity: [palette.gradientStart, palette.gradientEnd],
+    systems: [palette.gradientStart, palette.gradientEnd],
     general: [palette.gradientStart, palette.gradientEnd],
   };
 
   const gradientColors = isHighlighted
-    ? [palette.accent, palette.accentLight]
+    ? [palette.gradientStart, palette.gradientEnd]
     : categoryColors[insight.category] || categoryColors.general;
 
   useEffect(() => {
@@ -167,8 +167,8 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
           </Animated.View>
 
           {/* Category badge */}
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>
+          <View style={[styles.categoryBadge, { backgroundColor: '#FFFFFF26' }]}>
+            <Text style={[styles.categoryText, { color: '#FFFFFFE6' }]}>
               {insight.category.charAt(0).toUpperCase() + insight.category.slice(1)}
             </Text>
           </View>
@@ -176,14 +176,14 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
           {/* Content */}
           <View style={styles.cardContent}>
             <Text
-              style={[styles.cardTitle, { color: palette.textInverse }, isLarge && styles.cardTitleLarge]}
+              style={[styles.cardTitle, { color: '#FFFFFF' }, isLarge && styles.cardTitleLarge]}
               numberOfLines={isLarge ? 3 : 2}
             >
               {insight.title}
             </Text>
 
             {isLarge && (
-              <Text style={styles.cardExcerpt} numberOfLines={3}>
+              <Text style={[styles.cardExcerpt, { color: '#FFFFFFBF' }]} numberOfLines={3}>
                 {insight.content}
               </Text>
             )}
@@ -191,21 +191,21 @@ function InsightCard({ insight, index, isLarge, isHighlighted, onPress }: Insigh
 
           {/* Footer */}
           <View style={styles.cardFooter}>
-            <View style={styles.coachBadge}>
+            <View style={[styles.coachBadge, { backgroundColor: '#FFFFFF1A' }]}>
               <Ionicons
                 name={coach?.icon_name as keyof typeof Ionicons.glyphMap || 'person'}
                 size={12}
-                color={palette.textInverse}
+                color="#FFFFFF"
               />
-              <Text style={styles.coachName}>{coach?.name || 'Coach'}</Text>
+              <Text style={[styles.coachName, { color: '#FFFFFFCC' }]}>{coach?.name || 'Coach'}</Text>
             </View>
-            <Text style={styles.dateText}>{formattedDate}</Text>
+            <Text style={[styles.dateText, { color: '#FFFFFF99' }]}>{formattedDate}</Text>
           </View>
 
           {/* Highlighted star */}
           {isHighlighted && (
-            <View style={styles.highlightStar}>
-              <Ionicons name="star" size={14} color={palette.textInverse} />
+            <View style={[styles.highlightStar, { backgroundColor: '#FFFFFF33' }]}>
+              <Ionicons name="star" size={14} color="#FFFFFF" />
             </View>
           )}
         </LinearGradient>

@@ -34,6 +34,7 @@ interface MarkdownTextProps {
   containerStyle?: StyleProp<ViewStyle>;
   accentColor: string;
   mutedColor?: string;
+  surfaceBg?: string;
 }
 
 const UNORDERED_LIST_REGEX = /^\s*[-*+]\s+(.*)$/;
@@ -271,6 +272,7 @@ export function MarkdownText({
   containerStyle,
   accentColor,
   mutedColor = 'rgba(0,0,0,0.55)',
+  surfaceBg,
 }: MarkdownTextProps) {
   const blocks = useMemo(() => parseMarkdownBlocks(content), [content]);
   const resolvedTextStyle = StyleSheet.flatten(textStyle) || {};
@@ -287,7 +289,7 @@ export function MarkdownText({
       android: 'monospace',
       default: 'monospace',
     }),
-    backgroundColor: 'rgba(0,0,0,0.08)',
+    backgroundColor: surfaceBg || 'rgba(0,0,0,0.08)',
   };
 
   const renderInlineText = (text: string, keyPrefix: string, depth = 0): React.ReactNode[] => {
@@ -373,7 +375,7 @@ export function MarkdownText({
                 key={`blockquote-${blockIndex}`}
                 style={[
                   styles.blockquote,
-                  { borderLeftColor: accentColor, backgroundColor: 'rgba(0,0,0,0.04)' },
+                  { borderLeftColor: accentColor, backgroundColor: surfaceBg || 'rgba(0,0,0,0.04)' },
                   blockSpacing,
                 ]}
               >
@@ -412,7 +414,7 @@ export function MarkdownText({
             );
           case 'code':
             return (
-              <View key={`code-${blockIndex}`} style={[styles.codeBlock, blockSpacing]}>
+              <View key={`code-${blockIndex}`} style={[styles.codeBlock, surfaceBg ? { backgroundColor: surfaceBg } : null, blockSpacing]}>
                 <Text style={[inlineCodeTextStyle, styles.codeBlockText]}>
                   {block.text}
                 </Text>
@@ -422,7 +424,7 @@ export function MarkdownText({
             return (
               <View
                 key={`rule-${blockIndex}`}
-                style={[styles.horizontalRule, { backgroundColor: 'rgba(0,0,0,0.12)' }, blockSpacing]}
+                style={[styles.horizontalRule, { backgroundColor: surfaceBg || 'rgba(0,0,0,0.12)' }, blockSpacing]}
               />
             );
           default:

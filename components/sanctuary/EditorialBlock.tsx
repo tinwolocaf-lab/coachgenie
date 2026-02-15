@@ -96,6 +96,7 @@ function EditorialBlockComponent({
             textStyle={messageStyle}
             accentColor={palette.accent}
             mutedColor={palette.textTertiary}
+            surfaceBg={palette.accentMuted}
           />
           {parts[1] && (
             <TouchableOpacity
@@ -103,7 +104,7 @@ function EditorialBlockComponent({
               onPress={() => onInsightPress?.(message)}
             >
               <LinearGradient
-                colors={[palette.accentMuted, 'rgba(197, 160, 89, 0.25)']}
+                colors={[palette.accentMuted, palette.accentShimmer]}
                 style={styles.inlineInsightGradient}
               >
                 <Ionicons name="bulb" size={16} color={palette.accent} />
@@ -113,6 +114,7 @@ function EditorialBlockComponent({
                     textStyle={[styles.inlineInsightText, { color: palette.textPrimary }]}
                     accentColor={palette.accent}
                     mutedColor={palette.textSecondary}
+                    surfaceBg={palette.accentMuted}
                   />
                 </View>
               </LinearGradient>
@@ -128,6 +130,7 @@ function EditorialBlockComponent({
         textStyle={messageStyle}
         accentColor={palette.accent}
         mutedColor={palette.textTertiary}
+        surfaceBg={palette.accentMuted}
       />
     );
   };

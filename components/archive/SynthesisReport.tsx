@@ -258,15 +258,15 @@ function ThemeCard({ theme, index, onPress }: { theme: ThemeItem; index: number;
         }}
       >
         <LinearGradient
-          colors={[palette.textPrimary, palette.textPrimary + 'CC']}
+          colors={[palette.gradientStart, palette.gradientEnd]}
           style={styles.themeGradient}
         >
-          <Text style={[styles.themeName, { color: palette.textInverse }]}>{theme.name}</Text>
+          <Text style={[styles.themeName, { color: '#FFFFFF' }]}>{theme.name}</Text>
           <View style={styles.themeStats}>
             <Text style={[styles.themeFrequency, { color: palette.accentLight }]}>{theme.frequency}x</Text>
           </View>
           {theme.relatedInsights.length > 0 && (
-            <Text style={styles.themeInsight} numberOfLines={2}>
+            <Text style={[styles.themeInsight, { color: '#FFFFFFB3' }]} numberOfLines={2}>
               {`"${theme.relatedInsights[0]}"`}
             </Text>
           )}

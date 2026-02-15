@@ -194,7 +194,7 @@ function PremiumCoachCard({ coach, recommended }: PremiumCoachCardProps) {
           {recommended && (
             <View style={styles.recommendedBadge}>
               <Ionicons name="sparkles" size={12} color="#FFFFFF" />
-              <Text style={styles.recommendedBadgeText}>Recommended match</Text>
+              <Text style={[styles.recommendedBadgeText, { color: '#FFFFFF' }]}>Recommended match</Text>
             </View>
           )}
         </View>

@@ -417,7 +417,7 @@ export default function PlanScreen() {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={[palette.textPrimary, '#0D1A11']}
+                  colors={[palette.gradientStart, palette.gradientEnd]}
                   style={styles.adjustGradient}
                 >
                   <View style={styles.adjustContent}>
@@ -425,7 +425,7 @@ export default function PlanScreen() {
                       <Ionicons name="chatbubble-ellipses" size={24} color={palette.accent} />
                     </View>
                     <View style={styles.adjustTextContainer}>
-                      <Text style={[styles.adjustTitle, { color: palette.textInverse }]}>Refine with your coach</Text>
+                      <Text style={[styles.adjustTitle, { color: '#FFFFFF' }]}>Refine with your coach</Text>
                       <Text style={styles.adjustSubtitle}>
                         Discuss adjustments and optimize your week
                       </Text>

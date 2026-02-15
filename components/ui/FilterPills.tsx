@@ -98,7 +98,7 @@ function FilterPill({
             style={[
               styles.countBadge,
               { backgroundColor: palette.backgroundSecondary },
-              isSelected && styles.countBadgeSelected,
+              isSelected && { backgroundColor: `${palette.textInverse}33` },
             ]}
           >
             <Text

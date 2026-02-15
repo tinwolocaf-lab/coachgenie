@@ -141,7 +141,7 @@ export function SessionEntry({ coach, onAnimationComplete }: SessionEntryProps) 
       {/* Background with color */}
       <Animated.View style={[styles.background, backgroundStyle]}>
         <LinearGradient
-          colors={[coach.color, palette.textPrimary, '#0D1A11']}
+          colors={[coach.color, palette.gradientStart, palette.gradientEnd]}
           locations={[0, 0.5, 1]}
           style={styles.backgroundGradient}
         />

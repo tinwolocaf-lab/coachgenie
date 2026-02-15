@@ -208,10 +208,9 @@ function ThemedAppContent() {
 
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (appState.current.match(/inactive|background/) && nextState === 'active') {
-        // App returned to foreground — trigger widget data refresh
-        // Each widget will re-read from SharedPreferences on next update cycle
-        debugLog('[Widgets] App foregrounded, syncing widget data');
-        WidgetBridge.syncWidgetData({}).catch(() => {});
+        // App returned to foreground — refresh all widgets with stored data
+        debugLog('[Widgets] App foregrounded, refreshing all widgets');
+        WidgetBridge.refreshAllWidgets().catch(() => {});
       }
       appState.current = nextState;
     });

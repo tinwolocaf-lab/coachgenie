@@ -53,7 +53,7 @@ function AnimatedButton({
 
   const textColor = isCancel
     ? palette.textSecondary
-    : '#FFFFFF';
+    : palette.textInverse;
 
   return (
     <Animated.View

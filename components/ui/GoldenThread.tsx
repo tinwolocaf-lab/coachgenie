@@ -142,7 +142,7 @@ export function GoldenThread({
           {/* Shimmer overlay */}
           <Animated.View style={[styles.shimmerOverlay, shimmerStyle]}>
             <LinearGradient
-              colors={['transparent', 'rgba(255,255,255,0.4)', 'transparent']}
+              colors={['transparent', `${palette.textInverse}66`, 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.shimmerGradient}

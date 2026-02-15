@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   SafeAreaView,
-  useColorScheme,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useAlert } from '@/contexts/AlertContext';
@@ -18,6 +17,7 @@ import Animated, {
   useAnimatedStyle,
 } from 'react-native-reanimated';
 import { CoachConfig, importSharedCoach } from '@/lib/coachSharing';
+import { useThemeSafe } from '@/contexts/ThemeContext';
 
 interface ImportCoachCardProps {
   coachConfig: CoachConfig;
@@ -34,8 +34,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
   onImportSuccess,
   onClose,
 }) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { palette } = useThemeSafe();
   const { showToast, showAlert } = useAlert();
 
   const [importing, setImporting] = useState(false);
@@ -87,9 +86,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
     <SafeAreaView
       style={[
         styles.container,
-        {
-          backgroundColor: isDark ? '#1a1a2e' : '#ffffff',
-        },
+        { backgroundColor: palette.background },
       ]}
     >
       <Animated.ScrollView
@@ -103,9 +100,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
           <Text
             style={[
               styles.headerTitle,
-              {
-                color: isDark ? '#e8e8e8' : '#1a1a2e',
-              },
+              { color: palette.textPrimary },
             ]}
           >
             New Coach Available
@@ -115,9 +110,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
               <Text
                 style={[
                   styles.closeButton,
-                  {
-                    color: isDark ? '#a0a0c0' : '#999',
-                  },
+                  { color: palette.textTertiary },
                 ]}
               >
                 ✕
@@ -131,8 +124,8 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
           style={[
             styles.coachCard,
             {
-              backgroundColor: isDark ? '#2a2a4a' : '#f8f8f8',
-              borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
+              backgroundColor: palette.cardBg,
+              borderColor: palette.border,
             },
             animatedStyle,
           ]}
@@ -148,7 +141,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
               },
             ]}
           >
-            <Text style={styles.avatarText}>
+            <Text style={[styles.avatarText, { color: palette.accent }]}>
               {coachConfig.icon_name.charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -157,9 +150,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
           <Text
             style={[
               styles.coachName,
-              {
-                color: isDark ? '#e8e8e8' : '#1a1a2e',
-              },
+              { color: palette.textPrimary },
             ]}
           >
             {coachConfig.name}
@@ -169,9 +160,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
             <Text
               style={[
                 styles.tagline,
-                {
-                  color: isDark ? '#d4af37' : '#d4af37',
-                },
+                { color: palette.accent },
               ]}
             >
               {coachConfig.tagline}
@@ -182,9 +171,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
             <Text
               style={[
                 styles.description,
-                {
-                  color: isDark ? '#b0b0d0' : '#666',
-                },
+                { color: palette.textSecondary },
               ]}
             >
               {coachConfig.description}
@@ -196,9 +183,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
               <Text
                 style={[
                   styles.methodLabel,
-                  {
-                    color: isDark ? '#a0a0c0' : '#999',
-                  },
+                  { color: palette.textTertiary },
                 ]}
               >
                 Method:
@@ -206,9 +191,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
               <Text
                 style={[
                   styles.methodText,
-                  {
-                    color: isDark ? '#b0b0d0' : '#666',
-                  },
+                  { color: palette.textSecondary },
                 ]}
               >
                 {coachConfig.method}
@@ -221,17 +204,15 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
             style={[
               styles.sharedBySection,
               {
-                backgroundColor: isDark ? '#1a1a2e' : '#ffffff',
-                borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
+                backgroundColor: palette.backgroundSecondary,
+                borderColor: palette.border,
               },
             ]}
           >
             <Text
               style={[
                 styles.sharedByLabel,
-                {
-                  color: isDark ? '#a0a0c0' : '#999',
-                },
+                { color: palette.textTertiary },
               ]}
             >
               Shared by user {creatorId.substring(0, 8)}...
@@ -246,7 +227,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
             style={[
               styles.primaryButton,
               {
-                backgroundColor: '#d4af37',
+                backgroundColor: palette.accent,
                 opacity: importing ? 0.7 : 1,
               },
             ]}
@@ -258,13 +239,13 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
               <>
                 <ActivityIndicator
                   size="small"
-                  color="#1a1a2e"
+                  color={palette.textInverse}
                   style={styles.buttonSpinner}
                 />
-                <Text style={styles.primaryButtonText}>Adding...</Text>
+                <Text style={[styles.primaryButtonText, { color: palette.textInverse }]}>Adding...</Text>
               </>
             ) : (
-              <Text style={styles.primaryButtonText}>Add to My Coaches</Text>
+              <Text style={[styles.primaryButtonText, { color: palette.textInverse }]}>Add to My Coaches</Text>
             )}
           </TouchableOpacity>
 
@@ -272,9 +253,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
           <TouchableOpacity
             style={[
               styles.secondaryButton,
-              {
-                backgroundColor: isDark ? '#4a4a7a' : '#e8e8e8',
-              },
+              { backgroundColor: palette.backgroundSecondary },
             ]}
             onPress={() => setPreviewActive(!previewActive)}
             activeOpacity={0.7}
@@ -282,9 +261,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
             <Text
               style={[
                 styles.secondaryButtonText,
-                {
-                  color: isDark ? '#d4af37' : '#1a1a2e',
-                },
+                { color: palette.accent },
               ]}
             >
               Preview Chat
@@ -298,8 +275,8 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
             style={[
               styles.previewSection,
               {
-                backgroundColor: isDark ? '#2a2a4a' : '#f8f8f8',
-                borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
+                backgroundColor: palette.cardBg,
+                borderColor: palette.border,
               },
             ]}
             entering={FadeIn}
@@ -307,9 +284,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
             <Text
               style={[
                 styles.previewTitle,
-                {
-                  color: isDark ? '#e8e8e8' : '#1a1a2e',
-                },
+                { color: palette.textPrimary },
               ]}
             >
               First Message
@@ -319,9 +294,9 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
               style={[
                 styles.previewMessage,
                 {
-                  color: isDark ? '#b0b0d0' : '#666',
-                  backgroundColor: isDark ? '#1a1a2e' : '#ffffff',
-                  borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
+                  color: palette.textSecondary,
+                  backgroundColor: palette.backgroundSecondary,
+                  borderColor: palette.border,
                 },
               ]}
             >
@@ -335,17 +310,15 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
           style={[
             styles.infoSection,
             {
-              backgroundColor: isDark ? '#2a2a4a' : '#f8f8f8',
-              borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
+              backgroundColor: palette.cardBg,
+              borderColor: palette.border,
             },
           ]}
         >
           <Text
             style={[
               styles.infoText,
-              {
-                color: isDark ? '#b0b0d0' : '#666',
-              },
+              { color: palette.textSecondary },
             ]}
           >
             This coach will be added to your personal coach collection. You can use it anytime to get personalized guidance.
@@ -414,7 +387,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 44,
     fontWeight: '700',
-    color: '#d4af37',
   },
   coachName: {
     fontSize: 22,
@@ -473,7 +445,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   primaryButtonText: {
-    color: '#1a1a2e',
     fontSize: 16,
     fontWeight: '700',
     marginLeft: 8,

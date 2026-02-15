@@ -129,17 +129,17 @@ export default function BreakthroughsScreen() {
       {/* Stats Banner */}
       <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.statsBanner}>
         <LinearGradient
-          colors={[palette.textPrimary, '#243D2E']}
+          colors={[palette.gradientStart, palette.gradientEnd]}
           style={styles.statsGradient}
         >
           <View style={styles.statsContent}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: palette.textInverse }]}>{breakthroughs.length}</Text>
+              <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{breakthroughs.length}</Text>
               <Text style={[styles.statLabel, { color: palette.accentLight }]}>Total Breakthroughs</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: palette.textInverse }]}>
+              <Text style={[styles.statValue, { color: '#FFFFFF' }]}>
                 {breakthroughs.filter(b => {
                   const date = new Date(b.date);
                   const now = new Date();

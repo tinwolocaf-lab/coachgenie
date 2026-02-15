@@ -38,6 +38,7 @@ import {
 } from '@/lib/supabase-rituals';
 import { getMorningPrompt } from '@/lib/ritualPrompts';
 import { getContextVault } from '@/store/app';
+import { WidgetBridge } from '@/lib/widgetBridge';
 import { DailyReflection, GrowthChapter, ContextVault } from '@/types';
 import { VoiceMode } from '@/components/chat/VoiceMode';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
@@ -223,6 +224,14 @@ export default function MorningIntentionScreen() {
 
       if (reflection) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Sync morning intention to Reflection widget
+        WidgetBridge.updateReflection({
+          contentType: 'morning',
+          mainContent: intention.trim(),
+          subtitle: 'Morning intention set',
+          timeOfDay: 'morning',
+        }).catch(() => {});
 
         // Generate the Daily Muse
         setIsGeneratingMuse(true);
