@@ -1,3 +1,11 @@
+import {
+  extractGeminiText,
+  extractGeminiUsage,
+  getGeminiClient,
+  isGeminiModelId,
+  toRawGeminiModelId,
+} from './gemini.ts';
+
 const OPENROUTER_BASE_URL = Deno.env.get('OPENROUTER_BASE_URL') ?? 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
 const OPENROUTER_APP_URL = Deno.env.get('OPENROUTER_APP_URL');
@@ -35,21 +43,6 @@ export function getOpenRouterUrl(path: string): string {
   return `${OPENROUTER_BASE_URL.replace(/\/$/, '')}${path}`;
 }
 
-export async function openRouterChat(payload: Record<string, unknown>) {
-  const response = await fetch(getOpenRouterUrl('/chat/completions'), {
-    method: 'POST',
-    headers: getOpenRouterHeaders(),
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || 'OpenRouter request failed');
-  }
-
-  return response;
-}
-
 function collectTextFromContent(content: unknown): string[] {
   if (typeof content === 'string') {
     return content.length > 0 ? [content] : [];
@@ -83,6 +76,219 @@ function collectTextFromContent(content: unknown): string[] {
   }
 
   return segments;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function toOpenRouterUsage(usage: ReturnType<typeof extractGeminiUsage>): Record<string, unknown> | undefined {
+  if (!usage) {
+    return undefined;
+  }
+
+  return {
+    input_tokens: usage.inputTokens ?? 0,
+    output_tokens: usage.outputTokens ?? 0,
+    audio_input_tokens: usage.audioInputTokens ?? 0,
+    audio_output_tokens: usage.audioOutputTokens ?? 0,
+    reasoning_tokens: usage.reasoningTokens ?? 0,
+    prompt_tokens_details: {
+      audio_tokens: usage.audioInputTokens ?? 0,
+    },
+    completion_tokens_details: {
+      audio_tokens: usage.audioOutputTokens ?? 0,
+      reasoning_tokens: usage.reasoningTokens ?? 0,
+    },
+  };
+}
+
+function mapOpenRouterMessagesToGemini(messages: unknown[]): {
+  systemInstruction: string | null;
+  contents: Array<Record<string, unknown>>;
+} {
+  const systemSegments: string[] = [];
+  const contents: Array<Record<string, unknown>> = [];
+
+  for (const message of messages) {
+    const record = asRecord(message);
+    if (!record) continue;
+
+    const roleRaw = typeof record.role === 'string' ? record.role : 'user';
+    const text = collectTextFromContent(record.content).join('');
+    if (!text.trim()) continue;
+
+    if (roleRaw === 'system') {
+      systemSegments.push(text);
+      continue;
+    }
+
+    const role = roleRaw === 'assistant' ? 'model' : 'user';
+    contents.push({
+      role,
+      parts: [{ text }],
+    });
+  }
+
+  if (contents.length === 0) {
+    contents.push({
+      role: 'user',
+      parts: [{ text: '' }],
+    });
+  }
+
+  return {
+    systemInstruction: systemSegments.length > 0 ? systemSegments.join('\n\n') : null,
+    contents,
+  };
+}
+
+function buildGeminiConfig(payload: Record<string, unknown>, systemInstruction: string | null): Record<string, unknown> {
+  const config: Record<string, unknown> = {};
+
+  const maxTokens = payload.max_tokens;
+  if (typeof maxTokens === 'number' && Number.isFinite(maxTokens) && maxTokens > 0) {
+    config.maxOutputTokens = Math.round(maxTokens);
+  }
+
+  const temperature = payload.temperature;
+  if (typeof temperature === 'number' && Number.isFinite(temperature)) {
+    config.temperature = temperature;
+  }
+
+  const responseFormat = asRecord(payload.response_format);
+  if (responseFormat?.type === 'json_object') {
+    config.responseMimeType = 'application/json';
+  }
+
+  const tools = payload.tools;
+  if (Array.isArray(tools)) {
+    config.tools = tools;
+  }
+
+  const toolConfig = payload.tool_config;
+  if (toolConfig && typeof toolConfig === 'object') {
+    config.toolConfig = toolConfig;
+  }
+
+  if (systemInstruction && systemInstruction.trim().length > 0) {
+    config.systemInstruction = {
+      parts: [{ text: systemInstruction }],
+    };
+  }
+
+  return config;
+}
+
+async function geminiChat(payload: Record<string, unknown>): Promise<Response> {
+  const modelRaw = typeof payload.model === 'string' ? payload.model : '';
+  if (!modelRaw) {
+    throw new Error('Missing model');
+  }
+
+  const model = toRawGeminiModelId(modelRaw);
+  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+  const { systemInstruction, contents } = mapOpenRouterMessagesToGemini(messages);
+  const config = buildGeminiConfig(payload, systemInstruction);
+  const client = getGeminiClient();
+  const stream = payload.stream === true;
+
+  if (stream) {
+    const geminiStream = await client.models.generateContentStream({
+      model,
+      contents,
+      config,
+    });
+
+    const encoder = new TextEncoder();
+    const sse = new ReadableStream({
+      async start(controller) {
+        let latestUsage: Record<string, unknown> | undefined;
+
+        try {
+          for await (const chunk of geminiStream) {
+            const token = extractGeminiText(chunk);
+            const usage = extractGeminiUsage((chunk as unknown as Record<string, unknown>).usageMetadata);
+            if (usage) {
+              latestUsage = toOpenRouterUsage(usage);
+            }
+
+            if (!token) {
+              continue;
+            }
+
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: token } }] })}\n\n`)
+            );
+          }
+
+          if (latestUsage) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ usage: latestUsage })}\n\n`));
+          }
+
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
+      },
+    });
+
+    return new Response(sse, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
+  }
+
+  const response = await client.models.generateContent({
+    model,
+    contents,
+    config,
+  });
+
+  const text = extractGeminiText(response);
+  const usage = toOpenRouterUsage(extractGeminiUsage((response as unknown as Record<string, unknown>).usageMetadata));
+
+  return new Response(
+    JSON.stringify({
+      choices: [{ message: { content: text } }],
+      ...(usage ? { usage } : {}),
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
+
+export async function openRouterChat(payload: Record<string, unknown>) {
+  const model = typeof payload.model === 'string' ? payload.model : '';
+
+  if (model && isGeminiModelId(model)) {
+    return await geminiChat(payload);
+  }
+
+  const response = await fetch(getOpenRouterUrl('/chat/completions'), {
+    method: 'POST',
+    headers: getOpenRouterHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || 'OpenRouter request failed');
+  }
+
+  return response;
 }
 
 export function extractOpenRouterMessageContent(payload: unknown): string {

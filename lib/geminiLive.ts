@@ -158,6 +158,23 @@ function normalizeConnectionError(error: unknown): GeminiLiveError {
   });
 }
 
+function toRawGeminiModelId(modelId: string): string {
+  let normalized = modelId.trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    if (normalized.startsWith('models/')) {
+      normalized = normalized.slice('models/'.length);
+      changed = true;
+    }
+    if (normalized.startsWith('google/')) {
+      normalized = normalized.slice('google/'.length);
+      changed = true;
+    }
+  }
+  return normalized;
+}
+
 function buildSessionConfigError(status: number, rawText: string): GeminiLiveError {
   const payload = parseErrorPayload(rawText);
   const payloadCode = payload?.code?.toUpperCase();
@@ -282,10 +299,11 @@ export class GeminiLiveSession {
    */
   private sendSetupMessage(): void {
     if (!this.ws || !this.config) return;
+    const rawModelId = toRawGeminiModelId(this.config.model);
 
     const setupMessage = {
       setup: {
-        model: `models/${this.config.model}`,
+        model: `models/${rawModelId}`,
         generationConfig: {
           responseModalities: ['AUDIO', 'TEXT'],
           speechConfig: {
@@ -638,8 +656,12 @@ export class GeminiLiveSession {
             responseModalities: ['AUDIO', 'TEXT'],
           };
 
+    const rawModelId = typeof payload.model === 'string'
+      ? toRawGeminiModelId(payload.model)
+      : 'gemini-2.5-flash-native-audio-preview';
+
     return {
-      model: typeof payload.model === 'string' ? payload.model : 'gemini-2.5-flash-native-audio-preview',
+      model: rawModelId,
       systemInstruction:
         typeof payload.systemInstruction === 'string' ? payload.systemInstruction : 'You are a helpful coaching assistant.',
       generationConfig,

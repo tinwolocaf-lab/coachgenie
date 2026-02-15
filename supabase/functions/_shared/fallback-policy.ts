@@ -22,8 +22,8 @@ export interface SloConfig {
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_FALLBACK_CHAIN: FallbackChain = [
-  { modelId: 'google/gemini-2.0-flash-001', priority: 1, maxLatencyMs: 3000 },
-  { modelId: 'google/gemini-2.0-flash-lite-001', priority: 2, maxLatencyMs: 2000 },
+  { modelId: 'google/gemini-2.5-flash', priority: 1, maxLatencyMs: 3000 },
+  { modelId: 'google/gemini-2.5-flash-lite', priority: 2, maxLatencyMs: 2000 },
   { modelId: 'openai/gpt-4o-mini', priority: 3, maxLatencyMs: 5000 },
 ];
 

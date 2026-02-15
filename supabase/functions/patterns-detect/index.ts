@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
+import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
 
 serve(async (request) => {
   const optionsResponse = handleOptions(request);
@@ -177,44 +178,36 @@ serve(async (request) => {
 // ── LLM-based labeling ────────────────────────────────────────────────
 
 async function labelWithLLM(messages: string[]): Promise<Record<string, unknown>> {
-  const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-  if (!apiKey || !messages.length) return {};
+  if (!messages.length) return {};
 
   const messagesSample = messages.slice(0, 10).join('\n---\n').slice(0, 3000);
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Analyze these recent user messages from a coaching app. Return ONLY valid JSON with:\n' +
-              '- mood_trend: "improving" | "stable" | "declining"\n' +
-              '- energy_level: "high" | "medium" | "low"\n' +
-              '- primary_blockers: string[] (top 3 obstacles)\n' +
-              '- emotional_themes: string[] (top 3 recurring emotional themes)\n' +
-              '- confidence_level: number 0-1\n' +
-              'Be concise. No markdown.',
-          },
-          { role: 'user', content: messagesSample },
-        ],
-        max_tokens: 300,
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      }),
+    const response = await openRouterChat({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Analyze these recent user messages from a coaching app. Return ONLY valid JSON with:\n' +
+            '- mood_trend: "improving" | "stable" | "declining"\n' +
+            '- energy_level: "high" | "medium" | "low"\n' +
+            '- primary_blockers: string[] (top 3 obstacles)\n' +
+            '- emotional_themes: string[] (top 3 recurring emotional themes)\n' +
+            '- confidence_level: number 0-1\n' +
+            'Be concise. No markdown.',
+        },
+        { role: 'user', content: messagesSample },
+      ],
+      max_tokens: 300,
+      temperature: 0,
+      response_format: { type: 'json_object' },
     });
 
     if (!response.ok) return {};
 
     const json = await response.json();
-    const content = json?.choices?.[0]?.message?.content ?? '';
+    const content = extractOpenRouterMessageContent(json);
     return JSON.parse(content);
   } catch (err) {
     console.error('[Pattern Detection] LLM labeling failed:', err);

@@ -16,6 +16,7 @@ import {
   releaseCredits,
   type UsageUnits,
 } from '../_shared/billing.ts';
+import { getGeminiClient, toRawGeminiModelId } from '../_shared/gemini.ts';
 
 interface VoiceSessionConfigBody {
   coach_id: string;
@@ -52,7 +53,7 @@ function normalizeModel(value: string | undefined): string {
   if (!value || value.trim().length === 0) {
     return DEFAULT_LIVE_MODEL;
   }
-  return value.startsWith('models/') ? value.replace(/^models\//, '') : value;
+  return toRawGeminiModelId(value);
 }
 
 function buildLiveTools(): Array<Record<string, unknown>> {
@@ -101,7 +102,7 @@ function buildHoldUsage(durationSeconds: number): UsageUnits {
   return estimateLiveUsageFromDuration(Math.max(60, Math.round(durationSeconds)));
 }
 
-function liveTokenRequestBody(params: {
+function liveTokenRequestConfig(params: {
   model: string;
   systemInstruction: string;
   voiceName: string;
@@ -112,9 +113,9 @@ function liveTokenRequestBody(params: {
     uses: 1,
     newSessionExpireTime: params.newSessionExpireTime,
     expireTime: params.expireTime,
-    bidiGenerateContentSetup: {
-      model: `models/${params.model}`,
-      generationConfig: {
+    liveConnectConstraints: {
+      model: params.model,
+      config: {
         responseModalities: ['AUDIO', 'TEXT'],
         speechConfig: {
           voiceConfig: {
@@ -123,34 +124,22 @@ function liveTokenRequestBody(params: {
             },
           },
         },
+        systemInstruction: {
+          parts: [{ text: params.systemInstruction.slice(0, MAX_SYSTEM_PROMPT_LENGTH) }],
+        },
+        tools: buildLiveTools(),
       },
-      systemInstruction: {
-        parts: [{ text: params.systemInstruction.slice(0, MAX_SYSTEM_PROMPT_LENGTH) }],
-      },
-      tools: buildLiveTools(),
     },
+    httpOptions: { apiVersion: 'v1alpha' },
   };
 }
 
 async function requestGeminiEphemeralToken(
-  apiKey: string,
-  body: Record<string, unknown>
+  config: Record<string, unknown>
 ): Promise<GeminiAuthTokenResponse> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1alpha/auth_tokens?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }
-  );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`GEMINI_AUTH_TOKEN_FAILED:${response.status}:${text}`);
-  }
-
-  const payload = (await response.json()) as GeminiAuthTokenResponse;
+  const client = getGeminiClient();
+  const token = await client.authTokens.create({ config });
+  const payload = token as unknown as GeminiAuthTokenResponse;
   if (!payload.name || !payload.name.startsWith('auth_tokens/')) {
     throw new Error('GEMINI_AUTH_TOKEN_INVALID_RESPONSE');
   }
@@ -377,7 +366,7 @@ serve(async (request) => {
   const now = Date.now();
   const newSessionExpireTime = new Date(now + 5 * 60 * 1000).toISOString();
   const expireTime = new Date(now + 20 * 60 * 1000).toISOString();
-  const tokenBody = liveTokenRequestBody({
+  const tokenConfig = liveTokenRequestConfig({
     model,
     systemInstruction,
     voiceName,
@@ -386,7 +375,7 @@ serve(async (request) => {
   });
 
   try {
-    const token = await requestGeminiEphemeralToken(geminiApiKey, tokenBody);
+    const token = await requestGeminiEphemeralToken(tokenConfig);
 
     return new Response(
       JSON.stringify({

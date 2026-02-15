@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
 import { runEvalSuite, type EvalCase } from '../_shared/eval-grader.ts';
+import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
 
 interface EvalRunnerBody {
   tags?: string[];
@@ -9,7 +10,7 @@ interface EvalRunnerBody {
   commit_sha?: string;
 }
 
-const DEFAULT_EVAL_MODEL = 'google/gemini-2.0-flash-001';
+const DEFAULT_EVAL_MODEL = 'google/gemini-2.5-flash';
 
 /**
  * Coach eval runner endpoint.
@@ -37,14 +38,6 @@ serve(async (request) => {
 
   const serviceClient = createServiceClient();
   const modelId = body.model_id ?? DEFAULT_EVAL_MODEL;
-  const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({ error: 'Missing OPENROUTER_API_KEY' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
-  }
 
   try {
     const result = await runEvalSuite(serviceClient, {
@@ -52,7 +45,7 @@ serve(async (request) => {
       modelId,
       commitSha: body.commit_sha,
       generateResponse: async (input: EvalCase['input']) => {
-        return await generateCoachResponse(apiKey, modelId, input);
+        return await generateCoachResponse(modelId, input);
       },
     });
 
@@ -92,7 +85,6 @@ serve(async (request) => {
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 async function generateCoachResponse(
-  apiKey: string,
   modelId: string,
   input: EvalCase['input'],
 ): Promise<string> {
@@ -111,18 +103,11 @@ async function generateCoachResponse(
 
   messages.push({ role: 'user', content: input.userMessage });
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: modelId,
-      messages,
-      max_tokens: 600,
-      temperature: 0.7,
-    }),
+  const response = await openRouterChat({
+    model: modelId,
+    messages,
+    max_tokens: 600,
+    temperature: 0.7,
   });
 
   if (!response.ok) {
@@ -130,5 +115,5 @@ async function generateCoachResponse(
   }
 
   const json = await response.json();
-  return json?.choices?.[0]?.message?.content?.trim() ?? '';
+  return extractOpenRouterMessageContent(json).trim();
 }

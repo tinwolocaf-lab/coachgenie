@@ -32,8 +32,8 @@ import CouponRedeemPanel from '@/components/billing/CouponRedeemCard';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
-import RevenueCatUI from 'react-native-purchases-ui';
-import { getUserTier, invalidateUserTierCache } from '@/lib/feature-gates';
+import { invalidateUserTierCache } from '@/lib/feature-gates';
+import { getRevenueCatInitError, isRevenueCatReady } from '@/lib/revenuecat';
 import {
   ApiFunctionError,
   getAvailableModels,
@@ -215,50 +215,21 @@ export default function AccountScreen() {
     );
   };
 
-  const handlePremiumRequired = async () => {
+  const handlePremiumRequired = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    try {
-      await RevenueCatUI.presentPaywall();
-      // After paywall closes, check if purchase was made
-      invalidateUserTierCache();
-      const tier = await getUserTier();
-      setSubscriptionTier(tier);
-      setSovereignMember(tier !== 'free');
-      await loadBillingData();
-    } catch (error: unknown) {
-      const normalizedMessage = (
-        error instanceof Error
-          ? error.message
-          : typeof error === 'string'
-            ? error
-            : ''
-      ).toLowerCase();
-      const userCancelled = Boolean(
-        error &&
-        typeof error === 'object' &&
-        'userCancelled' in error &&
-        (error as { userCancelled?: boolean }).userCancelled,
-      );
-
-      if (
-        userCancelled ||
-        normalizedMessage.includes('purchasecancellederror') ||
-        normalizedMessage.includes('purchase cancelled') ||
-        normalizedMessage.includes('purchase_cancelled')
-      ) {
-        showToast('Purchase canceled', {
-          variant: 'info',
-          message: 'No payment was made. You are still on your current plan.',
-        });
-        return;
-      }
-
-      console.warn('[Paywall] Error presenting paywall:', error);
-      showToast('Purchase not completed', {
-        variant: 'error',
-        message: 'We could not complete the purchase. Your plan is unchanged.',
+    if (!isRevenueCatReady()) {
+      const initError = getRevenueCatInitError();
+      const message =
+        initError === 'expo_go_not_supported'
+          ? 'Purchases are unavailable in Expo Go. Use a development build to test subscriptions.'
+          : 'Purchases are temporarily unavailable on this build.';
+      showToast('Purchases unavailable', {
+        variant: 'info',
+        message,
       });
     }
+
+    router.push('/paywall');
   };
 
   const handleChangePassword = () => {

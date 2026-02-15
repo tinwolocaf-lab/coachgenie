@@ -14,6 +14,11 @@ interface BreakthroughActionItem {
   completed: boolean;
 }
 
+interface SupabaseErrorLike {
+  code?: string;
+  message?: string;
+}
+
 type BreakthroughRow = Database['public']['Tables']['breakthroughs']['Row'];
 type SessionSnapshot = Database['public']['Tables']['coaching_sessions']['Insert']['coach_snapshot'];
 
@@ -49,6 +54,17 @@ function mapBreakthroughRow(row: BreakthroughRow): Breakthrough {
     coach_id: row.coach_id ?? '',
     action_items: parseBreakthroughActions(row.action_items),
   };
+}
+
+function isBreakthroughsTableMissing(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const maybeError = error as SupabaseErrorLike;
+  const code = typeof maybeError.code === 'string' ? maybeError.code : '';
+  const message = typeof maybeError.message === 'string' ? maybeError.message.toLowerCase() : '';
+  return (
+    code === 'PGRST205' ||
+    message.includes("could not find the table 'public.breakthroughs'")
+  );
 }
 
 // Sessions
@@ -359,6 +375,10 @@ export async function saveBreakthrough(
     if (error) throw error;
     return data ? mapBreakthroughRow(data) : null;
   } catch (error) {
+    if (isBreakthroughsTableMissing(error)) {
+      console.warn('[Sanctuary] Breakthroughs table not found; skipping breakthrough persistence.');
+      return null;
+    }
     console.error('Error saving breakthrough:', error);
     return null;
   }
@@ -379,9 +399,17 @@ export async function getTodaysBreakthrough(
       .limit(1)
       .single();
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error) {
+      if (error.code === 'PGRST116' || isBreakthroughsTableMissing(error)) {
+        return null;
+      }
+      throw error;
+    }
     return data ? mapBreakthroughRow(data) : null;
   } catch (error) {
+    if (isBreakthroughsTableMissing(error)) {
+      return null;
+    }
     console.error('Error fetching today\'s breakthrough:', error);
     return null;
   }
@@ -400,9 +428,17 @@ export async function getUserBreakthroughs(
       .order('date', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    if (error) {
+      if (isBreakthroughsTableMissing(error)) {
+        return [];
+      }
+      throw error;
+    }
     return (data || []).map(mapBreakthroughRow);
   } catch (error) {
+    if (isBreakthroughsTableMissing(error)) {
+      return [];
+    }
     console.error('Error fetching breakthroughs:', error);
     return [];
   }
@@ -422,7 +458,12 @@ export async function updateBreakthroughAction(
       .eq('id', breakthroughId)
       .single();
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      if (isBreakthroughsTableMissing(fetchError)) {
+        return false;
+      }
+      throw fetchError;
+    }
 
     // Update the action
     const currentActionItems: BreakthroughActionItem[] = [];
@@ -448,9 +489,17 @@ export async function updateBreakthroughAction(
       .update({ action_items: actionItemsPayload })
       .eq('id', breakthroughId);
 
-    if (error) throw error;
+    if (error) {
+      if (isBreakthroughsTableMissing(error)) {
+        return false;
+      }
+      throw error;
+    }
     return true;
   } catch (error) {
+    if (isBreakthroughsTableMissing(error)) {
+      return false;
+    }
     console.error('Error updating breakthrough action:', error);
     return false;
   }

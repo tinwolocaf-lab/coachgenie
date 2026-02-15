@@ -9,13 +9,13 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Clipboard,
   Keyboard,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import Animated, {
   FadeIn,
   useSharedValue,
@@ -572,7 +572,7 @@ export default function SanctuaryScreen() {
   };
 
   const handleCopy = (message: EnhancedMessage) => {
-    Clipboard.setString(message.content);
+    void Clipboard.setStringAsync(message.content);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -784,9 +784,10 @@ export default function SanctuaryScreen() {
           contentContainerStyle={styles.messagesList}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={listFooter}
-          initialNumToRender={8}
-          maxToRenderPerBatch={6}
-          windowSize={9}
+          initialNumToRender={6}
+          maxToRenderPerBatch={4}
+          updateCellsBatchingPeriod={60}
+          windowSize={7}
           removeClippedSubviews={Platform.OS === 'android'}
           keyboardShouldPersistTaps="handled"
         />

@@ -7,6 +7,7 @@ import {
   parseOpenRouterSseChunkWithUsage,
   type OpenRouterUsage,
 } from '../_shared/openrouter.ts';
+import { isGeminiModelId } from '../_shared/gemini.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
 import {
   orchestratePreResponse,
@@ -192,12 +193,13 @@ serve(async (request) => {
     : 'You are a helpful coaching assistant. Be concise and actionable.';
 
   // ── Orchestrator pre-response pipeline ──
+  const modelProvider = isGeminiModelId(chatModel) ? 'gemini' : 'openrouter';
   const orchResult = await orchestratePreResponse({
     userId,
     sessionId: session_id,
     userMessage: user_message.trim(),
     triggerType: 'user_message',
-    modelProvider: 'openrouter',
+    modelProvider,
     modelId: chatModel,
     baseSystemPrompt: basePrompt,
     userClient,

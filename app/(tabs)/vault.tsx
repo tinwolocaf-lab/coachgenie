@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInUp, FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography, Spacing, Radius } from '@/constants/theme';
@@ -179,9 +179,9 @@ export default function VaultScreen() {
           {/* ... existing content ... */}
 
           {/* Values Section */}
-          <Animated.View layout={LinearTransition.springify().damping(18).stiffness(120)}>
+          <View>
             {editingSection === 'values' ? (
-              <Animated.View key="edit-values" entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)}>
+              <View key="edit-values">
                 <Card style={[styles.sectionCard, { borderColor: palette.accent, borderWidth: 1 }]}>
                   <View style={styles.sectionHeader}>
                     <View>
@@ -224,9 +224,9 @@ export default function VaultScreen() {
                     />
                   </View>
                 </Card>
-              </Animated.View>
+              </View>
             ) : (
-              <Animated.View key="view-values" entering={FadeIn.duration(600)} exiting={FadeOut.duration(400)}>
+              <View key="view-values">
                 <Card style={styles.sectionCard}>
                   <View style={styles.sectionHeader}>
                     <View>
@@ -251,9 +251,9 @@ export default function VaultScreen() {
                     )}
                   </View>
                 </Card>
-              </Animated.View>
+              </View>
             )}
-          </Animated.View>
+          </View>
 
           {/* Goals Section */}
           <Animated.View entering={FadeInUp.duration(400).delay(200)}>

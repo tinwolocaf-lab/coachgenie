@@ -5,6 +5,7 @@ import { createServiceClient } from '../_shared/supabase.ts';
 import { searchMemories, formatMemoriesForPrompt } from '../_shared/memory.ts';
 import { checkRateLimit, formatRateLimitError } from '../_shared/rate-limiter.ts';
 import { isFeatureEnabled } from '../_shared/feature-flags.ts';
+import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
 
 type LoopPhase = 'morning' | 'midday' | 'evening';
 
@@ -90,31 +91,16 @@ serve(async (request) => {
     // Gather context for personalization
     const context = await gatherLoopContext(userClient, serviceClient, userId, phase);
 
-    const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Missing OPENROUTER_API_KEY' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
     const userMessage = buildPhaseMessage(phase, context);
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
-        messages: [
-          { role: 'system', content: `${systemPrompt}\n\n${context.contextBlock}` },
-          { role: 'user', content: userMessage },
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-      }),
+    const response = await openRouterChat({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: `${systemPrompt}\n\n${context.contextBlock}` },
+        { role: 'user', content: userMessage },
+      ],
+      max_tokens: 500,
+      temperature: 0.7,
     });
 
     if (!response.ok) {
@@ -127,7 +113,7 @@ serve(async (request) => {
     }
 
     const json = await response.json();
-    const message = json?.choices?.[0]?.message?.content?.trim() ?? '';
+    const message = extractOpenRouterMessageContent(json).trim();
 
     // Store as a nudge
     await userClient.from('editorial_nudges').insert({

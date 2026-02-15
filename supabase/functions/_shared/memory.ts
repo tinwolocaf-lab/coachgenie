@@ -1,4 +1,5 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { generateGeminiEmbedding } from './gemini.ts';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -24,45 +25,22 @@ export interface MemorySearchResult {
 
 // ── Constants ───────────────────────────────────────────────────────────
 
-const EMBEDDING_MODEL = 'google/gemini-embedding-001';
+const EMBEDDING_MODEL = (Deno.env.get('GEMINI_EMBEDDING_MODEL') ?? 'gemini-embedding-001').trim();
 const EMBEDDING_DIMENSIONS = 1536;
 const MAX_TEXT_LENGTH = 8000;
 const DEFAULT_SIMILARITY_THRESHOLD = 0.3;
 const DEFAULT_SEARCH_LIMIT = 5;
 
-// ── Embedding (via OpenRouter) ──────────────────────────────────────────
+// ── Embedding (via Gemini SDK) ───────────────────────────────────────────
 
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-  if (!apiKey) {
-    console.error('[memory] Missing OPENROUTER_API_KEY');
-    return new Array(EMBEDDING_DIMENSIONS).fill(0);
-  }
-
   const truncated = text.length > MAX_TEXT_LENGTH ? text.slice(0, MAX_TEXT_LENGTH) : text;
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: truncated,
-        dimensions: EMBEDDING_DIMENSIONS,
-      }),
+    const embedding = await generateGeminiEmbedding(truncated, {
+      model: EMBEDDING_MODEL,
+      outputDimensionality: EMBEDDING_DIMENSIONS,
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('[memory] OpenRouter embeddings error:', errText);
-      return new Array(EMBEDDING_DIMENSIONS).fill(0);
-    }
-
-    const json = await response.json();
-    const embedding: number[] = json?.data?.[0]?.embedding;
 
     if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
       console.error('[memory] Unexpected embedding shape:', embedding?.length);

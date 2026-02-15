@@ -105,6 +105,11 @@ interface BreakthroughActionItem {
   completed: boolean;
 }
 
+interface SupabaseErrorLike {
+  code?: string;
+  message?: string;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object';
 }
@@ -136,6 +141,17 @@ function mapBreakthroughRow(row: BreakthroughRow): Breakthrough {
     coach_id: row.coach_id ?? '',
     action_items: parseBreakthroughActions(row.action_items),
   };
+}
+
+function isBreakthroughsTableMissing(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const maybeError = error as SupabaseErrorLike;
+  const code = typeof maybeError.code === 'string' ? maybeError.code : '';
+  const message = typeof maybeError.message === 'string' ? maybeError.message.toLowerCase() : '';
+  return (
+    code === 'PGRST205' ||
+    message.includes("could not find the table 'public.breakthroughs'")
+  );
 }
 
 function isThemeItem(value: unknown): value is ThemeItem {
@@ -444,9 +460,17 @@ export async function getAllBreakthroughs(
       .order('date', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    if (error) {
+      if (isBreakthroughsTableMissing(error)) {
+        return [];
+      }
+      throw error;
+    }
     return (data || []).map(mapBreakthroughRow);
   } catch (error) {
+    if (isBreakthroughsTableMissing(error)) {
+      return [];
+    }
     console.error('Error fetching breakthroughs:', error);
     return [];
   }
@@ -464,9 +488,17 @@ export async function getBreakthroughById(
       .eq('id', breakthroughId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (isBreakthroughsTableMissing(error)) {
+        return null;
+      }
+      throw error;
+    }
     return data ? mapBreakthroughRow(data) : null;
   } catch (error) {
+    if (isBreakthroughsTableMissing(error)) {
+      return null;
+    }
     console.error('Error fetching breakthrough:', error);
     return null;
   }

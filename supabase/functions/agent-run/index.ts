@@ -7,6 +7,8 @@ import {
   orchestratePostResponse,
 } from '../_shared/agent-orchestrator.ts';
 import type { TriggerType } from '../_shared/trace.ts';
+import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
+import { isGeminiModelId } from '../_shared/gemini.ts';
 
 interface AgentRunBody {
   trigger_type: TriggerType;
@@ -16,7 +18,7 @@ interface AgentRunBody {
   context?: Record<string, unknown>;
 }
 
-const DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
+const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 
 /**
  * Unified agent-run entry point.
@@ -82,7 +84,7 @@ serve(async (request) => {
       sessionId: body.session_id ?? '',
       userMessage,
       triggerType: body.trigger_type,
-      modelProvider: 'openrouter',
+      modelProvider: isGeminiModelId(modelId) ? 'gemini' : 'openrouter',
       modelId,
       baseSystemPrompt: basePrompt,
       userClient,
@@ -104,22 +106,14 @@ serve(async (request) => {
     }
 
     // Generate coaching response
-    const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-    const llmResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: [
-          { role: 'system', content: orchResult.systemPrompt },
-          { role: 'user', content: userMessage },
-        ],
-        max_tokens: 1000,
-        temperature: 0.7,
-      }),
+    const llmResponse = await openRouterChat({
+      model: modelId,
+      messages: [
+        { role: 'system', content: orchResult.systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      max_tokens: 1000,
+      temperature: 0.7,
     });
 
     if (!llmResponse.ok) {
@@ -134,7 +128,7 @@ serve(async (request) => {
     }
 
     const llmJson = await llmResponse.json();
-    const assistantMessage = llmJson?.choices?.[0]?.message?.content?.trim() ?? '';
+    const assistantMessage = extractOpenRouterMessageContent(llmJson).trim();
 
     // Post-response processing (fire-and-forget)
     orchestratePostResponse(serviceClient, {

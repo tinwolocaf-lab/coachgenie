@@ -6,6 +6,7 @@ import { createServiceClient } from '../_shared/supabase.ts';
 import { resolveBillingTier } from '../_shared/revenuecat.ts';
 import { AgentTrace } from '../_shared/trace.ts';
 import { assessRisk, logSafetyIncident, CRISIS_RESPONSE_TEMPLATE, CRISIS_RESOURCES } from '../_shared/risk-engine.ts';
+import { extractGeminiText, getGeminiClient, toRawGeminiModelId } from '../_shared/gemini.ts';
 import {
   assertSufficientBalance,
   BillingError,
@@ -24,23 +25,7 @@ interface TranscribeBody {
   file_name?: string;
 }
 
-interface GeminiTranscribeResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string;
-      }>;
-    };
-  }>;
-  usageMetadata?: {
-    promptTokenCount?: number;
-    candidatesTokenCount?: number;
-    promptTokensDetails?: Array<{
-      modality?: string;
-      tokenCount?: number;
-    }>;
-  };
-}
+const DEFAULT_STT_MODEL = 'gemini-2.5-flash-native-audio-preview';
 
 function inferMimeType(mimeType?: string, fileName?: string): string {
   if (mimeType && mimeType.trim().length > 0) {
@@ -103,13 +88,18 @@ serve(async (request) => {
 
   const { userId } = auth;
   const serviceClient = createServiceClient();
+  const configuredModel = Deno.env.get('GEMINI_STT_MODEL');
+  const modelId = configuredModel && configuredModel.trim().length > 0
+    ? configuredModel.trim()
+    : DEFAULT_STT_MODEL;
+  const apiModel = toRawGeminiModelId(modelId);
 
   // ── Initialize trace for observability ──
   const trace = new AgentTrace({
     userId,
     triggerType: 'voice_turn',
     modelProvider: 'gemini',
-    modelId: Deno.env.get('GEMINI_STT_MODEL') ?? 'gemini-2.5-flash',
+    modelId,
   });
 
   const tierResult = await resolveBillingTier(serviceClient, userId);
@@ -138,21 +128,6 @@ serve(async (request) => {
       }
     );
 
-  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!geminiApiKey) {
-    return new Response(
-      JSON.stringify({
-        code: 'VOICE_TRANSCRIBE_NOT_CONFIGURED',
-        message: 'Gemini API key is not configured for transcription.',
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
-
-  const model = Deno.env.get('GEMINI_STT_MODEL') ?? 'gemini-2.5-flash';
   const mimeType = inferMimeType(payload.mime_type, payload.file_name);
   const audioData = payload.audio_base64.includes(',') ? payload.audio_base64.split(',')[1] : payload.audio_base64;
 
@@ -160,7 +135,7 @@ serve(async (request) => {
     audioInputTokens: estimateAudioTokensFromBase64(audioData),
     outputTokens: 240,
   };
-  const preflightUsd = await calculateUsdCost(serviceClient, model, preflightUsage);
+  const preflightUsd = await calculateUsdCost(serviceClient, modelId, preflightUsage);
   const preflightMcredits = Math.max(120, mcreditsFromUsd(preflightUsd));
 
   try {
@@ -175,38 +150,38 @@ serve(async (request) => {
     throw error;
   }
 
-  const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: 'Transcribe this audio verbatim. Return only the transcription text.' },
-              {
-                inlineData: {
-                  mimeType,
-                  data: audioData,
-                },
+  let geminiPayload: Record<string, unknown>;
+  const transcribeStep = trace.startStep('response', { action: 'transcribe' });
+  let transcript = '';
+  try {
+    const client = getGeminiClient();
+    const response = await client.models.generateContent({
+      model: apiModel,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: 'Transcribe this audio verbatim. Return only the transcription text.' },
+            {
+              inlineData: {
+                mimeType,
+                data: audioData,
               },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0,
+            },
+          ],
         },
-      }),
-    }
-  );
+      ],
+      config: {
+        temperature: 0,
+      },
+    });
 
-  if (!geminiResponse.ok) {
-    const body = await geminiResponse.text();
-    console.error('[VoiceTranscribe] Gemini transcription failed:', geminiResponse.status, body);
+    geminiPayload = response as unknown as Record<string, unknown>;
+    transcript = extractGeminiText(response).trim();
+    transcribeStep.complete({ transcriptLength: transcript.length });
+  } catch (error) {
+    transcribeStep.fail(error instanceof Error ? error.message : String(error));
+    console.error('[VoiceTranscribe] Gemini transcription failed:', error);
     return new Response(
       JSON.stringify({
         code: 'VOICE_TRANSCRIBE_FAILED',
@@ -218,15 +193,6 @@ serve(async (request) => {
       }
     );
   }
-
-  const transcribeStep = trace.startStep('response', { action: 'transcribe' });
-  const geminiPayload = (await geminiResponse.json()) as GeminiTranscribeResponse;
-  const transcript =
-    geminiPayload.candidates?.[0]?.content?.parts
-      ?.map((part) => (typeof part.text === 'string' ? part.text : ''))
-      .join('')
-      .trim() ?? '';
-  transcribeStep.complete({ transcriptLength: transcript.length });
 
   // ── Safety check on transcript ──
   if (transcript) {
@@ -246,10 +212,15 @@ serve(async (request) => {
     }
   }
 
+  const usageMetadata = (geminiPayload.usageMetadata ?? {}) as Record<string, unknown>;
+  const promptTokensDetails = Array.isArray(usageMetadata.promptTokensDetails)
+    ? usageMetadata.promptTokensDetails as Array<{ modality?: string; tokenCount?: number }>
+    : undefined;
+
   const providerUsage: UsageUnits = {
-    inputTokens: Math.max(0, Number(geminiPayload.usageMetadata?.promptTokenCount ?? 0)),
-    outputTokens: Math.max(0, Number(geminiPayload.usageMetadata?.candidatesTokenCount ?? 0)),
-    audioInputTokens: getAudioTokensFromDetails(geminiPayload.usageMetadata?.promptTokensDetails),
+    inputTokens: Math.max(0, Number(usageMetadata.promptTokenCount ?? 0)),
+    outputTokens: Math.max(0, Number(usageMetadata.candidatesTokenCount ?? 0)),
+    audioInputTokens: getAudioTokensFromDetails(promptTokensDetails),
   };
 
   const fallbackUsage = estimateChatUsageFromText(
@@ -266,7 +237,7 @@ serve(async (request) => {
     await debitForUsage(serviceClient, {
       userId,
       endpoint: 'voice-transcribe',
-      modelId: model,
+      modelId,
       usage: usageForDebit,
       requestId: `voice-transcribe:${Date.now()}`,
       metadata: {

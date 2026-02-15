@@ -19,6 +19,8 @@ import CouponRedeemPanel from "@/components/billing/CouponRedeemCard";
 import {
   getOfferings,
   restorePurchases,
+  isRevenueCatReady,
+  getRevenueCatInitError,
 } from "@/lib/revenuecat";
 import {
   getUserTier,
@@ -226,6 +228,17 @@ export default function PaywallScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
+  const getPurchasesUnavailableMessage = () => {
+    const initError = getRevenueCatInitError();
+    if (initError === "expo_go_not_supported") {
+      return "Native purchases are unavailable in Expo Go. Use a development build to test subscriptions.";
+    }
+    if (initError === "missing_api_key") {
+      return "Billing is not configured for this build.";
+    }
+    return "Purchases are temporarily unavailable on this build.";
+  };
+
   const handleSelectTier = (tier: SubscriptionTier) => {
     setSelectedTier(tier);
   };
@@ -236,13 +249,25 @@ export default function PaywallScreen() {
       return;
     }
 
+    if (!isRevenueCatReady()) {
+      showToast("Purchases unavailable", {
+        variant: "info",
+        message: getPurchasesUnavailableMessage(),
+      });
+      return;
+    }
+
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       const offerings = await getOfferings();
       if (!offerings) {
-        throw new Error("No offerings available");
+        showToast("Purchases unavailable", {
+          variant: "info",
+          message: getPurchasesUnavailableMessage(),
+        });
+        return;
       }
 
       const pkg = isPaidSubscriptionTier(selectedTier)
@@ -278,6 +303,14 @@ export default function PaywallScreen() {
   };
 
   const handleRestore = async () => {
+    if (!isRevenueCatReady()) {
+      showToast("Purchases unavailable", {
+        variant: "info",
+        message: getPurchasesUnavailableMessage(),
+      });
+      return;
+    }
+
     setIsRestoring(true);
     try {
       await restorePurchases();

@@ -1,4 +1,5 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { extractOpenRouterMessageContent, openRouterChat } from './openrouter.ts';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ export interface EvalRunResult {
 
 // ── Constants ───────────────────────────────────────────────────────────
 
-const GRADER_MODEL = 'google/gemini-2.0-flash-001';
+const GRADER_MODEL = 'google/gemini-2.5-flash';
 const MAX_GRADER_TOKENS = 800;
 
 // ── Core grading ────────────────────────────────────────────────────────
@@ -58,39 +59,27 @@ export async function gradeCase(
   evalCase: EvalCase,
   coachResponse: string,
 ): Promise<GradeResult> {
-  const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-  if (!apiKey) {
-    return failGrade(evalCase, 'Missing OPENROUTER_API_KEY');
-  }
-
   const criteria = evalCase.expected.criteria;
   const antiCriteria = evalCase.expected.antiCriteria ?? [];
 
   try {
     const graderPrompt = buildGraderPrompt(evalCase, coachResponse, criteria, antiCriteria);
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: GRADER_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are an evaluation grader for a coaching AI. ' +
-              'Grade the coaching response against the given criteria. ' +
-              'Return ONLY valid JSON, no markdown.',
-          },
-          { role: 'user', content: graderPrompt },
-        ],
-        max_tokens: MAX_GRADER_TOKENS,
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      }),
+    const response = await openRouterChat({
+      model: GRADER_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are an evaluation grader for a coaching AI. ' +
+            'Grade the coaching response against the given criteria. ' +
+            'Return ONLY valid JSON, no markdown.',
+        },
+        { role: 'user', content: graderPrompt },
+      ],
+      max_tokens: MAX_GRADER_TOKENS,
+      temperature: 0,
+      response_format: { type: 'json_object' },
     });
 
     if (!response.ok) {
@@ -100,7 +89,7 @@ export async function gradeCase(
     }
 
     const json = await response.json();
-    const content = json?.choices?.[0]?.message?.content ?? '';
+    const content = extractOpenRouterMessageContent(json);
 
     return parseGraderResponse(evalCase, content);
   } catch (err) {

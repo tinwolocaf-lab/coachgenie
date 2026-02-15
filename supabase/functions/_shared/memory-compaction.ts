@@ -1,5 +1,6 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { storeMemory, type MemoryType } from './memory.ts';
+import { extractOpenRouterMessageContent, openRouterChat } from './openrouter.ts';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -172,12 +173,6 @@ export async function compactAllUsers(
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 async function summarizeBatch(batch: EpisodicRow[]): Promise<string | null> {
-  const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-  if (!apiKey) {
-    console.error('[memory-compaction] Missing OPENROUTER_API_KEY');
-    return null;
-  }
-
   const batchText = batch
     .map((b) => {
       const date = new Date(b.created_at).toLocaleDateString('en-US', {
@@ -190,31 +185,24 @@ async function summarizeBatch(batch: EpisodicRow[]): Promise<string | null> {
     .slice(0, MAX_SUMMARY_INPUT_CHARS);
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a memory compaction system for a coaching app. ' +
-              'Summarize the following episodic memories into a concise paragraph. ' +
-              'Preserve key facts, emotional themes, commitments, and breakthroughs. ' +
-              'Use third person ("The user..."). Keep it under 200 words.',
-          },
-          {
-            role: 'user',
-            content: `Summarize these memories:\n\n${batchText}`,
-          },
-        ],
-        max_tokens: 400,
-        temperature: 0.3,
-      }),
+    const response = await openRouterChat({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a memory compaction system for a coaching app. ' +
+            'Summarize the following episodic memories into a concise paragraph. ' +
+            'Preserve key facts, emotional themes, commitments, and breakthroughs. ' +
+            'Use third person ("The user..."). Keep it under 200 words.',
+        },
+        {
+          role: 'user',
+          content: `Summarize these memories:\n\n${batchText}`,
+        },
+      ],
+      max_tokens: 400,
+      temperature: 0.3,
     });
 
     if (!response.ok) {
@@ -223,7 +211,7 @@ async function summarizeBatch(batch: EpisodicRow[]): Promise<string | null> {
     }
 
     const json = await response.json();
-    return json?.choices?.[0]?.message?.content?.trim() ?? null;
+    return extractOpenRouterMessageContent(json).trim() || null;
   } catch (err) {
     console.error('[memory-compaction] Summarization failed:', err);
     return null;

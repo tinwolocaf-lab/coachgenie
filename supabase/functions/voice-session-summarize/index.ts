@@ -4,6 +4,7 @@ import { requireAuth } from '../_shared/auth.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
 import { storeMemory } from '../_shared/memory.ts';
 import { isFeatureEnabled } from '../_shared/feature-flags.ts';
+import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
 
 interface SummarizeBody {
   session_id: string;
@@ -81,41 +82,26 @@ serve(async (request) => {
       .join('\n')
       .slice(0, 8000);
 
-    const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Missing OPENROUTER_API_KEY' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
     // Generate structured summary
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a session summarizer for a coaching app. Analyze this coaching conversation and return ONLY valid JSON with:\n' +
-              '- summary: string (2-3 sentence overview)\n' +
-              '- key_insights: string[] (up to 5 key insights)\n' +
-              '- commitments: string[] (any action items or commitments made)\n' +
-              '- emotional_themes: string[] (dominant emotional themes)\n' +
-              '- breakthrough_moment: string | null (if there was a significant breakthrough)\n' +
-              'Be concise and factual. No markdown.',
-          },
-          { role: 'user', content: transcript },
-        ],
-        max_tokens: 600,
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-      }),
+    const response = await openRouterChat({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a session summarizer for a coaching app. Analyze this coaching conversation and return ONLY valid JSON with:\n' +
+            '- summary: string (2-3 sentence overview)\n' +
+            '- key_insights: string[] (up to 5 key insights)\n' +
+            '- commitments: string[] (any action items or commitments made)\n' +
+            '- emotional_themes: string[] (dominant emotional themes)\n' +
+            '- breakthrough_moment: string | null (if there was a significant breakthrough)\n' +
+            'Be concise and factual. No markdown.',
+        },
+        { role: 'user', content: transcript },
+      ],
+      max_tokens: 600,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
     });
 
     if (!response.ok) {
@@ -127,7 +113,7 @@ serve(async (request) => {
     }
 
     const json = await response.json();
-    const content = json?.choices?.[0]?.message?.content ?? '';
+    const content = extractOpenRouterMessageContent(json);
 
     let parsed: {
       summary?: string;

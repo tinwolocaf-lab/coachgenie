@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import Purchases, {
   LOG_LEVEL,
   CustomerInfo,
@@ -8,10 +8,13 @@ import Purchases, {
 import type { SubscriptionTier } from '@/lib/feature-gates';
 
 const REVENUECAT_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY || '';
+const REVENUECAT_ALLOW_EXPO_GO = process.env.EXPO_PUBLIC_REVENUECAT_ALLOW_EXPO_GO === 'true';
 const SOVEREIGN_ENTITLEMENT_ID = 'sovereign';
 const ORACLE_ENTITLEMENT_ID = 'oracle';
 
 let isConfigured = false;
+let hasAttemptedConfiguration = false;
+let lastInitError: string | null = null;
 
 function getErrorCode(error: unknown): string | undefined {
   if (!error || typeof error !== 'object') {
@@ -23,15 +26,64 @@ function getErrorCode(error: unknown): string | undefined {
 }
 
 export async function initRevenueCat(): Promise<void> {
-  if (isConfigured || !REVENUECAT_API_KEY) return;
+  if (isConfigured || hasAttemptedConfiguration) return;
+  hasAttemptedConfiguration = true;
+
+  if (!REVENUECAT_API_KEY) {
+    lastInitError = 'missing_api_key';
+    return;
+  }
+
+  if (isExpoGo() && !REVENUECAT_ALLOW_EXPO_GO) {
+    lastInitError = 'expo_go_not_supported';
+    console.info('[RevenueCat] Skipping native purchases in Expo Go. Use a dev build or Test Store key.');
+    return;
+  }
 
   try {
-    Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
     Purchases.configure({ apiKey: REVENUECAT_API_KEY });
     isConfigured = true;
+    lastInitError = null;
   } catch (error) {
+    const message = getErrorMessage(error).toLowerCase();
+    if (message.includes('native store is not available') && isExpoGo()) {
+      lastInitError = 'expo_go_not_supported';
+    } else {
+      lastInitError = 'configure_failed';
+    }
     console.warn('[RevenueCat] Failed to configure (expected in Expo Go or dev builds):', error);
   }
+}
+
+function isExpoGo(): boolean {
+  const maybeConstants = Constants as unknown as {
+    executionEnvironment?: string;
+    appOwnership?: string;
+  };
+  return (
+    maybeConstants.executionEnvironment === 'storeClient' ||
+    maybeConstants.appOwnership === 'expo'
+  );
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (!error || typeof error !== 'object') return '';
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return '';
+  }
+}
+
+export function isRevenueCatReady(): boolean {
+  return isConfigured;
+}
+
+export function getRevenueCatInitError(): string | null {
+  return lastInitError;
 }
 
 export async function identifyUser(userId: string): Promise<void> {

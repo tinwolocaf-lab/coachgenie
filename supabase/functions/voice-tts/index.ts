@@ -13,31 +13,11 @@ import {
   mcreditsFromUsd,
   type UsageUnits,
 } from '../_shared/billing.ts';
+import { getGeminiClient, toRawGeminiModelId } from '../_shared/gemini.ts';
 
 interface TtsBody {
   text: string;
   voice?: string;
-}
-
-interface GeminiTtsResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        inlineData?: {
-          data?: string;
-          mimeType?: string;
-        };
-      }>;
-    };
-  }>;
-  usageMetadata?: {
-    promptTokenCount?: number;
-    candidatesTokenCount?: number;
-    candidatesTokensDetails?: Array<{
-      modality?: string;
-      tokenCount?: number;
-    }>;
-  };
 }
 
 function decodeBase64ToBytes(base64: string): Uint8Array {
@@ -119,21 +99,11 @@ serve(async (request) => {
       }
     );
 
-  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!geminiApiKey) {
-    return new Response(
-      JSON.stringify({
-        code: 'VOICE_TTS_NOT_CONFIGURED',
-        message: 'Gemini API key is not configured for text-to-speech.',
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
-
-  const model = Deno.env.get('GEMINI_TTS_MODEL') ?? 'gemini-2.5-flash-preview-tts';
+  const configuredModel = Deno.env.get('GEMINI_TTS_MODEL');
+  const modelId = configuredModel && configuredModel.trim().length > 0
+    ? configuredModel.trim()
+    : 'gemini-2.5-flash-preview-tts';
+  const apiModel = toRawGeminiModelId(modelId);
   const voice = payload.voice?.trim() || 'Kore';
   const truncatedText = text.slice(0, 4000);
 
@@ -141,7 +111,7 @@ serve(async (request) => {
     inputTokens: Math.max(120, Math.ceil(truncatedText.length / 4)),
     audioOutputTokens: Math.max(1200, truncatedText.length * 2),
   };
-  const preflightUsd = await calculateUsdCost(serviceClient, model, preflightUsage);
+  const preflightUsd = await calculateUsdCost(serviceClient, modelId, preflightUsage);
   const preflightMcredits = Math.max(90, mcreditsFromUsd(preflightUsd));
 
   try {
@@ -156,32 +126,26 @@ serve(async (request) => {
     throw error;
   }
 
-  const ttsResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: truncatedText }] }],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: voice,
-              },
+  let ttsPayload: Record<string, unknown>;
+  try {
+    const client = getGeminiClient();
+    const response = await client.models.generateContent({
+      model: apiModel,
+      contents: [{ role: 'user', parts: [{ text: truncatedText }] }],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voice,
             },
           },
         },
-      }),
-    }
-  );
-
-  if (!ttsResponse.ok) {
-    const errorText = await ttsResponse.text();
-    console.error('[VoiceTTS] Gemini error:', ttsResponse.status, errorText);
+      },
+    });
+    ttsPayload = response as unknown as Record<string, unknown>;
+  } catch (error) {
+    console.error('[VoiceTTS] Gemini error:', error);
     return new Response(
       JSON.stringify({
         code: 'VOICE_TTS_FAILED',
@@ -194,10 +158,22 @@ serve(async (request) => {
     );
   }
 
-  const ttsPayload = (await ttsResponse.json()) as GeminiTtsResponse;
-  const firstPart = ttsPayload.candidates?.[0]?.content?.parts?.find((part) => typeof part.inlineData?.data === 'string');
-  const audioBase64 = firstPart?.inlineData?.data;
-  const mimeType = firstPart?.inlineData?.mimeType || 'audio/wav';
+  const candidates = Array.isArray(ttsPayload.candidates) ? ttsPayload.candidates : [];
+  const firstCandidate = (candidates[0] ?? null) as Record<string, unknown> | null;
+  const content = firstCandidate && typeof firstCandidate.content === 'object'
+    ? firstCandidate.content as Record<string, unknown>
+    : null;
+  const parts = Array.isArray(content?.parts) ? content.parts : [];
+  const firstPart = parts.find((part) => {
+    if (!part || typeof part !== 'object') return false;
+    const record = part as Record<string, unknown>;
+    const inlineData = record.inlineData;
+    if (!inlineData || typeof inlineData !== 'object') return false;
+    return typeof (inlineData as Record<string, unknown>).data === 'string';
+  }) as Record<string, unknown> | undefined;
+  const inlineData = firstPart?.inlineData as Record<string, unknown> | undefined;
+  const audioBase64 = typeof inlineData?.data === 'string' ? inlineData.data : undefined;
+  const mimeType = typeof inlineData?.mimeType === 'string' ? inlineData.mimeType : 'audio/wav';
 
   if (!audioBase64) {
     return new Response(
@@ -212,17 +188,22 @@ serve(async (request) => {
     );
   }
 
+  const usageMetadata = (ttsPayload.usageMetadata ?? {}) as Record<string, unknown>;
+  const candidatesTokensDetails = Array.isArray(usageMetadata.candidatesTokensDetails)
+    ? usageMetadata.candidatesTokensDetails as Array<{ modality?: string; tokenCount?: number }>
+    : undefined;
+
   const usageForDebit: UsageUnits = {
-    inputTokens: Math.max(0, Number(ttsPayload.usageMetadata?.promptTokenCount ?? 0)) || preflightUsage.inputTokens,
-    outputTokens: Math.max(0, Number(ttsPayload.usageMetadata?.candidatesTokenCount ?? 0)),
-    audioOutputTokens: getAudioOutputTokens(ttsPayload.usageMetadata?.candidatesTokensDetails) || preflightUsage.audioOutputTokens,
+    inputTokens: Math.max(0, Number(usageMetadata.promptTokenCount ?? 0)) || preflightUsage.inputTokens,
+    outputTokens: Math.max(0, Number(usageMetadata.candidatesTokenCount ?? 0)),
+    audioOutputTokens: getAudioOutputTokens(candidatesTokensDetails) || preflightUsage.audioOutputTokens,
   };
 
   try {
     await debitForUsage(serviceClient, {
       userId,
       endpoint: 'voice-tts',
-      modelId: model,
+      modelId,
       usage: usageForDebit,
       requestId: `voice-tts:${Date.now()}`,
       metadata: {

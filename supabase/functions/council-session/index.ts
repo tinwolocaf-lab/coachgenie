@@ -6,6 +6,11 @@ import { searchMemories, formatMemoriesForPrompt } from '../_shared/memory.ts';
 import { buildEnrichedSystemPrompt } from '../_shared/context-builder.ts';
 import { checkRateLimit, formatRateLimitError } from '../_shared/rate-limiter.ts';
 import { isFeatureEnabled } from '../_shared/feature-flags.ts';
+import {
+  extractOpenRouterMessageContent,
+  extractOpenRouterUsage,
+  openRouterChat,
+} from '../_shared/openrouter.ts';
 
 type CouncilRole = 'analyst' | 'challenger' | 'integrator';
 
@@ -51,7 +56,7 @@ const COUNCIL_ROLES: RoleConfig[] = [
   },
 ];
 
-const DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
+const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 
 /**
  * Council Session - multi-role coaching synthesis.
@@ -116,14 +121,6 @@ serve(async (request) => {
   }
 
   const modelId = body.model_id ?? DEFAULT_MODEL;
-  const apiKey = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({ error: 'Missing OPENROUTER_API_KEY' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
-  }
 
   const startTime = Date.now();
 
@@ -183,18 +180,11 @@ serve(async (request) => {
         },
       ];
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: modelId,
-          messages,
-          max_tokens: 500,
-          temperature: 0.7,
-        }),
+      const response = await openRouterChat({
+        model: modelId,
+        messages,
+        max_tokens: 500,
+        temperature: 0.7,
       });
 
       if (!response.ok) {
@@ -203,8 +193,9 @@ serve(async (request) => {
       }
 
       const json = await response.json();
-      const content = json?.choices?.[0]?.message?.content?.trim() ?? '';
-      const tokens = (json?.usage?.total_tokens ?? 0) as number;
+      const content = extractOpenRouterMessageContent(json).trim();
+      const usage = extractOpenRouterUsage(json);
+      const tokens = Math.max(0, (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0));
       totalTokens += tokens;
 
       contributions.push({ role: roleConfig.role, content, keyPoints: [] });
