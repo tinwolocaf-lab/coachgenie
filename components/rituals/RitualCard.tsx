@@ -15,9 +15,9 @@ import Animated, {
   withSpring,
   withTiming,
   withSequence,
+  interpolate,
   interpolateColor,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { BloomEffect, ParticleBloom } from './BloomEffect';
@@ -126,7 +126,7 @@ export function RitualCard({
   }));
 
   const titleStyle = useAnimatedStyle(() => ({
-    opacity: interpolateColor(checkProgress.value, [0, 1], [1, 0.6]) as unknown as number,
+    opacity: interpolate(checkProgress.value, [0, 1], [1, 0.6]),
     textDecorationLine: checkProgress.value > 0.5 ? 'line-through' : 'none',
   }));
 
@@ -264,23 +264,26 @@ export function ActionCard({
   }));
 
   const isMorning = type === 'morning';
-  const gradientColors: [string, string] = isMorning
-    ? [palette.accentMuted, palette.background]
-    : [palette.textPrimary + '15', palette.background];
-
   const iconName = isMorning ? 'sunny' : 'moon';
   const iconColor = isMorning ? palette.accent : palette.textPrimary;
+  const iconBackgroundColor = isMorning ? palette.accentMuted : palette.backgroundSecondary;
+  const cardBorderColor = isCompleted ? palette.borderAccent : palette.borderLight;
+  const arrowBackgroundColor = isCompleted ? palette.successLight : palette.backgroundSecondary;
 
   return (
     <AnimatedPressable onPress={handlePress} style={cardStyle}>
-      <LinearGradient
-        colors={gradientColors}
-        style={[styles.actionCard, { borderColor: palette.borderLight }, isCompleted && styles.actionCardCompleted]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <View
+        style={[
+          styles.actionCard,
+          {
+            borderColor: cardBorderColor,
+            backgroundColor: palette.cardBg,
+          },
+          isCompleted && styles.actionCardCompleted,
+        ]}
       >
         <View style={styles.actionHeader}>
-          <View style={[styles.actionIcon, { backgroundColor: iconColor + '20' }]}>
+          <View style={[styles.actionIcon, { backgroundColor: iconBackgroundColor }]}>
             <Ionicons name={iconName} size={24} color={iconColor} />
           </View>
           {isCompleted && (
@@ -303,14 +306,14 @@ export function ActionCard({
           </View>
         )}
 
-        <View style={[styles.actionArrow, { backgroundColor: palette.backgroundSecondary }]}>
+        <View style={[styles.actionArrow, { backgroundColor: arrowBackgroundColor }]}>
           <Ionicons
             name={isCompleted ? 'eye-outline' : 'arrow-forward'}
             size={18}
             color={isCompleted ? palette.textTertiary : iconColor}
           />
         </View>
-      </LinearGradient>
+      </View>
     </AnimatedPressable>
   );
 }
@@ -451,11 +454,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.squircle,
     padding: Spacing.xl,
     minHeight: 140,
-    ...Shadows.md,
+    ...Shadows.sm,
     borderWidth: 1,
+    overflow: 'hidden',
   },
   actionCardCompleted: {
-    opacity: 0.8,
+    opacity: 0.92,
   },
   actionHeader: {
     flexDirection: 'row',

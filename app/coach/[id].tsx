@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography, Spacing, Radius } from '@/constants/theme';
+import { WidgetBridge } from '@/lib/widgetBridge';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -112,6 +113,12 @@ export default function CoachDetailScreen() {
       await setActiveCoachId(coach.id);
       setIsActive(true);
       showToast('Active Coach', { variant: 'success', message: `${coach.name} is now your active coach.` });
+
+      // Sync widget with new active coach
+      WidgetBridge.syncWidgetData({
+        recommendedCoach: { name: coach.name, emoji: coach.icon_name ?? '🧠' },
+        coachingPrompt: `Ready to work with ${coach.name}?`,
+      }).catch(() => {});
     } catch (error) {
       console.error('Error setting active coach:', error);
     } finally {

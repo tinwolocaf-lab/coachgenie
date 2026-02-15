@@ -2,7 +2,7 @@
   "expo": {
     "name": "CoachZeno",
     "slug": "coachgenie",
-    "version": "1.0.6",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "coachgenie",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.coachgenie.app",
-      "buildNumber": "6"
+      "buildNumber": "8"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.coachgenie.app",
-      "versionCode": 6,
+      "versionCode": 8,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -70,7 +70,44 @@
       ],
       "expo-audio",
       "expo-notifications",
-      "expo-asset"
+      "expo-asset",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "DailyFocusWidget",
+              "label": "Daily Focus",
+              "description": "Your top priority, ritual progress, and streak count",
+              "minWidth": "180dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "QuickCoachWidget",
+              "label": "Quick Coach",
+              "description": "Coaching nudge with quick action buttons",
+              "minWidth": "320dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "updatePeriodMillis": 3600000
+            },
+            {
+              "name": "ReflectionWidget",
+              "label": "Reflection",
+              "description": "Morning intentions and evening reflections with stats",
+              "minWidth": "320dp",
+              "minHeight": "320dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 4,
+              "updatePeriodMillis": 3600000
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

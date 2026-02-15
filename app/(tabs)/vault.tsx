@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography, Spacing, Radius } from '@/constants/theme';

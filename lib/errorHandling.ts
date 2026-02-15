@@ -86,6 +86,21 @@ function shouldCaptureConsoleIssue(level: 'error' | 'warn', message: string): bo
 
   const lowerMessage = message.toLowerCase();
 
+  // RevenueCat emits transient billing/update diagnostics (for example when
+  // users back out of Play purchase flow). These are non-fatal and should not
+  // surface as crash-style runtime banners in production.
+  if (
+    !__DEV__ &&
+    lowerMessage.includes('[revenuecat]') &&
+    (
+      lowerMessage.includes('billingwrapper purchases failed to update') ||
+      lowerMessage.includes('purchases failed to update') ||
+      lowerMessage.includes('debugmessage')
+    )
+  ) {
+    return false;
+  }
+
   // RevenueCat purchase cancellation is an expected user action and should not
   // surface as a runtime error banner.
   if (

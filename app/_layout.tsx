@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, AppState, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
@@ -17,6 +17,7 @@ import { usePremiumFonts } from '@/hooks/usePremiumFonts';
 import { initRevenueCat, identifyUser, logOutUser } from '@/lib/revenuecat';
 import { AuthProvider } from '@/lib/auth';
 import { GlobalErrorBoundary } from '@/components/system/GlobalErrorBoundary';
+import { WidgetBridge } from '@/lib/widgetBridge';
 
 function debugLog(...args: unknown[]): void {
   if (__DEV__) {
@@ -33,6 +34,9 @@ const DEEP_LINK_ROUTES = {
   sanctuary: '/(tabs)/coaches',
   archive: '/archive',
   rituals: '/rituals',
+  'rituals/morning': '/rituals/morning',
+  'rituals/evening': '/rituals/evening',
+  audit: '/rituals/evening',
   account: '/account',
   paywall: '/paywall',
   integrations: '/integrations',
@@ -195,6 +199,24 @@ function ThemedAppContent() {
       console.warn('[App] RevenueCat init failed (non-fatal):', error);
     });
     checkOnboarding();
+  }, []);
+
+  // Sync Android widget data when app comes to foreground
+  const appState = useRef(AppState.currentState);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        // App returned to foreground — trigger widget data refresh
+        // Each widget will re-read from SharedPreferences on next update cycle
+        debugLog('[Widgets] App foregrounded, syncing widget data');
+        WidgetBridge.syncWidgetData({}).catch(() => {});
+      }
+      appState.current = nextState;
+    });
+
+    return () => subscription.remove();
   }, []);
 
   const checkOnboarding = async () => {
@@ -445,6 +467,8 @@ export default function RootLayout() {
         onSignOut={async () => {
           debugLog('[Auth] User signed out');
           await logOutUser();
+          // Clear widget data on logout
+          await WidgetBridge.clearAllData();
         }}
         onError={(error) => {
           debugLog('[Auth] Error:', error.type, error.message);

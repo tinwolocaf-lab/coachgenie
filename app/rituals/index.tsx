@@ -10,10 +10,11 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { WidgetBridge } from '@/lib/widgetBridge';
 import Animated, {
   FadeIn,
   FadeInUp,
@@ -90,6 +91,12 @@ export default function RitualsHubScreen() {
     return () => clearInterval(interval);
   }, [loadData]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void loadData();
+    }, [loadData])
+  );
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData();
@@ -107,6 +114,18 @@ export default function RitualsHubScreen() {
       }
       // Refresh data
       await loadData();
+
+      // Sync widget data with updated ritual progress
+      // Fetch fresh data since React state hasn't flushed yet
+      if (auth.user.id) {
+        getTodayPractice(auth.user.id).then((freshPractice) => {
+          WidgetBridge.syncWidgetData({
+            ritualsCompleted: freshPractice?.rituals?.filter((r: { is_completed_today?: boolean }) => r.is_completed_today).length ?? 0,
+            ritualTotal: freshPractice?.rituals?.length ?? 0,
+            streakCount: freshPractice?.streakDays ?? 0,
+          }).catch(() => {});
+        }).catch(() => {});
+      }
     } catch (error) {
       console.error('Error toggling ritual:', error);
     }

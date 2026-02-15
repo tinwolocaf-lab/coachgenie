@@ -41,7 +41,7 @@ export async function initRevenueCat(): Promise<void> {
   }
 
   try {
-    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
+    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
     Purchases.configure({ apiKey: REVENUECAT_API_KEY });
     isConfigured = true;
     lastInitError = null;

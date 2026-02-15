@@ -4,6 +4,10 @@ Create two new shared modules for the Supabase Edge Functions in `supabase/funct
 
 Create a feature flags system for CoachGenie: (1) SQL migration `20260215000005_feature_flags.sql` with a `feature_flags` table (name, enabled, rollout_percentage, allowed_tiers, allowed_user_ids, metadata), RLS policies, index, and default flag seeds for revolution features; (2) Shared Deno module `feature-flags.ts` with FeatureFlag/FlagCheckResult types, in-memory TTL cache, isFeatureEnabled/checkFeatureFlag/getAllFlags/clearFlagCache/hashUserForRollout functions for server-side feature gating.
 
-as there is only gemini api available via openrouter,  i want you to do the latest gemini api for all of the api usage purposes. and while doing so if you are not sure what to use exactly for some purposes, ask me for clarification
+as there is only gemini api available via openrouter, i want you to do the latest gemini api for all of the api usage purposes. and while doing so if you are not sure what to use exactly for some purposes, ask me for clarification
 
 Fix runtime stability issues that can break real-device readiness: RevenueCat invalid API key/init behavior in Expo Go, no-op paywall presentation in preview mode, Supabase `breakthroughs` table-missing errors (`PGRST205`), Reanimated transform/layout animation warnings, VirtualizedList slowness warnings, and Clipboard deprecation from React Native core.
+
+When I move the Vault page, the app is failing to load and crashing. Fix that issue, investigate and fix the Java errors shown on other pages, fix the ugly squarish UI inside the Evening Audit card, and debug/fix why rituals report "saved successfully" but do not appear in the rituals list.
+
+Do deep research about how to add useful Android widgets with the latest data in 2026 February, taking into account the codebase. Create a list of things and plan that can be implemented to the app.

@@ -18,6 +18,7 @@ import Animated, {
   FadeIn,
   FadeInLeft,
 } from 'react-native-reanimated';
+import { WidgetBridge } from '@/lib/widgetBridge';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Typography, Spacing, Radius, Shadows } from '@/constants/theme';
@@ -110,6 +111,14 @@ export default function PlanScreen() {
       const updatedPlan = { ...plan, top_priorities: updatedPriorities, updated_at: new Date().toISOString() };
       await updateDayPlan(updatedPlan);
       await loadData();
+
+      // Sync widget with updated top priority
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (dateStr === todayStr) {
+        const firstPriority = updatedPriorities.find((p) => !p.completed)?.title
+          ?? updatedPriorities[0]?.title ?? 'All done for today!';
+        WidgetBridge.syncWidgetData({ topPriority: firstPriority }).catch(() => {});
+      }
     }
   };
 
@@ -177,6 +186,14 @@ export default function PlanScreen() {
 
       await loadData();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Sync widget with the first priority from generated plan
+      const todayPlan = newPlans.find((p) => p.date === new Date().toISOString().split('T')[0]);
+      if (todayPlan?.top_priorities?.[0]) {
+        WidgetBridge.syncWidgetData({
+          topPriority: todayPlan.top_priorities[0].title,
+        }).catch(() => {});
+      }
     } catch (error) {
       if (createdSessionId) {
         const { error: cleanupError } = await supabase

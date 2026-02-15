@@ -1,295 +1,112 @@
-import { NativeModules, Platform } from 'react-native';
+import React from 'react';
+import { Platform } from 'react-native';
+import { requestWidgetUpdate } from 'react-native-android-widget';
+import {
+  WidgetStorage,
+  type DailyFocusData,
+  type QuickCoachData,
+  type ReflectionData,
+} from '@/widgets/android/widget-storage';
+import {
+  DEFAULT_DAILY_FOCUS,
+  DEFAULT_QUICK_COACH,
+  DEFAULT_REFLECTION,
+} from '@/widgets/android/widget-defaults';
+import DailyFocusWidget from '@/widgets/android/DailyFocusWidget';
+import QuickCoachWidget from '@/widgets/android/QuickCoachWidget';
+import ReflectionWidget from '@/widgets/android/ReflectionWidget';
 
 /**
  * Widget Bridge Module
  *
- * Provides functionality to:
- * - Update widget data from React Native side
- * - Use expo-widgets API to push data to widgets
- * - Manage SharedStorage (UserDefaults on iOS, SharedPreferences on Android)
- * - Sync widget data after key app events
+ * Public API for syncing widget data from the main React Native app.
  *
- * iOS Widgets:
- * - Read data from App Group UserDefaults: group.com.coachgenie.app
- * - Located in: widgets/ios/
- * - Types: DailyFocusWidget, QuickCoachWidget, ReflectionWidget
+ * Flow:
+ * 1. App event occurs (ritual completed, plan updated, session ended, etc.)
+ * 2. Caller invokes WidgetBridge.syncWidgetData({ ... })
+ * 3. Data is written to AsyncStorage (Android SharedPreferences backing)
+ * 4. requestWidgetUpdate() is called to force each widget to re-render
+ * 5. The widget task handler reads the fresh data and renders updated UI
  *
- * Android Widgets:
- * - Read data from SharedPreferences (coachgenie_widget_* prefixed keys)
- * - Located in: widgets/android/
- * - Types: DailyFocusWidget, QuickCoachWidget, ReflectionWidget
- * - Handled by: widget-task-handler.tsx
- * - Deep links use: coachgenie:// scheme
+ * Important: This module should ONLY be called from the main app context,
+ * never from the widget task handler (which reads directly from WidgetStorage).
  */
 
-const APP_GROUP_ID = 'group.com.coachgenie.app';
-
-interface WidgetSnapshot {
-  family: 'systemSmall' | 'systemMedium' | 'systemLarge';
-  data: WidgetData;
-  timestamp: number;
-}
-
-interface DailyFocusData {
-  topPriority: string;
-  ritualsCompleted: number;
-  ritualTotal: number;
-  streakCount: number;
-  lastUpdated: string;
-}
-
-interface QuickCoachData {
-  coachingPrompt: string;
-  recommendedCoach: {
-    name: string;
-    emoji: string;
-  };
-  suggestedAction: string;
-  sessionTime: string;
-}
-
-interface ReflectionData {
-  contentType: 'morning' | 'evening';
-  mainContent: string;
-  subtitle?: string;
-  insight?: string;
-  actionPrompt?: string;
-  timeOfDay: 'morning' | 'afternoon' | 'evening';
-}
-
-type WidgetData = DailyFocusData | QuickCoachData | ReflectionData | Record<string, unknown>;
+// ---------------------------------------------------------------------------
+// Widget refresh helpers
+// ---------------------------------------------------------------------------
 
 /**
- * SharedStorage Helper
- * Abstracts reading/writing to UserDefaults (iOS) or SharedPreferences (Android)
+ * Request native Android to re-render DailyFocusWidget with new data
  */
-class SharedStorage {
-  private static readonly prefix = 'coachgenie_widget_';
-
-  /**
-   * Write data to shared storage
-   */
-  static async write<T extends WidgetData>(key: string, value: T): Promise<void> {
-    const fullKey = this.prefix + key;
-    const jsonValue = JSON.stringify(value);
-
-    if (Platform.OS === 'ios') {
-      // On iOS, we'd use react-native-user-defaults or similar
-      // For now, we prepare the data structure
-      try {
-        // This would call native code to write to UserDefaults
-        // via App Group: group.com.coachgenie.app
-        await this._writeToUserDefaults(fullKey, jsonValue);
-      } catch (error) {
-        console.error(`Failed to write widget data for key ${key}:`, error);
-      }
-    } else if (Platform.OS === 'android') {
-      try {
-        // On Android, use SharedPreferences
-        await this._writeToSharedPreferences(fullKey, jsonValue);
-      } catch (error) {
-        console.error(`Failed to write widget data for key ${key}:`, error);
-      }
-    }
-  }
-
-  /**
-   * Read data from shared storage
-   */
-  static async read<T>(key: string): Promise<T | null> {
-    const fullKey = this.prefix + key;
-
-    if (Platform.OS === 'ios') {
-      try {
-        const value = await this._readFromUserDefaults(fullKey);
-        return value ? (JSON.parse(value) as T) : null;
-      } catch (error) {
-        console.error(`Failed to read widget data for key ${key}:`, error);
-        return null;
-      }
-    } else if (Platform.OS === 'android') {
-      try {
-        const value = await this._readFromSharedPreferences(fullKey);
-        return value ? (JSON.parse(value) as T) : null;
-      } catch (error) {
-        console.error(`Failed to read widget data for key ${key}:`, error);
-        return null;
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Clear all widget data from shared storage
-   */
-  static async clear(): Promise<void> {
-    if (Platform.OS === 'ios') {
-      await this._clearUserDefaults();
-    } else if (Platform.OS === 'android') {
-      await this._clearSharedPreferences();
-    }
-  }
-
-  // Native bridge methods (to be implemented via NativeModules)
-  private static async _writeToUserDefaults(key: string, value: string): Promise<void> {
-    // Implementation would use NativeModules.CoachgenieWidgetBridge
-    // or expo-widgets native API
-    if (NativeModules.CoachgenieWidgetBridge?.writeToUserDefaults) {
-      return NativeModules.CoachgenieWidgetBridge.writeToUserDefaults(
-        key,
-        value,
-        APP_GROUP_ID
-      );
-    }
-  }
-
-  private static async _readFromUserDefaults(key: string): Promise<string | null> {
-    if (NativeModules.CoachgenieWidgetBridge?.readFromUserDefaults) {
-      return NativeModules.CoachgenieWidgetBridge.readFromUserDefaults(
-        key,
-        APP_GROUP_ID
-      );
-    }
-    return null;
-  }
-
-  private static async _clearUserDefaults(): Promise<void> {
-    if (NativeModules.CoachgenieWidgetBridge?.clearUserDefaults) {
-      return NativeModules.CoachgenieWidgetBridge.clearUserDefaults(APP_GROUP_ID);
-    }
-  }
-
-  private static async _writeToSharedPreferences(key: string, value: string): Promise<void> {
-    if (NativeModules.CoachgenieWidgetBridge?.writeToSharedPreferences) {
-      return NativeModules.CoachgenieWidgetBridge.writeToSharedPreferences(key, value);
-    }
-  }
-
-  private static async _readFromSharedPreferences(key: string): Promise<string | null> {
-    if (NativeModules.CoachgenieWidgetBridge?.readFromSharedPreferences) {
-      return NativeModules.CoachgenieWidgetBridge.readFromSharedPreferences(key);
-    }
-    return null;
-  }
-
-  private static async _clearSharedPreferences(): Promise<void> {
-    if (NativeModules.CoachgenieWidgetBridge?.clearSharedPreferences) {
-      return NativeModules.CoachgenieWidgetBridge.clearSharedPreferences();
-    }
+async function refreshDailyFocusWidget(data: DailyFocusData): Promise<void> {
+  try {
+    await requestWidgetUpdate({
+      widgetName: 'DailyFocusWidget',
+      renderWidget: () =>
+        React.createElement(DailyFocusWidget, { family: 'small', data }),
+      widgetNotFound: () => {
+        // Widget not on home screen — no-op
+      },
+    });
+  } catch (error) {
+    // Widget may not be placed — safe to ignore
+    console.warn('[WidgetBridge] DailyFocusWidget update skipped:', error);
   }
 }
 
 /**
- * Widget Update Manager
- * Handles pushing data to specific widgets
+ * Request native Android to re-render QuickCoachWidget with new data
  */
-class WidgetUpdateManager {
-  /**
-   * Update Daily Focus Widget
-   * Called after ritual completion, plan update, or app foregrounding
-   */
-  static async updateDailyFocusWidget(data: DailyFocusData): Promise<void> {
-    try {
-      await SharedStorage.write('daily_focus', data);
-      await this._pushSnapshot('systemSmall', data);
-    } catch (error) {
-      console.error('Failed to update DailyFocusWidget:', error);
-    }
-  }
-
-  /**
-   * Update Quick Coach Widget
-   * Called after coaching prompt generation or app foregrounding
-   */
-  static async updateQuickCoachWidget(data: QuickCoachData): Promise<void> {
-    try {
-      await SharedStorage.write('quick_coach', data);
-      await this._pushSnapshot('systemMedium', data);
-    } catch (error) {
-      console.error('Failed to update QuickCoachWidget:', error);
-    }
-  }
-
-  /**
-   * Update Reflection Widget
-   * Called after insight generation or app foregrounding
-   */
-  static async updateReflectionWidget(data: ReflectionData): Promise<void> {
-    try {
-      await SharedStorage.write('reflection', data);
-      await this._pushSnapshot('systemLarge', data);
-    } catch (error) {
-      console.error('Failed to update ReflectionWidget:', error);
-    }
-  }
-
-  /**
-   * Update all widgets with current data
-   */
-  static async updateAllWidgets(allData: {
-    daily_focus?: DailyFocusData;
-    quick_coach?: QuickCoachData;
-    reflection?: ReflectionData;
-  }): Promise<void> {
-    const promises = [];
-
-    if (allData.daily_focus) {
-      promises.push(this.updateDailyFocusWidget(allData.daily_focus));
-    }
-    if (allData.quick_coach) {
-      promises.push(this.updateQuickCoachWidget(allData.quick_coach));
-    }
-    if (allData.reflection) {
-      promises.push(this.updateReflectionWidget(allData.reflection));
-    }
-
-    await Promise.all(promises);
-  }
-
-  /**
-   * Push widget snapshot via expo-widgets API
-   * This notifies the system that widget data has been updated
-   */
-  private static async _pushSnapshot(
-    family: 'systemSmall' | 'systemMedium' | 'systemLarge',
-    data: WidgetData
-  ): Promise<void> {
-    try {
-      // expo-widgets API (alpha) - implementation may vary
-      if (NativeModules.CoachgenieWidgetBridge?.updateWidgetSnapshot) {
-        const snapshot: WidgetSnapshot = {
-          family,
-          data,
-          timestamp: Date.now(),
-        };
-        return NativeModules.CoachgenieWidgetBridge.updateWidgetSnapshot(snapshot);
-      }
-    } catch (error) {
-      console.warn(`Failed to push widget snapshot for ${family}:`, error);
-    }
+async function refreshQuickCoachWidget(data: QuickCoachData): Promise<void> {
+  try {
+    await requestWidgetUpdate({
+      widgetName: 'QuickCoachWidget',
+      renderWidget: () =>
+        React.createElement(QuickCoachWidget, { family: 'medium', data }),
+      widgetNotFound: () => {},
+    });
+  } catch (error) {
+    console.warn('[WidgetBridge] QuickCoachWidget update skipped:', error);
   }
 }
 
 /**
- * Main Widget Bridge API
- * Public interface for syncing widget data from React Native
+ * Request native Android to re-render ReflectionWidget with new data
  */
+async function refreshReflectionWidget(data: ReflectionData): Promise<void> {
+  try {
+    await requestWidgetUpdate({
+      widgetName: 'ReflectionWidget',
+      renderWidget: () =>
+        React.createElement(ReflectionWidget, { family: 'large', data }),
+      widgetNotFound: () => {},
+    });
+  } catch (error) {
+    console.warn('[WidgetBridge] ReflectionWidget update skipped:', error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 export const WidgetBridge = {
   /**
-   * Sync all widget data with latest app state
+   * Sync all widget data with the latest app state.
    *
-   * Should be called after:
-   * - Session completion
+   * Call after:
    * - Ritual completion
-   * - Plan update
-   * - App foregrounding (appState === 'active')
+   * - Plan update / generation
+   * - Coaching session end
+   * - App foreground (AppState === 'active')
+   * - Morning/evening ritual
    *
-   * Example:
-   * ```
-   * import { WidgetBridge } from './lib/widgetBridge';
+   * Only the fields you provide will be updated; missing fields
+   * are merged with existing stored data or defaults.
    *
-   * // After ritual completion
+   * @example
+   * ```ts
    * await WidgetBridge.syncWidgetData({
    *   topPriority: 'Complete Q1 planning',
    *   ritualsCompleted: 4,
@@ -298,136 +115,154 @@ export const WidgetBridge = {
    * });
    * ```
    */
-  async syncWidgetData(widgetData: {
+  async syncWidgetData(input: {
+    // DailyFocus fields
     topPriority?: string;
     ritualsCompleted?: number;
     ritualTotal?: number;
     streakCount?: number;
+    // QuickCoach fields
     coachingPrompt?: string;
     recommendedCoach?: { name: string; emoji: string };
     suggestedAction?: string;
     sessionTime?: string;
-    reflection?: ReflectionData;
+    // Reflection fields
+    reflection?: Partial<ReflectionData>;
   }): Promise<void> {
-    try {
-      const updates: {
-        daily_focus?: DailyFocusData;
-        quick_coach?: QuickCoachData;
-        reflection?: ReflectionData;
-      } = {};
+    if (Platform.OS !== 'android') return;
 
-      // Build DailyFocus data if relevant fields are provided
-      if (
-        widgetData.topPriority !== undefined ||
-        widgetData.ritualsCompleted !== undefined ||
-        widgetData.ritualTotal !== undefined ||
-        widgetData.streakCount !== undefined
-      ) {
-        const existing = await SharedStorage.read<DailyFocusData>('daily_focus');
-        updates.daily_focus = {
-          topPriority: widgetData.topPriority || existing?.topPriority || 'Focus on what matters',
-          ritualsCompleted: widgetData.ritualsCompleted ?? existing?.ritualsCompleted ?? 0,
-          ritualTotal: widgetData.ritualTotal ?? existing?.ritualTotal ?? 5,
-          streakCount: widgetData.streakCount ?? existing?.streakCount ?? 0,
+    try {
+      // --- DailyFocus ---
+      const hasDailyFocusFields =
+        input.topPriority !== undefined ||
+        input.ritualsCompleted !== undefined ||
+        input.ritualTotal !== undefined ||
+        input.streakCount !== undefined;
+
+      if (hasDailyFocusFields) {
+        const existing = await WidgetStorage.read('daily_focus');
+        const merged: DailyFocusData = {
+          topPriority: input.topPriority ?? existing?.topPriority ?? DEFAULT_DAILY_FOCUS.topPriority,
+          ritualsCompleted: input.ritualsCompleted ?? existing?.ritualsCompleted ?? 0,
+          ritualTotal: input.ritualTotal ?? existing?.ritualTotal ?? 0,
+          streakCount: input.streakCount ?? existing?.streakCount ?? 0,
           lastUpdated: new Date().toISOString(),
         };
+        await WidgetStorage.write('daily_focus', merged);
+        await refreshDailyFocusWidget(merged);
       }
 
-      // Build QuickCoach data if relevant fields are provided
-      if (
-        widgetData.coachingPrompt !== undefined ||
-        widgetData.recommendedCoach !== undefined
-      ) {
-        const existing = await SharedStorage.read<QuickCoachData>('quick_coach');
-        updates.quick_coach = {
-          coachingPrompt: widgetData.coachingPrompt || existing?.coachingPrompt || 'What\'s on your mind?',
-          recommendedCoach: widgetData.recommendedCoach || existing?.recommendedCoach || { name: 'Your Coach', emoji: '🧠' },
-          suggestedAction: widgetData.suggestedAction || existing?.suggestedAction || 'Take a voice session',
-          sessionTime: widgetData.sessionTime || existing?.sessionTime || '5 min',
+      // --- QuickCoach ---
+      const hasQuickCoachFields =
+        input.coachingPrompt !== undefined ||
+        input.recommendedCoach !== undefined ||
+        input.suggestedAction !== undefined;
+
+      if (hasQuickCoachFields) {
+        const existing = await WidgetStorage.read('quick_coach');
+        const merged: QuickCoachData = {
+          coachingPrompt: input.coachingPrompt ?? existing?.coachingPrompt ?? DEFAULT_QUICK_COACH.coachingPrompt,
+          recommendedCoach: input.recommendedCoach ?? existing?.recommendedCoach ?? DEFAULT_QUICK_COACH.recommendedCoach,
+          suggestedAction: input.suggestedAction ?? existing?.suggestedAction ?? DEFAULT_QUICK_COACH.suggestedAction,
+          sessionTime: input.sessionTime ?? existing?.sessionTime ?? DEFAULT_QUICK_COACH.sessionTime,
         };
+        await WidgetStorage.write('quick_coach', merged);
+        await refreshQuickCoachWidget(merged);
       }
 
-      // Add reflection data if provided
-      if (widgetData.reflection) {
-        updates.reflection = widgetData.reflection;
+      // --- Reflection ---
+      if (input.reflection) {
+        const existing = await WidgetStorage.read('reflection');
+        const merged: ReflectionData = {
+          contentType: input.reflection.contentType ?? existing?.contentType ?? 'morning',
+          mainContent: input.reflection.mainContent ?? existing?.mainContent ?? DEFAULT_REFLECTION.mainContent,
+          subtitle: input.reflection.subtitle ?? existing?.subtitle,
+          insight: input.reflection.insight ?? existing?.insight,
+          actionPrompt: input.reflection.actionPrompt ?? existing?.actionPrompt,
+          timeOfDay: input.reflection.timeOfDay ?? existing?.timeOfDay ?? 'morning',
+          streakCount: input.reflection.streakCount ?? existing?.streakCount,
+          sessionsThisWeek: input.reflection.sessionsThisWeek ?? existing?.sessionsThisWeek,
+          moodTrend: input.reflection.moodTrend ?? existing?.moodTrend,
+        };
+        await WidgetStorage.write('reflection', merged);
+        await refreshReflectionWidget(merged);
       }
-
-      // Update all widgets
-      await WidgetUpdateManager.updateAllWidgets(updates);
     } catch (error) {
-      console.error('Failed to sync widget data:', error);
+      console.error('[WidgetBridge] syncWidgetData failed:', error);
     }
   },
 
   /**
-   * Update Daily Focus widget specifically
+   * Update only the Daily Focus widget
    */
   async updateDailyFocus(data: Partial<DailyFocusData>): Promise<void> {
-    const existing = await SharedStorage.read<DailyFocusData>('daily_focus');
-    const updated = {
-      topPriority: data.topPriority ?? existing?.topPriority ?? 'Focus on what matters',
+    if (Platform.OS !== 'android') return;
+
+    const existing = await WidgetStorage.read('daily_focus');
+    const merged: DailyFocusData = {
+      topPriority: data.topPriority ?? existing?.topPriority ?? DEFAULT_DAILY_FOCUS.topPriority,
       ritualsCompleted: data.ritualsCompleted ?? existing?.ritualsCompleted ?? 0,
-      ritualTotal: data.ritualTotal ?? existing?.ritualTotal ?? 5,
+      ritualTotal: data.ritualTotal ?? existing?.ritualTotal ?? 0,
       streakCount: data.streakCount ?? existing?.streakCount ?? 0,
       lastUpdated: new Date().toISOString(),
     };
-    await WidgetUpdateManager.updateDailyFocusWidget(updated);
+    await WidgetStorage.write('daily_focus', merged);
+    await refreshDailyFocusWidget(merged);
   },
 
   /**
-   * Update Quick Coach widget specifically
+   * Update only the Quick Coach widget
    */
   async updateQuickCoach(data: Partial<QuickCoachData>): Promise<void> {
-    const existing = await SharedStorage.read<QuickCoachData>('quick_coach');
-    const updated = {
-      coachingPrompt: data.coachingPrompt ?? existing?.coachingPrompt ?? 'What\'s on your mind?',
-      recommendedCoach: data.recommendedCoach ?? existing?.recommendedCoach ?? { name: 'Your Coach', emoji: '🧠' },
-      suggestedAction: data.suggestedAction ?? existing?.suggestedAction ?? 'Take a voice session',
-      sessionTime: data.sessionTime ?? existing?.sessionTime ?? '5 min',
+    if (Platform.OS !== 'android') return;
+
+    const existing = await WidgetStorage.read('quick_coach');
+    const merged: QuickCoachData = {
+      coachingPrompt: data.coachingPrompt ?? existing?.coachingPrompt ?? DEFAULT_QUICK_COACH.coachingPrompt,
+      recommendedCoach: data.recommendedCoach ?? existing?.recommendedCoach ?? DEFAULT_QUICK_COACH.recommendedCoach,
+      suggestedAction: data.suggestedAction ?? existing?.suggestedAction ?? DEFAULT_QUICK_COACH.suggestedAction,
+      sessionTime: data.sessionTime ?? existing?.sessionTime ?? DEFAULT_QUICK_COACH.sessionTime,
     };
-    await WidgetUpdateManager.updateQuickCoachWidget(updated);
+    await WidgetStorage.write('quick_coach', merged);
+    await refreshQuickCoachWidget(merged);
   },
 
   /**
-   * Update Reflection widget specifically
+   * Update only the Reflection widget
    */
   async updateReflection(data: Partial<ReflectionData>): Promise<void> {
-    const existing = await SharedStorage.read<ReflectionData>('reflection');
-    const updated = {
-      contentType: data.contentType ?? existing?.contentType ?? 'morning' as const,
-      mainContent: data.mainContent ?? existing?.mainContent ?? 'What matters most today?',
+    if (Platform.OS !== 'android') return;
+
+    const existing = await WidgetStorage.read('reflection');
+    const merged: ReflectionData = {
+      contentType: data.contentType ?? existing?.contentType ?? 'morning',
+      mainContent: data.mainContent ?? existing?.mainContent ?? DEFAULT_REFLECTION.mainContent,
       subtitle: data.subtitle ?? existing?.subtitle,
       insight: data.insight ?? existing?.insight,
       actionPrompt: data.actionPrompt ?? existing?.actionPrompt,
-      timeOfDay: data.timeOfDay ?? existing?.timeOfDay ?? 'morning' as const,
+      timeOfDay: data.timeOfDay ?? existing?.timeOfDay ?? 'morning',
+      streakCount: data.streakCount ?? existing?.streakCount,
+      sessionsThisWeek: data.sessionsThisWeek ?? existing?.sessionsThisWeek,
+      moodTrend: data.moodTrend ?? existing?.moodTrend,
     };
-    await WidgetUpdateManager.updateReflectionWidget(updated);
+    await WidgetStorage.write('reflection', merged);
+    await refreshReflectionWidget(merged);
   },
 
   /**
-   * Clear all widget data (useful for logout or data reset)
+   * Clear all widget data (call on logout)
    */
   async clearAllData(): Promise<void> {
-    await SharedStorage.clear();
+    if (Platform.OS !== 'android') return;
+    await WidgetStorage.clear();
   },
 
   /**
    * Get current widget data (for debugging)
    */
-  async getWidgetData(): Promise<{
-    dailyFocus: DailyFocusData | null;
-    quickCoach: QuickCoachData | null;
-    reflection: ReflectionData | null;
-  }> {
-    return {
-      dailyFocus: await SharedStorage.read<DailyFocusData>('daily_focus'),
-      quickCoach: await SharedStorage.read<QuickCoachData>('quick_coach'),
-      reflection: await SharedStorage.read<ReflectionData>('reflection'),
-    };
+  async getWidgetData() {
+    return WidgetStorage.readAll();
   },
 };
-
-// Export SharedStorage for advanced use cases
-export { SharedStorage };
 
 export default WidgetBridge;
