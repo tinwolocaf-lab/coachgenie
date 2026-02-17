@@ -44,6 +44,7 @@ import { getContextVault } from '@/store/app';
 import { WidgetBridge } from '@/lib/widgetBridge';
 import { DailyReflection, RitualWithStatus, ContextVault } from '@/types';
 import { AIResonanceNote, CandlelightPalette } from '@/components/oracle/AIResonanceNote';
+import { logNonFatal } from '@/lib/telemetry';
 import { VoiceMode } from '@/components/chat/VoiceMode';
 
 // Candlelight theme constants
@@ -241,7 +242,12 @@ export default function EveningAuditScreen() {
           insight: finalThought?.slice(0, 100),
           timeOfDay: 'evening',
           subtitle: filteredLessons[0],
-        }).catch(() => {});
+        }).catch((error) => {
+          logNonFatal(error, {
+            scope: 'rituals:evening:widget-sync',
+            message: 'Failed to sync evening reflection widget',
+          });
+        });
 
         // Show the Resonance experience
         setShowResonance(true);

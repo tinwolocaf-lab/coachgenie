@@ -56,6 +56,7 @@ import { ContextualMenu, ReflectFurtherModal } from '@/components/sanctuary/Cont
 import { BreakthroughView } from '@/components/sanctuary/BreakthroughView';
 import { VoiceNoteInput, VoiceNoteTrigger } from '@/components/sanctuary/VoiceNoteInput';
 import { useAlert } from '@/contexts/AlertContext';
+import { useSchemaReadiness } from '@/lib/schemaReadiness';
 
 export default function SanctuaryScreen() {
   const router = useRouter();
@@ -64,6 +65,7 @@ export default function SanctuaryScreen() {
   const { coachId } = useLocalSearchParams<{
     coachId: string;
   }>();
+  const schemaReadiness = useSchemaReadiness();
 
   // Core state
   const [coach, setCoach] = useState<Coach | null>(null);
@@ -111,9 +113,30 @@ export default function SanctuaryScreen() {
 
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
+  const timeoutIdsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   // Animation values
   const inputScale = useSharedValue(1);
+  const isBreakthroughMigrationRequired =
+    schemaReadiness.breakthroughs.status === 'migration_required';
+
+  const runDelayed = useCallback((callback: () => void, delayMs: number): ReturnType<typeof setTimeout> => {
+    const timeoutId = setTimeout(() => {
+      timeoutIdsRef.current.delete(timeoutId);
+      callback();
+    }, delayMs);
+
+    timeoutIdsRef.current.add(timeoutId);
+    return timeoutId;
+  }, []);
+
+  useEffect(() => {
+    const timeoutIds = timeoutIdsRef.current;
+    return () => {
+      timeoutIds.forEach((timeoutId) => clearTimeout(timeoutId));
+      timeoutIds.clear();
+    };
+  }, []);
 
   // Initialize session
   const initializeSession = useCallback(async () => {
@@ -204,7 +227,7 @@ export default function SanctuaryScreen() {
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', () => {
-      setTimeout(() => {
+      runDelayed(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 80);
     });
@@ -212,14 +235,14 @@ export default function SanctuaryScreen() {
     return () => {
       showSub.remove();
     };
-  }, []);
+  }, [runDelayed]);
 
   // Start session after entry animation
   const handleEntryComplete = () => {
     setShowEntryAnimation(false);
 
     // Add initial greeting with delay for smooth transition
-    setTimeout(() => {
+    runDelayed(() => {
       if (!coach) return;
 
       let greeting = `Welcome to this moment. I'm here to guide you through whatever's on your mind today. What would you like to explore?`;
@@ -254,7 +277,7 @@ export default function SanctuaryScreen() {
 
     // Animate input
     inputScale.value = withSpring(0.98, Timing.springBouncy);
-    setTimeout(() => {
+    runDelayed(() => {
       inputScale.value = withSpring(1, Timing.springBouncy);
     }, 100);
 
@@ -275,7 +298,7 @@ export default function SanctuaryScreen() {
     Keyboard.dismiss();
 
     // Scroll to bottom
-    setTimeout(() => {
+    runDelayed(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
 
@@ -321,7 +344,7 @@ export default function SanctuaryScreen() {
 
       // Show insight card if detected
       if (isInsightMessage && insightCheck.insightContent) {
-        setTimeout(() => {
+        runDelayed(() => {
           setPendingInsight({
             content: insightCheck.insightContent!,
             messageId: assistantMessage.id,
@@ -330,7 +353,7 @@ export default function SanctuaryScreen() {
       }
 
       // Scroll to bottom
-      setTimeout(() => {
+      runDelayed(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
 
@@ -391,9 +414,9 @@ export default function SanctuaryScreen() {
     const lowerMessage = message.toLowerCase();
     const isEnding = endCues.some(cue => lowerMessage.includes(cue));
 
-    if (isEnding && messages.length >= 6) {
+    if (isEnding && messages.length >= 6 && !isBreakthroughMigrationRequired) {
       // Offer to generate breakthrough after a delay
-      setTimeout(() => {
+      runDelayed(() => {
         showAlert(
           'Session Wrap-up',
           'Would you like me to capture today\'s breakthrough?',
@@ -409,6 +432,13 @@ export default function SanctuaryScreen() {
   // Generate breakthrough summary
   const generateBreakthrough = async () => {
     if (!coach || isGeneratingBreakthrough) return;
+    if (isBreakthroughMigrationRequired) {
+      showAlert(
+        'Migration Required',
+        'Breakthroughs are unavailable until the latest backend migration is applied.'
+      );
+      return;
+    }
 
     setIsGeneratingBreakthrough(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -464,7 +494,7 @@ export default function SanctuaryScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // Auto-send after brief delay for review
-    setTimeout(() => {
+    runDelayed(() => {
       handleSend(text);
     }, 500);
   };
@@ -592,7 +622,7 @@ export default function SanctuaryScreen() {
     setReflectModalVisible(false);
     setReflectContent('');
 
-    setTimeout(() => {
+    runDelayed(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
@@ -626,7 +656,7 @@ export default function SanctuaryScreen() {
 
   // Handle back/close
   const handleClose = () => {
-    if (messages.length >= 4 && !breakthroughData) {
+    if (messages.length >= 4 && !breakthroughData && !isBreakthroughMigrationRequired) {
       showAlert(
         'End Session',
         'Would you like to capture today\'s breakthrough before leaving?',
@@ -760,15 +790,24 @@ export default function SanctuaryScreen() {
         <TouchableOpacity
           onPress={generateBreakthrough}
           style={styles.headerButton}
-          disabled={isGeneratingBreakthrough || messages.length < 4}
+          disabled={isGeneratingBreakthrough || messages.length < 4 || isBreakthroughMigrationRequired}
         >
           <Ionicons
             name="sparkles"
             size={22}
-            color={messages.length < 4 ? palette.textTertiary : palette.accent}
+            color={messages.length < 4 || isBreakthroughMigrationRequired ? palette.textTertiary : palette.accent}
           />
         </TouchableOpacity>
       </View>
+
+      {isBreakthroughMigrationRequired && (
+        <View style={[styles.migrationNotice, { backgroundColor: `${palette.warning}22`, borderColor: palette.warning }]}>
+          <Ionicons name="warning-outline" size={16} color={palette.warning} />
+          <Text style={[styles.migrationNoticeText, { color: palette.textTertiary }]}>
+            Breakthroughs are unavailable until the latest Supabase migration is applied.
+          </Text>
+        </View>
+      )}
 
       {/* Messages */}
       <KeyboardAvoidingView
@@ -824,7 +863,7 @@ export default function SanctuaryScreen() {
               editable={!isGenerating}
               onFocus={() => {
                 inputScale.value = withSpring(1.01, Timing.springGentle);
-                setTimeout(() => {
+                runDelayed(() => {
                   flatListRef.current?.scrollToEnd({ animated: true });
                 }, 80);
               }}
@@ -985,6 +1024,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
     paddingLeft: Spacing.sm,
+  },
+  migrationNotice: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  migrationNoticeText: {
+    flex: 1,
+    fontSize: Typography.sizes.caption,
+    lineHeight: Typography.sizes.caption * Typography.lineHeights.relaxed,
   },
   sendButton: {
     width: 40,

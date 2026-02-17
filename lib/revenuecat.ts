@@ -147,7 +147,14 @@ export function addCustomerInfoUpdateListener(
     console.warn('[RevenueCat] Failed to add customer info listener:', error);
   }
   return () => {
-    // RevenueCat SDK manages listener lifecycle internally
+    try {
+      Purchases.removeCustomerInfoUpdateListener(listener);
+    } catch (error) {
+      // Non-fatal: avoid noisy listener cleanup failures.
+      if (__DEV__) {
+        console.warn('[RevenueCat] Failed to remove customer info listener:', error);
+      }
+    }
   };
 }
 

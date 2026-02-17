@@ -2,6 +2,7 @@
 // Handles WebSocket connection, audio streaming, and session lifecycle
 
 import { supabase } from '@/lib/supabase';
+import { fetchWithRetry } from '@/lib/network';
 
 const GEMINI_WS_URL =
   'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained';
@@ -21,6 +22,7 @@ export interface GeminiLiveConfig {
       };
     };
   };
+  outputAudioTranscription?: Record<string, unknown>;
   accessToken: string;
   voiceSessionId: string;
   tokenExpiresAt?: string;
@@ -172,7 +174,12 @@ function toRawGeminiModelId(modelId: string): string {
       changed = true;
     }
   }
-  return normalized;
+
+  const aliases: Record<string, string> = {
+    'gemini-2.5-flash-native-audio-preview': 'gemini-2.5-flash-native-audio-preview-12-2025',
+  };
+
+  return aliases[normalized.toLowerCase()] ?? normalized;
 }
 
 function buildSessionConfigError(status: number, rawText: string): GeminiLiveError {
@@ -300,20 +307,29 @@ export class GeminiLiveSession {
   private sendSetupMessage(): void {
     if (!this.ws || !this.config) return;
     const rawModelId = toRawGeminiModelId(this.config.model);
+    const voiceName =
+      this.config.voiceName ||
+      this.config.generationConfig.speechConfig?.voiceConfig?.prebuiltVoiceConfig?.voiceName ||
+      'Kore';
+    const responseModalities = this.config.generationConfig.responseModalities.length > 0
+      ? this.config.generationConfig.responseModalities
+      : ['AUDIO'];
 
     const setupMessage = {
       setup: {
         model: `models/${rawModelId}`,
         generationConfig: {
-          responseModalities: ['AUDIO', 'TEXT'],
+          ...this.config.generationConfig,
+          responseModalities,
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName: this.config.voiceName || 'Kore',
+                voiceName,
               },
             },
           },
         },
+        outputAudioTranscription: this.config.outputAudioTranscription ?? {},
         systemInstruction: {
           parts: [{ text: this.config.systemInstruction }],
         },
@@ -391,6 +407,11 @@ export class GeminiLiveSession {
         if (content.interrupted) {
           this.callbacks.onInterrupted?.();
           return;
+        }
+
+        if (typeof content.outputTranscription?.text === 'string' && content.outputTranscription.text.length > 0) {
+          this.transcript += content.outputTranscription.text;
+          this.callbacks.onTranscript?.(content.outputTranscription.text, false);
         }
 
         if (content.modelTurn?.parts) {
@@ -503,10 +524,10 @@ export class GeminiLiveSession {
 
     const message = {
       realtimeInput: {
-        mediaChunks: [{
+        audio: {
           mimeType: 'audio/pcm;rate=16000',
           data: base64Audio,
-        }],
+        },
       },
     };
 
@@ -562,17 +583,21 @@ export class GeminiLiveSession {
       }
 
       const baseUrl = getFunctionsBaseUrl();
-      const response = await fetch(`${baseUrl}/${VOICE_SESSION_FINALIZE_FUNCTION}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const response = await fetchWithRetry(
+        `${baseUrl}/${VOICE_SESSION_FINALIZE_FUNCTION}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            voice_session_id: voiceSessionId,
+            duration_seconds: Math.max(1, Math.round(durationSeconds)),
+          }),
         },
-        body: JSON.stringify({
-          voice_session_id: voiceSessionId,
-          duration_seconds: Math.max(1, Math.round(durationSeconds)),
-        }),
-      });
+        { timeoutMs: 30_000 }
+      );
 
       if (!response.ok) {
         const text = await response.text();
@@ -620,18 +645,22 @@ export class GeminiLiveSession {
     }
 
     const baseUrl = getFunctionsBaseUrl();
-    const response = await fetch(`${baseUrl}/${VOICE_SESSION_CONFIG_FUNCTION}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    const response = await fetchWithRetry(
+      `${baseUrl}/${VOICE_SESSION_CONFIG_FUNCTION}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          coach_id: coachId,
+          session_id: sessionId,
+          voiceName: voiceName || 'Kore',
+        }),
       },
-      body: JSON.stringify({
-        coach_id: coachId,
-        session_id: sessionId,
-        voiceName: voiceName || 'Kore',
-      }),
-    });
+      { timeoutMs: 30_000 }
+    );
 
     if (!response.ok) {
       const text = await response.text();
@@ -653,18 +682,24 @@ export class GeminiLiveSession {
       payload.generationConfig && typeof payload.generationConfig === 'object'
         ? (payload.generationConfig as GeminiLiveConfig['generationConfig'])
         : {
-            responseModalities: ['AUDIO', 'TEXT'],
+            responseModalities: ['AUDIO'],
           };
+
+    const outputAudioTranscription =
+      payload.outputAudioTranscription && typeof payload.outputAudioTranscription === 'object'
+        ? (payload.outputAudioTranscription as Record<string, unknown>)
+        : {};
 
     const rawModelId = typeof payload.model === 'string'
       ? toRawGeminiModelId(payload.model)
-      : 'gemini-2.5-flash-native-audio-preview';
+      : 'gemini-2.5-flash-native-audio-preview-12-2025';
 
     return {
       model: rawModelId,
       systemInstruction:
         typeof payload.systemInstruction === 'string' ? payload.systemInstruction : 'You are a helpful coaching assistant.',
       generationConfig,
+      outputAudioTranscription,
       accessToken,
       voiceSessionId,
       tokenExpiresAt: typeof payload.token_expires_at === 'string' ? payload.token_expires_at : undefined,

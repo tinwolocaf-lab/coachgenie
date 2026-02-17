@@ -2,7 +2,11 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
 import { runEvalSuite, type EvalCase } from '../_shared/eval-grader.ts';
-import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
+import {
+  extractOpenRouterMessageContent,
+  getDefaultOpenRouterChatModel,
+  openRouterChat,
+} from '../_shared/openrouter.ts';
 
 interface EvalRunnerBody {
   tags?: string[];
@@ -10,7 +14,26 @@ interface EvalRunnerBody {
   commit_sha?: string;
 }
 
-const DEFAULT_EVAL_MODEL = 'google/gemini-2.5-flash';
+const DEFAULT_EVAL_MODEL = getDefaultOpenRouterChatModel();
+
+function validateServiceAuth(request: Request): { ok: true } | { ok: false; status: number; error: string } {
+  const authHeader = request.headers.get('authorization') ?? '';
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (!serviceKey) {
+    return { ok: false, status: 500, error: 'Server misconfiguration: missing SUPABASE_SERVICE_ROLE_KEY' };
+  }
+
+  const bearerToken = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length).trim()
+    : '';
+  const rawToken = authHeader.trim();
+
+  if (bearerToken === serviceKey || rawToken === serviceKey) {
+    return { ok: true };
+  }
+
+  return { ok: false, status: 401, error: 'Unauthorized' };
+}
 
 /**
  * Coach eval runner endpoint.
@@ -27,6 +50,14 @@ serve(async (request) => {
 
   if (request.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+  }
+
+  const serviceAuth = validateServiceAuth(request);
+  if (!serviceAuth.ok) {
+    return new Response(
+      JSON.stringify({ error: serviceAuth.error }),
+      { status: serviceAuth.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
   let body: EvalRunnerBody = {};

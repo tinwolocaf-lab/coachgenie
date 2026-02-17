@@ -6,6 +6,8 @@ import Animated, {
   withTiming,
   withDelay,
   withSpring,
+  withRepeat,
+  cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
 import { Timing } from '@/constants/theme';
@@ -147,25 +149,24 @@ export function FloatingContainer({
   const translateY = useSharedValue(0);
 
   useEffect(() => {
-    const animate = () => {
-      translateY.value = withDelay(
-        delay,
+    // Keep the animation on the UI thread (no JS timers).
+    translateY.value = -amplitude;
+    translateY.value = withDelay(
+      delay,
+      withRepeat(
         withTiming(amplitude, {
           duration: duration / 2,
           easing: Easing.inOut(Easing.sin),
-        })
-      );
-      setTimeout(() => {
-        translateY.value = withTiming(-amplitude, {
-          duration: duration / 2,
-          easing: Easing.inOut(Easing.sin),
-        });
-      }, duration / 2);
-    };
+        }),
+        -1,
+        true
+      )
+    );
 
-    animate();
-    const interval = setInterval(animate, duration);
-    return () => clearInterval(interval);
+    return () => {
+      cancelAnimation(translateY);
+      translateY.value = 0;
+    };
   }, [delay, amplitude, duration, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -191,22 +192,19 @@ export function GlowPulse({ children, style }: GlowPulseProps) {
   const opacity = useSharedValue(0.7);
 
   useEffect(() => {
-    const animate = () => {
-      opacity.value = withTiming(1, {
+    opacity.value = withRepeat(
+      withTiming(1, {
         duration: 1500,
         easing: Easing.inOut(Easing.sin),
-      });
-      setTimeout(() => {
-        opacity.value = withTiming(0.7, {
-          duration: 1500,
-          easing: Easing.inOut(Easing.sin),
-        });
-      }, 1500);
-    };
+      }),
+      -1,
+      true
+    );
 
-    animate();
-    const interval = setInterval(animate, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      cancelAnimation(opacity);
+      opacity.value = 0.7;
+    };
   }, [opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({

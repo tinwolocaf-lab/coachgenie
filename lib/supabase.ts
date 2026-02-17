@@ -1,8 +1,8 @@
 // Supabase client configuration
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Database } from '@/types/database';
+import { authSessionStorage } from '@/lib/authStorage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -12,7 +12,10 @@ function isValidHttpUrl(value: string | undefined): boolean {
   if (!value) return false;
   try {
     const parsed = new URL(value);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    if (parsed.protocol === 'https:') {
+      return true;
+    }
+    return __DEV__ && parsed.protocol === 'http:';
   } catch {
     return false;
   }
@@ -32,7 +35,7 @@ export const supabase = createClient<Database>(
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {
-      storage: AsyncStorage,
+      storage: authSessionStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,

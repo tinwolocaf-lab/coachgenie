@@ -1,5 +1,9 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
-import { extractOpenRouterMessageContent, openRouterChat } from './openrouter.ts';
+import {
+  extractOpenRouterMessageContent,
+  getDefaultOpenRouterJsonModel,
+  openRouterChat,
+} from './openrouter.ts';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -46,8 +50,34 @@ export interface EvalRunResult {
 
 // ── Constants ───────────────────────────────────────────────────────────
 
-const GRADER_MODEL = 'google/gemini-2.5-flash';
+const GRADER_MODEL = getDefaultOpenRouterJsonModel();
 const MAX_GRADER_TOKENS = 800;
+const GRADER_RESPONSE_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    criteriaResults: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          criterion: { type: 'string' },
+          met: { type: 'boolean' },
+          reason: { type: 'string' },
+        },
+        required: ['criterion', 'met', 'reason'],
+        additionalProperties: false,
+      },
+    },
+    overallPass: { type: 'boolean' },
+    overallScore: {
+      type: 'number',
+      minimum: 0,
+      maximum: 1,
+    },
+  },
+  required: ['criteriaResults', 'overallPass', 'overallScore'],
+  additionalProperties: false,
+};
 
 // ── Core grading ────────────────────────────────────────────────────────
 
@@ -79,7 +109,14 @@ export async function gradeCase(
       ],
       max_tokens: MAX_GRADER_TOKENS,
       temperature: 0,
-      response_format: { type: 'json_object' },
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'grader_result',
+          strict: true,
+          schema: GRADER_RESPONSE_SCHEMA,
+        },
+      },
     });
 
     if (!response.ok) {

@@ -154,6 +154,14 @@ export default function VaultScreen() {
     );
   }
 
+  const vaultValues = vault.values ?? [];
+  const vaultGoals = vault.goals ?? [];
+  const vaultConstraints = vault.constraints ?? {
+    available_hours_per_day: 4,
+    energy_level: 'medium',
+    best_time_for_focus: 'morning',
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]} edges={['top']}>
       <PremiumPageTransition>
@@ -241,12 +249,12 @@ export default function VaultScreen() {
                   </View>
 
                   <View style={styles.valuesDisplay}>
-                    {vault.values.map((value) => (
+                    {vaultValues.map((value) => (
                       <View key={value} style={[styles.valueBadge, { backgroundColor: palette.backgroundSecondary }]}>
                         <Text style={[styles.valueBadgeText, { color: palette.textSecondary }]}>{value}</Text>
                       </View>
                     ))}
-                    {vault.values.length === 0 && (
+                    {vaultValues.length === 0 && (
                       <Text style={[styles.emptyText, { color: palette.textTertiary }]}>No values set</Text>
                     )}
                   </View>
@@ -269,14 +277,14 @@ export default function VaultScreen() {
               </View>
 
               <View style={styles.goalsList}>
-                {vault.goals.map((goal) => (
+                {vaultGoals.map((goal) => (
                   <GoalItem
                     key={goal.id}
                     goal={goal}
                     onUpdate={(updates) => handleUpdateGoal(goal.id, updates)}
                   />
                 ))}
-                {vault.goals.length === 0 && (
+                {vaultGoals.length === 0 && (
                   <Text style={[styles.emptyText, { color: palette.textTertiary }]}>No goals set yet</Text>
                 )}
               </View>
@@ -300,19 +308,19 @@ export default function VaultScreen() {
                 <ConstraintItem
                   icon="time-outline"
                   label="Daily focus time"
-                  value={`${vault.constraints.available_hours_per_day} hours`}
+                  value={`${vaultConstraints.available_hours_per_day} hours`}
                 />
                 <ConstraintItem
                   icon="battery-half-outline"
                   label="Energy level"
-                  value={vault.constraints.energy_level.charAt(0).toUpperCase() +
-                    vault.constraints.energy_level.slice(1)}
+                  value={vaultConstraints.energy_level.charAt(0).toUpperCase() +
+                    vaultConstraints.energy_level.slice(1)}
                 />
                 <ConstraintItem
                   icon="sunny-outline"
                   label="Best time for focus"
-                  value={vault.constraints.best_time_for_focus.charAt(0).toUpperCase() +
-                    vault.constraints.best_time_for_focus.slice(1)}
+                  value={vaultConstraints.best_time_for_focus.charAt(0).toUpperCase() +
+                    vaultConstraints.best_time_for_focus.slice(1)}
                 />
               </View>
             </Card>

@@ -120,17 +120,17 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
         </View>
 
         {/* Coach Display Card */}
-        <Animated.View
-          style={[
-            styles.coachCard,
-            {
-              backgroundColor: palette.cardBg,
-              borderColor: palette.border,
-            },
-            animatedStyle,
-          ]}
-          entering={SlideInUp}
-        >
+        <Animated.View entering={SlideInUp}>
+          <Animated.View
+            style={[
+              styles.coachCard,
+              {
+                backgroundColor: palette.cardBg,
+                borderColor: palette.border,
+              },
+              animatedStyle,
+            ]}
+          >
           {/* Avatar */}
           <View
             style={[
@@ -218,6 +218,7 @@ export const ImportCoachCard: React.FC<ImportCoachCardProps> = ({
               Shared by user {creatorId.substring(0, 8)}...
             </Text>
           </View>
+          </Animated.View>
         </Animated.View>
 
         {/* Action Buttons */}

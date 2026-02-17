@@ -41,6 +41,7 @@ import {
   TimeOfDay,
   EditorialNudge,
 } from '@/types';
+import { useSchemaReadiness } from '@/lib/schemaReadiness';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -48,6 +49,8 @@ export default function RitualsHubScreen() {
   const router = useRouter();
   const { palette } = useThemeSafe();
   const auth = useAuthSafe();
+  const schemaReadiness = useSchemaReadiness();
+  const isRitualsMigrationRequired = schemaReadiness.rituals.status === 'migration_required';
 
   const [practice, setPractice] = useState<TodayPractice | null>(null);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay());
@@ -118,21 +121,22 @@ export default function RitualsHubScreen() {
       // Sync widget data with updated ritual progress
       // Fetch fresh data since React state hasn't flushed yet
       if (auth.user.id) {
-        getTodayPractice(auth.user.id).then((freshPractice) => {
+        const freshPractice = await getTodayPractice(auth.user.id);
+        if (freshPractice) {
           const rituals = freshPractice?.rituals ?? [];
           const completedCount = rituals.filter((r: { is_completed_today?: boolean }) => r.is_completed_today).length;
           const totalCount = rituals.length;
 
           // Sync DailyFocus widget
-          WidgetBridge.syncWidgetData({
+          await WidgetBridge.syncWidgetData({
             ritualsCompleted: completedCount,
             ritualTotal: totalCount,
             streakCount: freshPractice?.streakDays ?? 0,
-          }).catch(() => {});
+          });
 
           // Sync RitualChecklist widget with full ritual list
           const hour = new Date().getHours();
-          WidgetBridge.updateRitualChecklist({
+          await WidgetBridge.updateRitualChecklist({
             rituals: rituals.map((r: { id: string; title: string; is_completed_today?: boolean; icon?: string }) => ({
               id: r.id,
               label: r.title,
@@ -142,8 +146,8 @@ export default function RitualsHubScreen() {
             completedCount,
             totalCount,
             timeOfDay: hour < 17 ? 'morning' : 'evening',
-          }).catch(() => {});
-        }).catch(() => {});
+          });
+        }
       }
     } catch (error) {
       console.error('Error toggling ritual:', error);
@@ -225,6 +229,21 @@ export default function RitualsHubScreen() {
           />
         }
       >
+        {/* Hero Section - Date & Greeting */}
+        {isRitualsMigrationRequired && (
+          <Animated.View entering={FadeInDown.duration(300)}>
+            <View style={[styles.migrationNotice, { backgroundColor: palette.warning + '22', borderColor: palette.warning }]}>
+              <Ionicons name="warning-outline" size={18} color={palette.warning} />
+              <View style={styles.migrationNoticeTextWrap}>
+                <Text style={[styles.migrationNoticeTitle, { color: palette.textPrimary }]}>Migration Required</Text>
+                <Text style={[styles.migrationNoticeText, { color: palette.textTertiary }]}>
+                  Ritual tables are missing in this environment. Apply the latest Supabase migrations.
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
         {/* Hero Section - Date & Greeting */}
         <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.heroSection}>
           <Text style={[styles.dateText, { color: palette.textTertiary }]}>{dateString}</Text>
@@ -748,6 +767,29 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
+  },
+  migrationNotice: {
+    marginHorizontal: Spacing.xxl,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  migrationNoticeTextWrap: {
+    flex: 1,
+  },
+  migrationNoticeTitle: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.semibold,
+    marginBottom: 2,
+  },
+  migrationNoticeText: {
+    fontSize: Typography.sizes.caption,
+    lineHeight: Typography.sizes.caption * Typography.lineHeights.relaxed,
   },
 
   bottomSpacer: {

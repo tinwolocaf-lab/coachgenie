@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { fetchWithRetry } from '@/lib/network';
 
 export interface CoachConfig {
   name: string;
@@ -69,18 +70,22 @@ export async function createShareLink(
     const authHeader = await getAuthHeader();
     const functionsUrl = getFunctionsBaseUrl();
 
-    const response = await fetch(`${functionsUrl}/coach-share`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: authHeader,
+    const response = await fetchWithRetry(
+      `${functionsUrl}/coach-share`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify({
+          action: 'create',
+          coach_id: coachId,
+          coach_config: coachConfig,
+        }),
       },
-      body: JSON.stringify({
-        action: 'create',
-        coach_id: coachId,
-        coach_config: coachConfig,
-      }),
-    });
+      { timeoutMs: 30_000 }
+    );
 
     if (!response.ok) {
       const error = await response.text();
@@ -112,17 +117,25 @@ export async function resolveShareLink(
     const authHeader = await getAuthHeader();
     const functionsUrl = getFunctionsBaseUrl();
 
-    const response = await fetch(`${functionsUrl}/coach-share`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: authHeader,
+    const response = await fetchWithRetry(
+      `${functionsUrl}/coach-share`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify({
+          action: 'resolve',
+          share_id: shareId,
+        }),
       },
-      body: JSON.stringify({
-        action: 'resolve',
-        share_id: shareId,
-      }),
-    });
+      {
+        timeoutMs: 30_000,
+        idempotent: true,
+        retries: 1,
+      }
+    );
 
     if (!response.ok) {
       if (response.status === 404) {

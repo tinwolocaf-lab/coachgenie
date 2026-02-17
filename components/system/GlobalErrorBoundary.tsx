@@ -8,6 +8,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { initializeGlobalErrorHandling, subscribeToAppIssues, type AppIssue } from '@/lib/errorHandling';
+import { captureTelemetryException } from '@/lib/telemetry';
+
+const SHOW_RUNTIME_ISSUE_BANNER = __DEV__;
 
 interface GlobalErrorBoundaryProps {
   children: React.ReactNode;
@@ -48,6 +51,8 @@ class InnerGlobalErrorBoundary extends React.Component<InnerBoundaryProps, Inner
 
   componentDidMount() {
     this.teardownGlobalHandling = initializeGlobalErrorHandling();
+    if (!SHOW_RUNTIME_ISSUE_BANNER) return;
+
     this.unsubscribeIssues = subscribeToAppIssues((issue) => {
       if (this.state.error) return;
       this.setState({ issue, showIssueBanner: true });
@@ -56,8 +61,14 @@ class InnerGlobalErrorBoundary extends React.Component<InnerBoundaryProps, Inner
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // Keep this logging; it is the last line of defense for render tree crashes.
-    console.error('[GlobalErrorBoundary] Render error:', error, info.componentStack);
+    captureTelemetryException(error, 'error', {
+      scope: 'global-error-boundary',
+      componentStack: info.componentStack,
+    });
+    if (__DEV__) {
+      // Keep this logging in development for quick diagnostics.
+      console.error('[GlobalErrorBoundary] Render error:', error, info.componentStack);
+    }
   }
 
   componentWillUnmount() {

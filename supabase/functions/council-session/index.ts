@@ -9,6 +9,7 @@ import { isFeatureEnabled } from '../_shared/feature-flags.ts';
 import {
   extractOpenRouterMessageContent,
   extractOpenRouterUsage,
+  getDefaultOpenRouterChatModel,
   openRouterChat,
 } from '../_shared/openrouter.ts';
 
@@ -56,7 +57,7 @@ const COUNCIL_ROLES: RoleConfig[] = [
   },
 ];
 
-const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+const DEFAULT_MODEL = getDefaultOpenRouterChatModel();
 
 /**
  * Council Session - multi-role coaching synthesis.

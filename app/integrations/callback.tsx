@@ -6,12 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Typography, Spacing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 import { exchangeToken } from '@/lib/integrations/api';
-import type { IntegrationProvider } from '@/types';
+import { REDIRECT_URI, isIntegrationProvider, validatePendingOAuthFlow } from '@/lib/integrations/oauth-service';
 
 export default function IntegrationCallbackScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ code?: string; provider?: string; error?: string }>();
-  const { code, provider, error } = params;
+  const params = useLocalSearchParams<{ code?: string; provider?: string; state?: string; error?: string }>();
+  const { code, provider, state, error } = params;
   const { palette } = useThemeSafe();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [errorMessage, setErrorMessage] = useState('');
@@ -37,9 +37,20 @@ export default function IntegrationCallbackScreen() {
       return;
     }
 
+    if (!isIntegrationProvider(provider)) {
+      setStatus('error');
+      setErrorMessage('Invalid integration provider');
+      redirectBack();
+      return;
+    }
+
     try {
-      const redirectUri = 'coachgenie://integrations/callback';
-      await exchangeToken(provider as IntegrationProvider, code, redirectUri);
+      const isValidState = await validatePendingOAuthFlow(provider, state, REDIRECT_URI);
+      if (!isValidState) {
+        throw new Error('Invalid or expired OAuth callback state');
+      }
+
+      await exchangeToken(provider, code, REDIRECT_URI);
       setStatus('success');
     } catch (error) {
       console.error('[IntegrationCallback] Error:', error);
@@ -48,7 +59,7 @@ export default function IntegrationCallbackScreen() {
     }
 
     redirectBack();
-  }, [code, error, provider, redirectBack]);
+  }, [code, error, provider, redirectBack, state]);
 
   useEffect(() => {
     void handleCallback();

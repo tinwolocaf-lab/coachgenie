@@ -2,6 +2,7 @@
 // Socratic coaching conversations and personalized AI letters
 import { supabase } from '@/lib/supabase';
 import { ContextVault, Message } from '@/types';
+import { fetchWithRetry } from '@/lib/network';
 
 async function generateText({ prompt }: { prompt: string }): Promise<string> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -12,18 +13,22 @@ async function generateText({ prompt }: { prompt: string }): Promise<string> {
   const token = data.session?.access_token;
   if (!token) throw new Error('Missing Supabase access token');
 
-  const response = await fetch(`${baseUrl}/chat-stream`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+  const response = await fetchWithRetry(
+    `${baseUrl}/chat-stream`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        session_id: `oracle-${Date.now()}`,
+        user_message: prompt,
+        client_context: { screen: 'oracle' },
+      }),
     },
-    body: JSON.stringify({
-      session_id: `oracle-${Date.now()}`,
-      user_message: prompt,
-      client_context: { screen: 'oracle' },
-    }),
-  });
+    { timeoutMs: 120_000 }
+  );
 
   if (!response.ok) {
     const text = await response.text();

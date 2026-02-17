@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { IntegrationProvider, UserIntegration, IntegrationData, IntegrationDataType } from '@/types';
+import { fetchWithRetry } from '@/lib/network';
 
 function getFunctionsBaseUrl(): string {
   const explicit = process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL;
@@ -26,7 +27,7 @@ export async function listIntegrations(): Promise<UserIntegration[]> {
 
   const { data, error } = await supabase
     .from('user_integrations')
-    .select('*')
+    .select('id,user_id,provider,status,provider_email,scopes,metadata,last_synced_at,created_at,updated_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -46,14 +47,18 @@ export async function exchangeToken(
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/integrations-exchange-token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithRetry(
+    `${baseUrl}/integrations-exchange-token`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ provider, code, redirect_uri: redirectUri }),
     },
-    body: JSON.stringify({ provider, code, redirect_uri: redirectUri }),
-  });
+    { timeoutMs: 30_000 }
+  );
 
   if (!response.ok) {
     const text = await response.text();
@@ -67,14 +72,18 @@ export async function syncIntegration(provider: IntegrationProvider): Promise<vo
 
   const functionName = `integrations-${provider.replace('_', '-')}-sync`;
 
-  const response = await fetch(`${baseUrl}/${functionName}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithRetry(
+    `${baseUrl}/${functionName}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ provider }),
     },
-    body: JSON.stringify({ provider }),
-  });
+    { timeoutMs: 60_000 }
+  );
 
   if (!response.ok) {
     const text = await response.text();

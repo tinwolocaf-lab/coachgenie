@@ -111,13 +111,15 @@ export async function createApprovalRequest(
  */
 export async function checkApproval(
   serviceClient: SupabaseClient,
+  userId: string,
   approvalId: string,
 ): Promise<ApprovalResult> {
   const { data, error } = await serviceClient
     .from('approval_requests')
     .select('id, status, expires_at')
     .eq('id', approvalId)
-    .single();
+    .eq('user_id', userId)
+    .maybeSingle();
 
   if (error || !data) {
     return { approved: false };
@@ -139,18 +141,25 @@ export async function checkApproval(
  */
 export async function resolveApproval(
   serviceClient: SupabaseClient,
+  userId: string,
   approvalId: string,
   decision: 'approved' | 'rejected',
-): Promise<void> {
-  const { error } = await serviceClient
+): Promise<boolean> {
+  const { data, error } = await serviceClient
     .from('approval_requests')
     .update({
       status: decision,
       decided_at: new Date().toISOString(),
     })
-    .eq('id', approvalId);
+    .eq('id', approvalId)
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to resolve approval request: ${error.message}`);
   }
+
+  return !!data;
 }

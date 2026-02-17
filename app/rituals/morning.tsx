@@ -42,6 +42,7 @@ import { WidgetBridge } from '@/lib/widgetBridge';
 import { DailyReflection, GrowthChapter, ContextVault } from '@/types';
 import { VoiceMode } from '@/components/chat/VoiceMode';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
+import { logNonFatal } from '@/lib/telemetry';
 
 // Phases of the Morning Intention ritual
 type RitualPhase = 'opening' | 'intention' | 'muse' | 'complete';
@@ -231,7 +232,12 @@ export default function MorningIntentionScreen() {
           mainContent: intention.trim(),
           subtitle: 'Morning intention set',
           timeOfDay: 'morning',
-        }).catch(() => {});
+        }).catch((error) => {
+          logNonFatal(error, {
+            scope: 'rituals:morning:widget-sync',
+            message: 'Failed to sync morning reflection widget',
+          });
+        });
 
         // Generate the Daily Muse
         setIsGeneratingMuse(true);

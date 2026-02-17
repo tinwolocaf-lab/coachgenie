@@ -8,6 +8,8 @@ interface ExchangeBody {
   redirect_uri: string;
 }
 
+const DEFAULT_ALLOWED_REDIRECT_URIS = ['coachgenie://integrations/callback'];
+
 const PROVIDER_CONFIGS: Record<string, { tokenUrl: string; secretEnv: string }> = {
   google_calendar: {
     tokenUrl: 'https://oauth2.googleapis.com/token',
@@ -39,6 +41,27 @@ const CLIENT_ID_ENV: Record<string, string> = {
   linear: 'LINEAR_CLIENT_ID',
 };
 
+function normalizeUri(value: string): string | null {
+  try {
+    return new URL(value).toString();
+  } catch {
+    return null;
+  }
+}
+
+function getAllowedRedirectUris(): Set<string> {
+  const envList = (Deno.env.get('INTEGRATIONS_OAUTH_ALLOWED_REDIRECT_URIS') ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  const normalized = [...DEFAULT_ALLOWED_REDIRECT_URIS, ...envList]
+    .map((value) => normalizeUri(value))
+    .filter((value): value is string => !!value);
+
+  return new Set(normalized);
+}
+
 serve(async (request) => {
   const optionsResponse = handleOptions(request);
   if (optionsResponse) return optionsResponse;
@@ -57,6 +80,12 @@ serve(async (request) => {
   const { provider, code, redirect_uri } = payload;
   if (!provider || !code || !redirect_uri) {
     return new Response('Missing provider, code, or redirect_uri', { status: 400, headers: corsHeaders });
+  }
+
+  const normalizedRedirectUri = normalizeUri(redirect_uri);
+  const allowedRedirectUris = getAllowedRedirectUris();
+  if (!normalizedRedirectUri || !allowedRedirectUris.has(normalizedRedirectUri)) {
+    return new Response('Invalid redirect_uri', { status: 400, headers: corsHeaders });
   }
 
   const config = PROVIDER_CONFIGS[provider];
@@ -82,7 +111,7 @@ serve(async (request) => {
     const tokenBody = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri,
+      redirect_uri: normalizedRedirectUri,
       client_id: clientId,
       client_secret: clientSecret,
     });

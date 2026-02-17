@@ -1,3 +1,5 @@
+import { reportRuntimeIssue } from '@/lib/telemetry';
+
 type IssueKind =
   | 'fatal_exception'
   | 'unhandled_rejection'
@@ -55,6 +57,7 @@ function emitIssue(issue: AppIssue) {
   if (now - last < 1500) return;
 
   recentlyEmitted.set(key, now);
+  reportRuntimeIssue(issue);
 
   // Keep the dedupe cache bounded.
   if (recentlyEmitted.size > 300) {

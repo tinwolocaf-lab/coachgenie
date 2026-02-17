@@ -5,13 +5,19 @@ import { createServiceClient } from '../_shared/supabase.ts';
 import { searchMemories, formatMemoriesForPrompt } from '../_shared/memory.ts';
 import { checkRateLimit, formatRateLimitError } from '../_shared/rate-limiter.ts';
 import { isFeatureEnabled } from '../_shared/feature-flags.ts';
-import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
+import {
+  extractOpenRouterMessageContent,
+  getDefaultOpenRouterChatModel,
+  openRouterChat,
+} from '../_shared/openrouter.ts';
 
 type LoopPhase = 'morning' | 'midday' | 'evening';
 
 interface LoopBody {
   phase?: LoopPhase;
 }
+
+const DEFAULT_CHAT_MODEL = getDefaultOpenRouterChatModel();
 
 const PHASE_PROMPTS: Record<LoopPhase, string> = {
   morning:
@@ -94,7 +100,7 @@ serve(async (request) => {
     const userMessage = buildPhaseMessage(phase, context);
 
     const response = await openRouterChat({
-      model: 'google/gemini-2.5-flash',
+      model: DEFAULT_CHAT_MODEL,
       messages: [
         { role: 'system', content: `${systemPrompt}\n\n${context.contextBlock}` },
         { role: 'user', content: userMessage },

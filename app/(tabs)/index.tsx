@@ -60,6 +60,7 @@ import { getFlashbackInsights } from '@/lib/supabase-archive';
 import { getTodayPractice, getTimeOfDay, completeRitual, uncompleteRitual } from '@/lib/supabase-rituals';
 import { getOnboardingData } from '@/lib/onboarding';
 import { getCreditStatus, type CreditStatusResponse } from '@/lib/apiClient';
+import { logNonFatal } from '@/lib/telemetry';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -234,8 +235,11 @@ export default function HomeScreen() {
           if (onboardingData.name) {
             setUserName(onboardingData.name.split(' ')[0]);
           }
-        } catch {
-          // Silently ignore - user will just see greeting without name
+        } catch (error) {
+          logNonFatal(error, {
+            scope: 'home:load-user-name',
+            message: 'Failed to load onboarding name for guest mode',
+          });
         }
       }
     };
@@ -292,7 +296,12 @@ export default function HomeScreen() {
         if (!isCancelled) {
           setCreditStatus(status);
         }
-      } catch {
+      } catch (error) {
+        logNonFatal(error, {
+          scope: 'home:credit-status',
+          message: 'Failed to load credit status',
+          metadata: { isCancelled },
+        });
         if (!isCancelled) {
           setCreditStatus(null);
         }
@@ -319,8 +328,11 @@ export default function HomeScreen() {
       try {
         const practice = await getTodayPractice(auth.user.id);
         setTodayPractice(practice);
-      } catch {
-        // Silently handle
+      } catch (error) {
+        logNonFatal(error, {
+          scope: 'home:refresh-practice',
+          message: 'Failed to refresh today practice',
+        });
       }
     }
     setRefreshing(false);

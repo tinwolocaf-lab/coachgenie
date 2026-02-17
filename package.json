@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "scripts": {
     "lint": "expo lint",
+    "typecheck:app": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck:functions": "bash ./scripts/typecheck-functions.sh",
+    "typecheck": "npm run typecheck:app && npm run typecheck:functions",
+    "ci:release": "bash ./scripts/ci-release.sh",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },
@@ -18,6 +22,7 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
+    "@sentry/react-native": "^6.22.0",
     "@supabase/supabase-js": "^2.94.0",
     "expo": "~54.0.33",
     "expo-asset": "~12.0.12",
@@ -37,6 +42,7 @@
     "expo-linking": "~8.0.8",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
+    "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.10",
     "expo-status-bar": "~3.0.8",
     "expo-symbols": "~1.0.7",

@@ -48,6 +48,14 @@ interface PostgrestErrorLike {
 const MISSING_RELATION_CODE = 'PGRST205';
 let isRitualsSchemaUnavailable = false;
 
+export function isRitualsSchemaUnavailableForApp(): boolean {
+  return isRitualsSchemaUnavailable;
+}
+
+export function setRitualsSchemaUnavailable(unavailable: boolean): void {
+  isRitualsSchemaUnavailable = unavailable;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object';
 }
@@ -197,12 +205,26 @@ export async function createRitual(
 
     if (error) throw error;
 
-    // Initialize streak tracking
-    await supabase.from('ritual_streaks')
+    // Initialize streak tracking. Roll back ritual creation if streak init fails
+    // so callers never receive a partially created ritual.
+    const { error: streakError } = await supabase.from('ritual_streaks')
       .insert({
         user_id: userId,
         ritual_id: data.id,
       });
+
+    if (streakError) {
+      const { error: rollbackError } = await supabase
+        .from('rituals')
+        .delete()
+        .eq('id', data.id);
+
+      if (rollbackError) {
+        console.error('[Rituals] Failed to rollback ritual after streak init failure:', rollbackError);
+      }
+
+      throw streakError;
+    }
 
     return data as Ritual;
   } catch (error) {

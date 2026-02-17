@@ -18,12 +18,16 @@ import { initRevenueCat, identifyUser, logOutUser } from '@/lib/revenuecat';
 import { AuthProvider } from '@/lib/auth';
 import { GlobalErrorBoundary } from '@/components/system/GlobalErrorBoundary';
 import { WidgetBridge } from '@/lib/widgetBridge';
+import { initializeTelemetry, logNonFatal, setTelemetryUser } from '@/lib/telemetry';
+import { ensureSchemaReadiness } from '@/lib/schemaReadiness';
 
 function debugLog(...args: unknown[]): void {
   if (__DEV__) {
     console.log(...args);
   }
 }
+
+initializeTelemetry();
 
 /**
  * Known app routes that can be navigated to via deep links.
@@ -64,8 +68,11 @@ function useDeepLinkHandler() {
       while (router.canDismiss()) {
         router.dismiss();
       }
-    } catch {
-      // Silently handle if dismiss fails (e.g., no modals to dismiss)
+    } catch (error) {
+      logNonFatal(error, {
+        scope: 'deeplink:reset-navigation-stack',
+        message: 'Failed to reset navigation stack before deep link navigation',
+      });
     }
   }, [router]);
 
@@ -196,7 +203,16 @@ function ThemedAppContent() {
 
   useEffect(() => {
     initRevenueCat().catch((error) => {
-      console.warn('[App] RevenueCat init failed (non-fatal):', error);
+      logNonFatal(error, {
+        scope: 'app:revenuecat:init',
+        message: 'RevenueCat init failed',
+      });
+    });
+    ensureSchemaReadiness().catch((error) => {
+      logNonFatal(error, {
+        scope: 'app:schema-readiness',
+        message: 'Startup schema readiness check failed',
+      });
     });
     checkOnboarding();
   }, []);
@@ -210,7 +226,12 @@ function ThemedAppContent() {
       if (appState.current.match(/inactive|background/) && nextState === 'active') {
         // App returned to foreground — refresh all widgets with stored data
         debugLog('[Widgets] App foregrounded, refreshing all widgets');
-        WidgetBridge.refreshAllWidgets().catch(() => {});
+        WidgetBridge.refreshAllWidgets().catch((error) => {
+          logNonFatal(error, {
+            scope: 'app:widgets:refresh',
+            message: 'Failed to refresh widgets on foreground',
+          });
+        });
       }
       appState.current = nextState;
     });
@@ -462,10 +483,12 @@ export default function RootLayout() {
           if (user.email) {
             await identifyUser(user.id);
           }
+          setTelemetryUser(user.id);
         }}
         onSignOut={async () => {
           debugLog('[Auth] User signed out');
           await logOutUser();
+          setTelemetryUser(null);
           // Clear widget data on logout
           await WidgetBridge.clearAllData();
         }}

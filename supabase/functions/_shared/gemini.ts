@@ -10,6 +10,11 @@ export interface GeminiUsage {
 
 let geminiClient: GoogleGenAI | null = null;
 
+const GEMINI_MODEL_ALIASES: Record<string, string> = {
+  // Keep legacy aliases working while pinning API calls to currently documented model IDs.
+  'gemini-2.5-flash-native-audio-preview': 'gemini-2.5-flash-native-audio-preview-12-2025',
+};
+
 function toNumber(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -66,7 +71,8 @@ export function toRawGeminiModelId(modelId: string): string {
     }
   }
 
-  return normalized;
+  const alias = GEMINI_MODEL_ALIASES[normalized.toLowerCase()];
+  return alias ?? normalized;
 }
 
 export function getGeminiClient(): GoogleGenAI {

@@ -64,13 +64,13 @@ serve(async (request) => {
         return await handleExecute(serviceClient, auth.userId, body);
 
       case 'approve':
-        return await handleResolve(serviceClient, body.approval_id, 'approved');
+        return await handleResolve(serviceClient, auth.userId, body.approval_id, 'approved');
 
       case 'reject':
-        return await handleResolve(serviceClient, body.approval_id, 'rejected');
+        return await handleResolve(serviceClient, auth.userId, body.approval_id, 'rejected');
 
       case 'status':
-        return await handleStatus(serviceClient, body.approval_id);
+        return await handleStatus(serviceClient, auth.userId, body.approval_id);
 
       default:
         return new Response(
@@ -136,6 +136,7 @@ async function handleExecute(
 
 async function handleResolve(
   serviceClient: ReturnType<typeof createServiceClient>,
+  userId: string,
   approvalId: string | undefined,
   decision: 'approved' | 'rejected',
 ): Promise<Response> {
@@ -146,7 +147,13 @@ async function handleResolve(
     );
   }
 
-  await resolveApproval(serviceClient, approvalId, decision);
+  const wasResolved = await resolveApproval(serviceClient, userId, approvalId, decision);
+  if (!wasResolved) {
+    return new Response(
+      JSON.stringify({ error: 'Approval request not found or already resolved' }),
+      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
 
   // If approved, execute the action
   if (decision === 'approved') {
@@ -154,7 +161,8 @@ async function handleResolve(
       .from('approval_requests')
       .select('tool_name, payload')
       .eq('id', approvalId)
-      .single();
+      .eq('user_id', userId)
+      .maybeSingle();
 
     if (approval) {
       const result = await executeAction(
@@ -176,6 +184,7 @@ async function handleResolve(
 
 async function handleStatus(
   serviceClient: ReturnType<typeof createServiceClient>,
+  userId: string,
   approvalId: string | undefined,
 ): Promise<Response> {
   if (!approvalId) {
@@ -185,7 +194,7 @@ async function handleStatus(
     );
   }
 
-  const result = await checkApproval(serviceClient, approvalId);
+  const result = await checkApproval(serviceClient, userId, approvalId);
 
   return new Response(
     JSON.stringify({

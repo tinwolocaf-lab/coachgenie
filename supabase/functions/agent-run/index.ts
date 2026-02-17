@@ -7,7 +7,11 @@ import {
   orchestratePostResponse,
 } from '../_shared/agent-orchestrator.ts';
 import type { TriggerType } from '../_shared/trace.ts';
-import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
+import {
+  extractOpenRouterMessageContent,
+  getDefaultOpenRouterChatModel,
+  openRouterChat,
+} from '../_shared/openrouter.ts';
 import { isGeminiModelId } from '../_shared/gemini.ts';
 
 interface AgentRunBody {
@@ -18,7 +22,7 @@ interface AgentRunBody {
   context?: Record<string, unknown>;
 }
 
-const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+const DEFAULT_MODEL = getDefaultOpenRouterChatModel();
 
 /**
  * Unified agent-run entry point.

@@ -29,6 +29,7 @@ import {
 } from '@/store/app';
 import { PremiumPageTransition } from '@/components/ui/PremiumPageTransition';
 import { useAlert } from '@/contexts/AlertContext';
+import { logNonFatal } from '@/lib/telemetry';
 
 export default function CoachDetailScreen() {
   const router = useRouter();
@@ -118,7 +119,12 @@ export default function CoachDetailScreen() {
       WidgetBridge.syncWidgetData({
         recommendedCoach: { name: coach.name, emoji: coach.icon_name ?? '🧠' },
         coachingPrompt: `Ready to work with ${coach.name}?`,
-      }).catch(() => {});
+      }).catch((error) => {
+        logNonFatal(error, {
+          scope: 'coach-detail:widget-sync',
+          message: 'Failed to sync active coach widget data',
+        });
+      });
     } catch (error) {
       console.error('Error setting active coach:', error);
     } finally {

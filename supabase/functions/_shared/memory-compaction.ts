@@ -1,6 +1,10 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { storeMemory, type MemoryType } from './memory.ts';
-import { extractOpenRouterMessageContent, openRouterChat } from './openrouter.ts';
+import {
+  extractOpenRouterMessageContent,
+  getDefaultOpenRouterChatModel,
+  openRouterChat,
+} from './openrouter.ts';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -29,6 +33,7 @@ const COMPACTION_AGE_HOURS = 24;
 const MAX_SUMMARY_INPUT_CHARS = 6000;
 const TTL_DAYS_EPISODIC = 30;
 const TTL_DAYS_SUMMARY = 180;
+const DEFAULT_CHAT_MODEL = getDefaultOpenRouterChatModel();
 
 // ── Core compaction ─────────────────────────────────────────────────────
 
@@ -186,7 +191,7 @@ async function summarizeBatch(batch: EpisodicRow[]): Promise<string | null> {
 
   try {
     const response = await openRouterChat({
-      model: 'google/gemini-2.5-flash',
+      model: DEFAULT_CHAT_MODEL,
       messages: [
         {
           role: 'system',

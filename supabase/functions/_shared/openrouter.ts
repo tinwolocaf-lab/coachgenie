@@ -10,6 +10,13 @@ const OPENROUTER_BASE_URL = Deno.env.get('OPENROUTER_BASE_URL') ?? 'https://open
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
 const OPENROUTER_APP_URL = Deno.env.get('OPENROUTER_APP_URL');
 const OPENROUTER_APP_NAME = Deno.env.get('OPENROUTER_APP_NAME');
+const OPENROUTER_CHAT_MODEL = Deno.env.get('OPENROUTER_CHAT_MODEL');
+const OPENROUTER_JSON_MODEL = Deno.env.get('OPENROUTER_JSON_MODEL');
+const OPENROUTER_AUDIO_MODEL = Deno.env.get('OPENROUTER_AUDIO_MODEL');
+
+const DEFAULT_CHAT_MODEL = 'google/gemini-2.5-flash-lite';
+const DEFAULT_JSON_MODEL = 'google/gemini-2.5-flash-lite';
+const DEFAULT_AUDIO_MODEL = 'google/gemini-2.5-flash-lite';
 
 export interface OpenRouterUsage {
   inputTokens?: number;
@@ -17,6 +24,44 @@ export interface OpenRouterUsage {
   audioInputTokens?: number;
   audioOutputTokens?: number;
   reasoningTokens?: number;
+}
+
+function normalizeModelId(modelId: string): string {
+  const trimmed = modelId.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('models/')) {
+    const raw = trimmed.slice('models/'.length);
+    return raw.startsWith('gemini-') ? `google/${raw}` : raw;
+  }
+
+  if (trimmed.startsWith('gemini-')) {
+    return `google/${trimmed}`;
+  }
+
+  return trimmed;
+}
+
+function resolveModel(envValue: string | undefined, fallback: string): string {
+  const normalized = normalizeModelId(envValue ?? '');
+  if (normalized) {
+    return normalized;
+  }
+  return fallback;
+}
+
+export function getDefaultOpenRouterChatModel(): string {
+  return resolveModel(OPENROUTER_CHAT_MODEL, DEFAULT_CHAT_MODEL);
+}
+
+export function getDefaultOpenRouterJsonModel(): string {
+  return resolveModel(OPENROUTER_JSON_MODEL, DEFAULT_JSON_MODEL);
+}
+
+export function getDefaultOpenRouterAudioModel(): string {
+  return resolveModel(OPENROUTER_AUDIO_MODEL, DEFAULT_AUDIO_MODEL);
 }
 
 export function getOpenRouterHeaders(): Record<string, string> {
@@ -162,6 +207,13 @@ function buildGeminiConfig(payload: Record<string, unknown>, systemInstruction: 
   const responseFormat = asRecord(payload.response_format);
   if (responseFormat?.type === 'json_object') {
     config.responseMimeType = 'application/json';
+  } else if (responseFormat?.type === 'json_schema') {
+    const jsonSchema = asRecord(responseFormat.json_schema);
+    const schema = asRecord(jsonSchema?.schema);
+    if (schema) {
+      config.responseMimeType = 'application/json';
+      config.responseSchema = schema;
+    }
   }
 
   const tools = payload.tools;
@@ -271,16 +323,20 @@ async function geminiChat(payload: Record<string, unknown>): Promise<Response> {
 }
 
 export async function openRouterChat(payload: Record<string, unknown>) {
-  const model = typeof payload.model === 'string' ? payload.model : '';
+  const configuredModel = typeof payload.model === 'string' ? payload.model : '';
+  const model = normalizeModelId(configuredModel) || getDefaultOpenRouterChatModel();
+  const normalizedPayload = model === configuredModel
+    ? payload
+    : { ...payload, model };
 
   if (model && isGeminiModelId(model)) {
-    return await geminiChat(payload);
+    return await geminiChat(normalizedPayload);
   }
 
   const response = await fetch(getOpenRouterUrl('/chat/completions'), {
     method: 'POST',
     headers: getOpenRouterHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(normalizedPayload),
   });
 
   if (!response.ok) {

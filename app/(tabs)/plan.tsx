@@ -31,6 +31,7 @@ import { createSession } from '@/lib/supabase-sanctuary';
 import { generatePlan } from '@/lib/apiClient';
 import { getCoachByIdResolved } from '@/lib/coaches';
 import { useAlert } from '@/contexts/AlertContext';
+import { logNonFatal } from '@/lib/telemetry';
 
 function normalizeErrorMessage(error: unknown): string {
   if (typeof error === 'string') {
@@ -117,7 +118,12 @@ export default function PlanScreen() {
       if (dateStr === todayStr) {
         const firstPriority = updatedPriorities.find((p) => !p.completed)?.title
           ?? updatedPriorities[0]?.title ?? 'All done for today!';
-        WidgetBridge.syncWidgetData({ topPriority: firstPriority }).catch(() => {});
+        WidgetBridge.syncWidgetData({ topPriority: firstPriority }).catch((error) => {
+          logNonFatal(error, {
+            scope: 'plan:widget-sync:priority-toggle',
+            message: 'Failed to sync top priority widget state',
+          });
+        });
       }
     }
   };
@@ -192,7 +198,12 @@ export default function PlanScreen() {
       if (todayPlan?.top_priorities?.[0]) {
         WidgetBridge.syncWidgetData({
           topPriority: todayPlan.top_priorities[0].title,
-        }).catch(() => {});
+        }).catch((error) => {
+          logNonFatal(error, {
+            scope: 'plan:widget-sync:generated-plan',
+            message: 'Failed to sync generated plan widget state',
+          });
+        });
       }
     } catch (error) {
       if (createdSessionId) {

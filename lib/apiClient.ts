@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { fetchWithRetry } from '@/lib/network';
 
 export interface StreamMeta {
   run_id?: string;
@@ -27,6 +28,7 @@ export type BillingTierSource = 'cache' | 'revenuecat' | 'fallback' | 'trial_cou
 
 export interface StreamChatOptions {
   modelId?: string;
+  signal?: AbortSignal;
 }
 
 export type ApiFunctionErrorKind =
@@ -227,6 +229,53 @@ async function getAuthHeader(): Promise<string> {
   return `Bearer ${token}`;
 }
 
+const DEFAULT_FUNCTION_TIMEOUT_MS = 30_000;
+const STREAM_FUNCTION_TIMEOUT_MS = 120_000;
+const VOICE_TRANSCRIBE_TIMEOUT_MS = 180_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  options: {
+    endpoint: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+    idempotent?: boolean;
+    retries?: number;
+    retryDelayMs?: number;
+    retryBackoffMultiplier?: number;
+  }
+): Promise<Response> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_FUNCTION_TIMEOUT_MS;
+
+  try {
+    return await fetchWithRetry(
+      url,
+      {
+        ...init,
+        signal: options.signal ?? init.signal,
+      },
+      {
+        timeoutMs,
+        signal: options.signal,
+        idempotent: options.idempotent,
+        retries: options.retries,
+        retryDelayMs: options.retryDelayMs,
+        retryBackoffMultiplier: options.retryBackoffMultiplier,
+      }
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === 'RequestTimeoutError') {
+      throw new ApiFunctionError({
+        kind: 'server',
+        endpoint: options.endpoint,
+        message: `Request to ${options.endpoint} timed out after ${Math.ceil(timeoutMs / 1000)}s`,
+      });
+    }
+    throw error;
+  }
+}
+
 function parseSseEvent(block: string): { event: string; data: string } | null {
   const lines = block.split('\n');
   let event = 'message';
@@ -298,19 +347,23 @@ export async function streamChat(
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/chat-stream`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/chat-stream`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        session_id: sessionId,
+        user_message: userMessage,
+        client_context: { screen: 'chat' },
+        model_id: options.modelId,
+      }),
     },
-    body: JSON.stringify({
-      session_id: sessionId,
-      user_message: userMessage,
-      client_context: { screen: 'chat' },
-      model_id: options.modelId,
-    }),
-  });
+    { endpoint: 'chat-stream', timeoutMs: STREAM_FUNCTION_TIMEOUT_MS, signal: options.signal }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to stream chat', 'chat-stream');
@@ -383,14 +436,18 @@ export async function generateArtifacts(sessionId: string): Promise<{
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/artifacts-generate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/artifacts-generate`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ session_id: sessionId }),
     },
-    body: JSON.stringify({ session_id: sessionId }),
-  });
+    { endpoint: 'artifacts-generate' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to generate artifacts', 'artifacts-generate');
@@ -449,14 +506,18 @@ export async function generatePlan(sessionId: string, horizonDays = 7): Promise<
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/plans-generate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/plans-generate`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ session_id: sessionId, horizon_days: horizonDays }),
     },
-    body: JSON.stringify({ session_id: sessionId, horizon_days: horizonDays }),
-  });
+    { endpoint: 'plans-generate' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to generate plan', 'plans-generate');
@@ -474,14 +535,18 @@ export async function generateBreakthrough(sessionId: string): Promise<{
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/sanctuary-breakthrough`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/sanctuary-breakthrough`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ session_id: sessionId }),
     },
-    body: JSON.stringify({ session_id: sessionId }),
-  });
+    { endpoint: 'sanctuary-breakthrough' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to generate breakthrough', 'sanctuary-breakthrough');
@@ -501,21 +566,25 @@ export async function generateClosingThought(params: {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/rituals-closing-thought`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/rituals-closing-thought`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        wins: params.wins,
+        lessons: params.lessons,
+        morning_intention: params.morningIntention,
+        ritual_progress: params.ritualProgress,
+        values: params.values,
+        goals: params.goals,
+      }),
     },
-    body: JSON.stringify({
-      wins: params.wins,
-      lessons: params.lessons,
-      morning_intention: params.morningIntention,
-      ritual_progress: params.ritualProgress,
-      values: params.values,
-      goals: params.goals,
-    }),
-  });
+    { endpoint: 'rituals-closing-thought' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to generate closing thought', 'rituals-closing-thought');
@@ -533,18 +602,22 @@ export async function suggestRitualFromInsight(params: {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/rituals-suggest-ritual`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/rituals-suggest-ritual`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        insight_title: params.insightTitle,
+        insight_content: params.insightContent,
+        existing_rituals: params.existingRituals,
+      }),
     },
-    body: JSON.stringify({
-      insight_title: params.insightTitle,
-      insight_content: params.insightContent,
-      existing_rituals: params.existingRituals,
-    }),
-  });
+    { endpoint: 'rituals-suggest-ritual' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to suggest ritual', 'rituals-suggest-ritual');
@@ -561,14 +634,18 @@ export async function generateInsightTitle(content: string): Promise<string> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/sanctuary-insight-title`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/sanctuary-insight-title`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ content }),
     },
-    body: JSON.stringify({ content }),
-  });
+    { endpoint: 'sanctuary-insight-title' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to generate insight title', 'sanctuary-insight-title');
@@ -582,14 +659,18 @@ export async function expandOnPoint(point: string): Promise<string> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/sanctuary-expand`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/sanctuary-expand`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ point }),
     },
-    body: JSON.stringify({ point }),
-  });
+    { endpoint: 'sanctuary-expand' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to expand on point', 'sanctuary-expand');
@@ -603,14 +684,18 @@ export async function askHistory(query: string): Promise<{ answer: string; sourc
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/archive-ask-history`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/archive-ask-history`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ query }),
     },
-    body: JSON.stringify({ query }),
-  });
+    { endpoint: 'archive-ask-history' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to ask history', 'archive-ask-history');
@@ -623,14 +708,18 @@ export async function generateMonthlySynthesis(monthYear: string): Promise<unkno
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/archive-monthly-synthesis`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/archive-monthly-synthesis`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ month_year: monthYear }),
     },
-    body: JSON.stringify({ month_year: monthYear }),
-  });
+    { endpoint: 'archive-monthly-synthesis' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to generate monthly synthesis', 'archive-monthly-synthesis');
@@ -644,22 +733,31 @@ export async function transcribeVoiceNote(params: {
   fileName?: string;
   mimeType?: string;
   onToken?: (chunk: string) => void;
+  signal?: AbortSignal;
 }): Promise<string> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/voice-transcribe`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/voice-transcribe`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        audio_base64: params.audioBase64,
+        file_name: params.fileName,
+        mime_type: params.mimeType,
+      }),
     },
-    body: JSON.stringify({
-      audio_base64: params.audioBase64,
-      file_name: params.fileName,
-      mime_type: params.mimeType,
-    }),
-  });
+    {
+      endpoint: 'voice-transcribe',
+      timeoutMs: VOICE_TRANSCRIBE_TIMEOUT_MS,
+      signal: params.signal,
+    }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to transcribe voice note', 'voice-transcribe');
@@ -734,12 +832,21 @@ export async function getCreditStatus(): Promise<CreditStatusResponse> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/billing-credit-status`, {
-    method: 'GET',
-    headers: {
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/billing-credit-status`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: authHeader,
+      },
     },
-  });
+    {
+      endpoint: 'billing-credit-status',
+      idempotent: true,
+      retries: 2,
+      retryDelayMs: 500,
+    }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to load credit status', 'billing-credit-status');
@@ -752,14 +859,18 @@ export async function redeemCoupon(code: string): Promise<RedeemCouponResponse> 
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/billing-redeem-coupon`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/billing-redeem-coupon`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({ code }),
     },
-    body: JSON.stringify({ code }),
-  });
+    { endpoint: 'billing-redeem-coupon' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to redeem coupon', 'billing-redeem-coupon');
@@ -772,12 +883,21 @@ export async function getAvailableModels(): Promise<ModelCatalogResponse> {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/billing-model-catalog`, {
-    method: 'GET',
-    headers: {
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/billing-model-catalog`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: authHeader,
+      },
     },
-  });
+    {
+      endpoint: 'billing-model-catalog',
+      idempotent: true,
+      retries: 2,
+      retryDelayMs: 500,
+    }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to load model catalog', 'billing-model-catalog');
@@ -790,16 +910,20 @@ export async function setPreferredModel(modelId: string): Promise<{ preferred_mo
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/billing-set-model-preference`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/billing-set-model-preference`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        model_id: modelId,
+      }),
     },
-    body: JSON.stringify({
-      model_id: modelId,
-    }),
-  });
+    { endpoint: 'billing-set-model-preference' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(
@@ -840,21 +964,25 @@ export async function upsertMemory(params: {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/memory-upsert`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/memory-upsert`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        memory_type: params.memoryType,
+        source_type: params.sourceType,
+        content: params.content,
+        source_id: params.sourceId,
+        salience_score: params.salienceScore,
+        metadata: params.metadata,
+      }),
     },
-    body: JSON.stringify({
-      memory_type: params.memoryType,
-      source_type: params.sourceType,
-      content: params.content,
-      source_id: params.sourceId,
-      salience_score: params.salienceScore,
-      metadata: params.metadata,
-    }),
-  });
+    { endpoint: 'memory-upsert' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to store memory', 'memory-upsert');
@@ -877,20 +1005,24 @@ export async function retrieveMemories(params: {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/memory-retrieve`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/memory-retrieve`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        query: params.query,
+        limit: params.limit,
+        memory_types: params.memoryTypes,
+        min_similarity: params.minSimilarity,
+        format: params.format,
+      }),
     },
-    body: JSON.stringify({
-      query: params.query,
-      limit: params.limit,
-      memory_types: params.memoryTypes,
-      min_similarity: params.minSimilarity,
-      format: params.format,
-    }),
-  });
+    { endpoint: 'memory-retrieve' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to retrieve memories', 'memory-retrieve');
@@ -925,20 +1057,24 @@ export async function executeAction(params: {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/actions-execute`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/actions-execute`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        action: 'execute',
+        tool_name: params.toolName,
+        action_summary: params.actionSummary,
+        payload: params.payload,
+        run_id: params.runId,
+      }),
     },
-    body: JSON.stringify({
-      action: 'execute',
-      tool_name: params.toolName,
-      action_summary: params.actionSummary,
-      payload: params.payload,
-      run_id: params.runId,
-    }),
-  });
+    { endpoint: 'actions-execute' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to execute action', 'actions-execute');
@@ -954,18 +1090,22 @@ export async function resolveApproval(
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/actions-execute`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/actions-execute`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        action: decision,
+        tool_name: '_resolve',
+        approval_id: approvalId,
+      }),
     },
-    body: JSON.stringify({
-      action: decision,
-      tool_name: '_resolve',
-      approval_id: approvalId,
-    }),
-  });
+    { endpoint: 'actions-execute' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to resolve approval', 'actions-execute');
@@ -989,18 +1129,22 @@ export async function escalateSafety(params: {
   const baseUrl = getFunctionsBaseUrl();
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(`${baseUrl}/safety-escalate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: authHeader,
+  const response = await fetchWithTimeout(
+    `${baseUrl}/safety-escalate`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        message: params.message,
+        run_id: params.runId,
+        locale: params.locale,
+      }),
     },
-    body: JSON.stringify({
-      message: params.message,
-      run_id: params.runId,
-      locale: params.locale,
-    }),
-  });
+    { endpoint: 'safety-escalate' }
+  );
 
   if (!response.ok) {
     await throwFunctionError(response, 'Failed to escalate safety', 'safety-escalate');

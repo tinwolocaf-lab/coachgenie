@@ -1,5 +1,5 @@
 // New Ritual Screen - Create a new daily ritual
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
+import { useAlert } from '@/contexts/AlertContext';
 import { Button } from '@/components/ui/Button';
 import { useAuthSafe } from '@/hooks/useConditionalAuth';
 import { createRitual, getGrowthChapters } from '@/lib/supabase-rituals';
@@ -50,6 +51,7 @@ export default function NewRitualScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ chapterId?: string }>();
   const { palette } = useThemeSafe();
+  const { showToast } = useAlert();
   const auth = useAuthSafe();
 
   const [title, setTitle] = useState('');
@@ -60,8 +62,18 @@ export default function NewRitualScreen() {
   const [chapters, setChapters] = useState<GrowthChapter[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const successScale = useSharedValue(0);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+        successTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const loadChapters = useCallback(async () => {
     if (!auth?.user?.id) return;
@@ -103,13 +115,24 @@ export default function NewRitualScreen() {
         );
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        setTimeout(() => {
+        successTimeoutRef.current = setTimeout(() => {
           router.back();
         }, 1500);
+        return;
       }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showToast('Unable to save ritual', {
+        variant: 'error',
+        message: 'Ritual storage is unavailable. Run latest Supabase migrations, then try again.',
+      });
     } catch (error) {
       console.error('Error creating ritual:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showToast('Ritual creation failed', {
+        variant: 'error',
+        message: 'Please try again in a moment.',
+      });
     } finally {
       setIsCreating(false);
     }

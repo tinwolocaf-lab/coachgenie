@@ -49,11 +49,29 @@ function normalizeVoiceName(value: string | undefined): string {
   return value.trim().slice(0, 40);
 }
 
+function stripModelPrefixes(modelId: string): string {
+  let normalized = modelId.trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    if (normalized.startsWith('models/')) {
+      normalized = normalized.slice('models/'.length);
+      changed = true;
+    }
+    if (normalized.startsWith('google/')) {
+      normalized = normalized.slice('google/'.length);
+      changed = true;
+    }
+  }
+  return normalized;
+}
+
 function normalizeModel(value: string | undefined): string {
   if (!value || value.trim().length === 0) {
     return DEFAULT_LIVE_MODEL;
   }
-  return toRawGeminiModelId(value);
+  // Keep billing IDs stable while API calls can still use canonicalized IDs.
+  return stripModelPrefixes(value);
 }
 
 function buildLiveTools(): Array<Record<string, unknown>> {
@@ -116,7 +134,8 @@ function liveTokenRequestConfig(params: {
     liveConnectConstraints: {
       model: params.model,
       config: {
-        responseModalities: ['AUDIO', 'TEXT'],
+        responseModalities: ['AUDIO'],
+        outputAudioTranscription: {},
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {
@@ -239,7 +258,8 @@ serve(async (request) => {
   const systemInstruction = await buildEnrichedSystemPrompt(userId, basePrompt, userClient);
 
   const voiceName = normalizeVoiceName(payload.voiceName);
-  const model = normalizeModel(Deno.env.get('GEMINI_LIVE_MODEL'));
+  const billingModelId = normalizeModel(Deno.env.get('GEMINI_LIVE_MODEL'));
+  const apiModel = toRawGeminiModelId(billingModelId);
 
   const tierResult = await resolveBillingTier(serviceClient, userId);
 
@@ -268,7 +288,7 @@ serve(async (request) => {
     );
 
   const holdUsage = buildHoldUsage(DEFAULT_HOLD_SECONDS);
-  const holdUsd = await calculateUsdCost(serviceClient, model, holdUsage);
+  const holdUsd = await calculateUsdCost(serviceClient, billingModelId, holdUsage);
   const holdMcredits = Math.max(MIN_HOLD_MCREDITS, mcreditsFromUsd(holdUsd));
 
   try {
@@ -291,7 +311,7 @@ serve(async (request) => {
       userId,
       endpoint: 'voice-session-config',
       holdMcredits,
-      modelId: model,
+      modelId: billingModelId,
       requestId,
       metadata: {
         tier: tierResult.tier,
@@ -326,7 +346,7 @@ serve(async (request) => {
       user_id: userId,
       session_id,
       coach_id,
-      model_id: model,
+      model_id: billingModelId,
       hold_mcredits: holdMcredits,
       usage_units: holdUsage,
       status: 'active',
@@ -341,7 +361,7 @@ serve(async (request) => {
         userId,
         endpoint: 'voice-session-config-rollback',
         releaseMcredits: holdMcredits,
-        modelId: model,
+        modelId: billingModelId,
         requestId: `${requestId}:rollback`,
         metadata: {
           reason: 'voice_session_insert_failed',
@@ -367,7 +387,7 @@ serve(async (request) => {
   const newSessionExpireTime = new Date(now + 5 * 60 * 1000).toISOString();
   const expireTime = new Date(now + 20 * 60 * 1000).toISOString();
   const tokenConfig = liveTokenRequestConfig({
-    model,
+    model: apiModel,
     systemInstruction,
     voiceName,
     newSessionExpireTime,
@@ -379,10 +399,10 @@ serve(async (request) => {
 
     return new Response(
       JSON.stringify({
-        model,
+        model: apiModel,
         systemInstruction,
         generationConfig: {
-          responseModalities: ['AUDIO', 'TEXT'],
+          responseModalities: ['AUDIO'],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
@@ -391,6 +411,7 @@ serve(async (request) => {
             },
           },
         },
+        outputAudioTranscription: {},
         voiceName,
         access_token: token.name,
         token_expires_at: token.expireTime ?? expireTime,
@@ -421,7 +442,7 @@ serve(async (request) => {
         userId,
         endpoint: 'voice-session-config-rollback',
         releaseMcredits: holdMcredits,
-        modelId: model,
+        modelId: billingModelId,
         requestId: `${requestId}:token_failed`,
         metadata: {
           reason: 'token_creation_failed',

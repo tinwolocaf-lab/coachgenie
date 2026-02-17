@@ -1,4 +1,6 @@
 import * as AuthSession from 'expo-auth-session';
+import * as Crypto from 'expo-crypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IntegrationProvider } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { exchangeToken, disconnectIntegration as apiDisconnect } from './api';
@@ -20,6 +22,16 @@ const REDIRECT_URI = AuthSession.makeRedirectUri({
   scheme: 'coachgenie',
   path: 'integrations/callback',
 });
+
+const OAUTH_PENDING_FLOW_KEY = 'coachgenie_oauth_pending_flow';
+const OAUTH_PENDING_TTL_MS = 10 * 60 * 1000;
+
+interface PendingOAuthFlow {
+  provider: IntegrationProvider;
+  state: string;
+  redirectUri: string;
+  createdAtMs: number;
+}
 
 const OAUTH_CONFIGS: Record<IntegrationProvider, OAuthConfig> = {
   google_calendar: {
@@ -54,11 +66,85 @@ const OAUTH_CONFIGS: Record<IntegrationProvider, OAuthConfig> = {
   },
 };
 
+function createOAuthState(): string {
+  const uuid = Crypto.randomUUID();
+  return uuid.replace(/-/g, '');
+}
+
+async function setPendingOAuthFlow(flow: PendingOAuthFlow): Promise<void> {
+  await AsyncStorage.setItem(OAUTH_PENDING_FLOW_KEY, JSON.stringify(flow));
+}
+
+async function getPendingOAuthFlow(): Promise<PendingOAuthFlow | null> {
+  const value = await AsyncStorage.getItem(OAUTH_PENDING_FLOW_KEY);
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(value) as Partial<PendingOAuthFlow>;
+    if (
+      parsed &&
+      typeof parsed.provider === 'string' &&
+      isIntegrationProvider(parsed.provider) &&
+      typeof parsed.state === 'string' &&
+      typeof parsed.redirectUri === 'string' &&
+      typeof parsed.createdAtMs === 'number'
+    ) {
+      return {
+        provider: parsed.provider,
+        state: parsed.state,
+        redirectUri: parsed.redirectUri,
+        createdAtMs: parsed.createdAtMs,
+      };
+    }
+  } catch {
+    // Ignore malformed cache.
+  }
+
+  return null;
+}
+
+export async function clearPendingOAuthFlow(): Promise<void> {
+  await AsyncStorage.removeItem(OAUTH_PENDING_FLOW_KEY);
+}
+
+export function isIntegrationProvider(value: string): value is IntegrationProvider {
+  return value in OAUTH_CONFIGS;
+}
+
+export async function validatePendingOAuthFlow(
+  provider: IntegrationProvider,
+  state: string | null | undefined,
+  redirectUri: string,
+): Promise<boolean> {
+  const pending = await getPendingOAuthFlow();
+  if (!pending) return false;
+
+  const isFresh = Date.now() - pending.createdAtMs <= OAUTH_PENDING_TTL_MS;
+  const isProviderMatch = pending.provider === provider;
+  const isStateMatch = !!state && pending.state === state;
+  const isRedirectMatch = pending.redirectUri === redirectUri;
+
+  if (isFresh && isProviderMatch && isStateMatch && isRedirectMatch) {
+    await clearPendingOAuthFlow();
+    return true;
+  }
+
+  return false;
+}
+
 export async function startOAuthFlow(provider: IntegrationProvider): Promise<boolean> {
   const config = OAUTH_CONFIGS[provider];
   if (!config.clientId) {
     return false;
   }
+
+  const state = createOAuthState();
+  await setPendingOAuthFlow({
+    provider,
+    state,
+    redirectUri: REDIRECT_URI,
+    createdAtMs: Date.now(),
+  });
 
   const request = new AuthSession.AuthRequest({
     clientId: config.clientId,
@@ -66,6 +152,7 @@ export async function startOAuthFlow(provider: IntegrationProvider): Promise<boo
     redirectUri: REDIRECT_URI,
     responseType: AuthSession.ResponseType.Code,
     usePKCE: true,
+    state,
   });
 
   const discovery: AuthSession.DiscoveryDocument = {
@@ -76,6 +163,13 @@ export async function startOAuthFlow(provider: IntegrationProvider): Promise<boo
   const result = await request.promptAsync(discovery);
 
   if (result.type === 'success' && result.params?.code) {
+    const resultState = typeof result.params.state === 'string' ? result.params.state : null;
+    const isValidState = await validatePendingOAuthFlow(provider, resultState, REDIRECT_URI);
+    if (!isValidState) {
+      await clearPendingOAuthFlow();
+      return false;
+    }
+
     try {
       await exchangeToken(provider, result.params.code, REDIRECT_URI);
       return true;
@@ -85,6 +179,7 @@ export async function startOAuthFlow(provider: IntegrationProvider): Promise<boo
     }
   }
 
+  await clearPendingOAuthFlow();
   return false;
 }
 

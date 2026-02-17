@@ -19,6 +19,17 @@ interface SupabaseErrorLike {
   message?: string;
 }
 
+const MISSING_RELATION_CODE = 'PGRST205';
+let isBreakthroughsSchemaUnavailable = false;
+
+export function isBreakthroughsSchemaUnavailableForApp(): boolean {
+  return isBreakthroughsSchemaUnavailable;
+}
+
+export function setBreakthroughsSchemaUnavailable(unavailable: boolean): void {
+  isBreakthroughsSchemaUnavailable = unavailable;
+}
+
 type BreakthroughRow = Database['public']['Tables']['breakthroughs']['Row'];
 type SessionSnapshot = Database['public']['Tables']['coaching_sessions']['Insert']['coach_snapshot'];
 
@@ -62,9 +73,17 @@ function isBreakthroughsTableMissing(error: unknown): boolean {
   const code = typeof maybeError.code === 'string' ? maybeError.code : '';
   const message = typeof maybeError.message === 'string' ? maybeError.message.toLowerCase() : '';
   return (
-    code === 'PGRST205' ||
+    code === MISSING_RELATION_CODE ||
     message.includes("could not find the table 'public.breakthroughs'")
   );
+}
+
+function markBreakthroughsSchemaUnavailable(error: unknown): boolean {
+  if (!isBreakthroughsTableMissing(error)) {
+    return false;
+  }
+  setBreakthroughsSchemaUnavailable(true);
+  return true;
 }
 
 // Sessions
@@ -355,7 +374,7 @@ export async function saveBreakthrough(
   keyTakeaways: string[],
   actionItems: { id: string; title: string; completed: boolean }[]
 ): Promise<Breakthrough | null> {
-  if (!isSupabaseConfigured) return null;
+  if (!isSupabaseConfigured || isBreakthroughsSchemaUnavailableForApp()) return null;
   try {
     const { data, error } = await supabase
       .from('breakthroughs')
@@ -375,7 +394,7 @@ export async function saveBreakthrough(
     if (error) throw error;
     return data ? mapBreakthroughRow(data) : null;
   } catch (error) {
-    if (isBreakthroughsTableMissing(error)) {
+    if (markBreakthroughsSchemaUnavailable(error)) {
       console.warn('[Sanctuary] Breakthroughs table not found; skipping breakthrough persistence.');
       return null;
     }
@@ -387,7 +406,7 @@ export async function saveBreakthrough(
 export async function getTodaysBreakthrough(
   userId: string
 ): Promise<Breakthrough | null> {
-  if (!isSupabaseConfigured) return null;
+  if (!isSupabaseConfigured || isBreakthroughsSchemaUnavailableForApp()) return null;
   try {
     const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
@@ -400,14 +419,17 @@ export async function getTodaysBreakthrough(
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116' || isBreakthroughsTableMissing(error)) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      if (markBreakthroughsSchemaUnavailable(error)) {
         return null;
       }
       throw error;
     }
     return data ? mapBreakthroughRow(data) : null;
   } catch (error) {
-    if (isBreakthroughsTableMissing(error)) {
+    if (markBreakthroughsSchemaUnavailable(error)) {
       return null;
     }
     console.error('Error fetching today\'s breakthrough:', error);
@@ -419,7 +441,7 @@ export async function getUserBreakthroughs(
   userId: string,
   limit = 30
 ): Promise<Breakthrough[]> {
-  if (!isSupabaseConfigured) return [];
+  if (!isSupabaseConfigured || isBreakthroughsSchemaUnavailableForApp()) return [];
   try {
     const { data, error } = await supabase
       .from('breakthroughs')
@@ -429,14 +451,14 @@ export async function getUserBreakthroughs(
       .limit(limit);
 
     if (error) {
-      if (isBreakthroughsTableMissing(error)) {
+      if (markBreakthroughsSchemaUnavailable(error)) {
         return [];
       }
       throw error;
     }
     return (data || []).map(mapBreakthroughRow);
   } catch (error) {
-    if (isBreakthroughsTableMissing(error)) {
+    if (markBreakthroughsSchemaUnavailable(error)) {
       return [];
     }
     console.error('Error fetching breakthroughs:', error);
@@ -449,7 +471,7 @@ export async function updateBreakthroughAction(
   actionId: string,
   completed: boolean
 ): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
+  if (!isSupabaseConfigured || isBreakthroughsSchemaUnavailableForApp()) return false;
   try {
     // First get the current breakthrough
     const { data: breakthrough, error: fetchError } = await supabase
@@ -459,7 +481,7 @@ export async function updateBreakthroughAction(
       .single();
 
     if (fetchError) {
-      if (isBreakthroughsTableMissing(fetchError)) {
+      if (markBreakthroughsSchemaUnavailable(fetchError)) {
         return false;
       }
       throw fetchError;
@@ -490,14 +512,14 @@ export async function updateBreakthroughAction(
       .eq('id', breakthroughId);
 
     if (error) {
-      if (isBreakthroughsTableMissing(error)) {
+      if (markBreakthroughsSchemaUnavailable(error)) {
         return false;
       }
       throw error;
     }
     return true;
   } catch (error) {
-    if (isBreakthroughsTableMissing(error)) {
+    if (markBreakthroughsSchemaUnavailable(error)) {
       return false;
     }
     console.error('Error updating breakthrough action:', error);

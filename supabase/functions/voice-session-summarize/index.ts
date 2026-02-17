@@ -4,11 +4,42 @@ import { requireAuth } from '../_shared/auth.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
 import { storeMemory } from '../_shared/memory.ts';
 import { isFeatureEnabled } from '../_shared/feature-flags.ts';
-import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
+import {
+  extractOpenRouterMessageContent,
+  getDefaultOpenRouterJsonModel,
+  openRouterChat,
+} from '../_shared/openrouter.ts';
 
 interface SummarizeBody {
   session_id: string;
 }
+
+const DEFAULT_JSON_MODEL = getDefaultOpenRouterJsonModel();
+
+const VOICE_SUMMARY_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string' },
+    key_insights: {
+      type: 'array',
+      items: { type: 'string' },
+      maxItems: 5,
+    },
+    commitments: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    emotional_themes: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    breakthrough_moment: {
+      type: ['string', 'null'],
+    },
+  },
+  required: ['summary', 'key_insights', 'commitments', 'emotional_themes', 'breakthrough_moment'],
+  additionalProperties: false,
+};
 
 /**
  * Voice Session Summarize - generates summaries from voice sessions
@@ -84,7 +115,7 @@ serve(async (request) => {
 
     // Generate structured summary
     const response = await openRouterChat({
-      model: 'google/gemini-2.5-flash',
+      model: DEFAULT_JSON_MODEL,
       messages: [
         {
           role: 'system',
@@ -101,7 +132,14 @@ serve(async (request) => {
       ],
       max_tokens: 600,
       temperature: 0.2,
-      response_format: { type: 'json_object' },
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'voice_session_summary',
+          strict: true,
+          schema: VOICE_SUMMARY_SCHEMA,
+        },
+      },
     });
 
     if (!response.ok) {

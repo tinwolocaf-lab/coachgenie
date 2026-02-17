@@ -1,13 +1,13 @@
 import React from 'react';
 import {
   TouchableOpacity,
-  Text,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
   StyleProp,
   View,
+  Platform,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -17,6 +17,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Typography, Spacing, Radius, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
+import { AppText } from './AppText';
 
 export interface ButtonProps {
   title: string;
@@ -31,6 +32,10 @@ export interface ButtonProps {
   haptic?: boolean;
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  testID?: string;
+  androidHapticType?: Haptics.AndroidHaptics;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -48,6 +53,10 @@ export function Button({
   haptic = false,
   icon,
   iconPosition = 'left',
+  accessibilityLabel,
+  accessibilityHint,
+  testID,
+  androidHapticType = Haptics.AndroidHaptics.Context_Click,
 }: ButtonProps) {
   const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
@@ -64,9 +73,17 @@ export function Button({
     scale.value = withSpring(1, Timing.springBouncy);
   };
 
-  const handlePress = () => {
+  const handlePress = async () => {
     if (haptic) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try {
+        if (Platform.OS === 'android') {
+          await Haptics.performAndroidHapticsAsync(androidHapticType);
+        } else {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      } catch {
+        // Keep the action responsive if haptics are unavailable.
+      }
     }
     onPress();
   };
@@ -133,6 +150,11 @@ export function Button({
     textStyle,
   ];
 
+  const touchTargetHitSlop =
+    size === 'sm'
+      ? { top: Spacing.sm, bottom: Spacing.sm, left: Spacing.sm, right: Spacing.sm }
+      : undefined;
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -147,23 +169,53 @@ export function Button({
       return (
         <View style={styles.contentRow}>
           {iconPosition === 'left' && <View style={styles.iconLeft}>{icon}</View>}
-          <Text style={textStyles}>{title}</Text>
+          <AppText
+            style={textStyles}
+            variant={size === 'sm' ? 'body' : size === 'md' ? 'bodyLarge' : 'subtitle'}
+            weight="semibold"
+            tone="primary"
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.2}
+          >
+            {title}
+          </AppText>
           {iconPosition === 'right' && <View style={styles.iconRight}>{icon}</View>}
         </View>
       );
     }
 
-    return <Text style={textStyles}>{title}</Text>;
+    return (
+      <AppText
+        style={textStyles}
+        variant={size === 'sm' ? 'body' : size === 'md' ? 'bodyLarge' : 'subtitle'}
+        weight="semibold"
+        tone="primary"
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.2}
+      >
+        {title}
+      </AppText>
+    );
   };
 
   return (
     <AnimatedTouchable
       style={buttonStyles}
-      onPress={handlePress}
+      onPress={() => {
+        if (!disabled && !loading) {
+          void handlePress();
+        }
+      }}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled || loading}
       activeOpacity={1}
+      hitSlop={touchTargetHitSlop}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      testID={testID}
     >
       {renderContent()}
     </AnimatedTouchable>
@@ -217,7 +269,7 @@ const styles = StyleSheet.create({
 
   // Text Styles
   text: {
-    fontWeight: Typography.weights.semibold,
+    fontFamily: Typography.fonts.sansSemibold,
     textAlign: 'center',
     letterSpacing: Typography.letterSpacing.wide,
   },
@@ -225,12 +277,15 @@ const styles = StyleSheet.create({
   // Text Sizes
   textSize_sm: {
     fontSize: Typography.sizes.body,
+    lineHeight: Math.round(Typography.sizes.body * Typography.lineHeights.snug),
   },
   textSize_md: {
     fontSize: Typography.sizes.bodyLarge,
+    lineHeight: Math.round(Typography.sizes.bodyLarge * Typography.lineHeights.snug),
   },
   textSize_lg: {
     fontSize: Typography.sizes.subtitle,
+    lineHeight: Math.round(Typography.sizes.subtitle * Typography.lineHeights.snug),
   },
 
   textDisabled: {

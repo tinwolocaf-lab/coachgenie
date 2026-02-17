@@ -1,19 +1,26 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity, StyleProp } from 'react-native';
+import { View, StyleSheet, ViewStyle, TouchableOpacity, StyleProp, Platform } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   withSpring,
   useSharedValue,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Spacing, Shadows, Timing } from '@/constants/theme';
 import { useThemeSafe } from '@/contexts/ThemeContext';
 
-interface CardProps {
+export interface CardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   variant?: 'default' | 'elevated' | 'outlined' | 'glass' | 'gold';
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  haptic?: boolean;
+  disabled?: boolean;
+  androidHapticType?: Haptics.AndroidHaptics;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  testID?: string;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -24,6 +31,12 @@ export function Card({
   onPress,
   variant = 'default',
   padding = 'md',
+  haptic = false,
+  disabled = false,
+  androidHapticType = Haptics.AndroidHaptics.Context_Click,
+  accessibilityLabel,
+  accessibilityHint,
+  testID,
 }: CardProps) {
   const { palette } = useThemeSafe();
   const scale = useSharedValue(1);
@@ -33,7 +46,7 @@ export function Card({
   }));
 
   const handlePressIn = () => {
-    if (onPress) {
+    if (onPress && !disabled) {
       scale.value = withSpring(0.98, Timing.springGentle);
     }
   };
@@ -112,6 +125,7 @@ export function Card({
     { backgroundColor: palette.cardBg, borderRadius: palette.cardRadius },
     getVariantStyle(),
     getPaddingStyle(),
+    disabled && styles.disabled,
     style,
   ];
 
@@ -119,10 +133,30 @@ export function Card({
     return (
       <AnimatedTouchable
         style={[cardStyles, animatedStyle]}
-        onPress={onPress}
+        onPress={() => {
+          if (disabled) return;
+          if (haptic) {
+            if (Platform.OS === 'android') {
+              void Haptics.performAndroidHapticsAsync(androidHapticType).catch(() => {
+                // Ignore haptic failures to keep interaction responsive.
+              });
+            } else {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+                // Ignore haptic failures to keep interaction responsive.
+              });
+            }
+          }
+          onPress();
+        }}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={1}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
+        accessibilityState={{ disabled }}
+        testID={testID}
       >
         {children}
       </AnimatedTouchable>
@@ -135,6 +169,9 @@ export function Card({
 const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
+  },
+  disabled: {
+    opacity: 0.6,
   },
 });
 

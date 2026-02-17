@@ -2,7 +2,44 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders, handleOptions } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
 import { createServiceClient } from '../_shared/supabase.ts';
-import { extractOpenRouterMessageContent, openRouterChat } from '../_shared/openrouter.ts';
+import {
+  extractOpenRouterMessageContent,
+  getDefaultOpenRouterJsonModel,
+  openRouterChat,
+} from '../_shared/openrouter.ts';
+
+const DEFAULT_JSON_MODEL = getDefaultOpenRouterJsonModel();
+
+const PATTERN_LABEL_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    mood_trend: {
+      type: 'string',
+      enum: ['improving', 'stable', 'declining'],
+    },
+    energy_level: {
+      type: 'string',
+      enum: ['high', 'medium', 'low'],
+    },
+    primary_blockers: {
+      type: 'array',
+      items: { type: 'string' },
+      maxItems: 3,
+    },
+    emotional_themes: {
+      type: 'array',
+      items: { type: 'string' },
+      maxItems: 3,
+    },
+    confidence_level: {
+      type: 'number',
+      minimum: 0,
+      maximum: 1,
+    },
+  },
+  required: ['mood_trend', 'energy_level', 'primary_blockers', 'emotional_themes', 'confidence_level'],
+  additionalProperties: false,
+};
 
 serve(async (request) => {
   const optionsResponse = handleOptions(request);
@@ -184,7 +221,7 @@ async function labelWithLLM(messages: string[]): Promise<Record<string, unknown>
 
   try {
     const response = await openRouterChat({
-      model: 'google/gemini-2.5-flash',
+      model: DEFAULT_JSON_MODEL,
       messages: [
         {
           role: 'system',
@@ -201,7 +238,14 @@ async function labelWithLLM(messages: string[]): Promise<Record<string, unknown>
       ],
       max_tokens: 300,
       temperature: 0,
-      response_format: { type: 'json_object' },
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'pattern_labels',
+          strict: true,
+          schema: PATTERN_LABEL_SCHEMA,
+        },
+      },
     });
 
     if (!response.ok) return {};
